@@ -1,2 +1,2 @@
 pub mod etcd;
-pub mod manifests;
+pub mod documents;

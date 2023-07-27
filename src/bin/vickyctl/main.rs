@@ -2,8 +2,8 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use etcd_client::Client;
 use serde_yaml::to_string;
-use vickylib::manifests::NodeManifest;
-use std::{env, fs, thread};
+use vickylib::documents::DeviceManifest;
+use std::{fs};
 
 
 #[derive(Subcommand)]
@@ -43,24 +43,24 @@ struct Args {
 async fn main() -> Result<()> {
     let args = Args::parse();
 
-    let mut client = Client::connect(["localhost:2379"], None).await?;
+    let mut client = Client::connect(["127.0.0.1:2379"], None).await?;
 
 
     match args.command {
         Commands::Node(args) => match args.node_commands {
             NodeCommands::Apply { path } => {
                 let yaml = fs::read_to_string(path).unwrap();
-                let node_manifest: NodeManifest = serde_yaml::from_str(&yaml)?;
+                let node_manifest: DeviceManifest = serde_yaml::from_str(&yaml)?;
                 let node_manifest_string = to_string(&node_manifest)?;
 
-                let node_key = format!("vicky.wobcom.de/node/{}", node_manifest.name);
+                let node_key = format!("vicky.wobcom.de/node/manifest/{}", node_manifest.name);
                 client.put(node_key, node_manifest_string, None).await?;
             },
             NodeCommands::Delete { path } => {
                 let yaml = fs::read_to_string(path).unwrap();
-                let node_manifest: NodeManifest = serde_yaml::from_str(&yaml)?;
+                let node_manifest: DeviceManifest = serde_yaml::from_str(&yaml)?;
 
-                let node_key = format!("vicky.wobcom.de/node/{}", node_manifest.name);
+                let node_key = format!("vicky.wobcom.de/node/manifest/{}", node_manifest.name);
                 client.delete(node_key, None).await?;
             },
         }

@@ -1,0 +1,3 @@
+name: router02
+device_type: "dummy"
+ipv4: "198.51.100.23"

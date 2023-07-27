@@ -41,7 +41,7 @@
     devShells.default = pkgs.mkShell {
       name = "rucli-shell";
       RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
-      nativeBuildInputs = with pkgs; [ rustc cargo rustfmt pkg-config protobuf ];
+      nativeBuildInputs = with pkgs; [ rustc clippy cargo rustfmt pkg-config protobuf ];
       buildInputs = with pkgs; [ openssl ];
     };
   });
