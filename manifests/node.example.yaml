@@ -1,3 +1,7 @@
 name: router01
 device_type: "dummy"
+
+current_configuration: vicky-configs/3dae91e3-5907-478b-90f1-8d15a00d0e44.tar
+target_configuration: vicky-configs/9651bfab-da37-4d7c-b253-c2cadead17a7.tar
+
 ipv4: "198.51.100.42"

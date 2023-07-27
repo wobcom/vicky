@@ -7,13 +7,20 @@ trait DeviceHealthchecker {
     fn get_device_health(&self, device: &DeviceManifest) -> Result<DeviceHealth>;
 }
 
+
+/**
+ * DummyHealthchecker is - as named - a dummy implementation. 
+ * Those are scattered around the application and should work together.
+ * There are no real devices involved.
+ */
 pub struct DummyHealthchecker {
 
 }
 
 impl DeviceHealthchecker for DummyHealthchecker {
-    fn get_device_health(&self, _device: &DeviceManifest) -> Result<DeviceHealth> {
+    fn get_device_health(&self, device: &DeviceManifest) -> Result<DeviceHealth> {
         Ok(DeviceHealth {
+            name: device.name.clone(),
             status: DeviceHealthEnum::Operational,
             info: vec![],
             warnings: vec![],
@@ -21,6 +28,20 @@ impl DeviceHealthchecker for DummyHealthchecker {
         })
     }
 }
+
+/**
+ * Healthchecker maintains a record over the "externally monitored" state of a node.
+ * A node should be reachable at all times and also should have a high CPU, memory or storage load.
+ * This would lead to a non-operational state which can be taken into account within the operator.
+ * 
+ * We need to implement a special health checker for each and every device type. 
+ * Therefore a NixOS machine has other needs than a Junos router and it also gets queried in a different way.
+ * We try to create a uniform, displayable API for a future front end later on.
+ * 
+ * Currently, we create a new DeviceHealthchecker instance for each device type, not for every device.
+ * Therefore the user only gets a shared reference which only should 
+ * be used to read possible informations from the DeviceHealthchecker.
+ */
 
 pub struct Healthchecker {
     kv_client: KvClient,

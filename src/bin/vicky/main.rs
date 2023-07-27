@@ -6,6 +6,7 @@ use vickylib::etcd::election::{NodeId, Election};
 use std::{thread, time};
 
 mod healthchecker;
+mod operator;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -25,9 +26,12 @@ async fn main() -> anyhow::Result<()> {
     info!("Leader election won, we are now the leader!");
 
     let mut hs = healthchecker::Healthchecker::new(&client);
+    let mut op = operator::Operator::new(&client);
 
     loop {
         hs.check_nodes().await?;
+
+        op.evaluate_tasks().await?;
         thread::sleep(time::Duration::from_secs(10))
     }
 

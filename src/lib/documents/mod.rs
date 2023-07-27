@@ -20,7 +20,11 @@ pub enum DeviceTypeEnum {
 pub struct DeviceManifest {
     pub name: String,
 
-    pub device_type: DeviceTypeEnum,  
+    pub device_type: DeviceTypeEnum, 
+
+    pub current_configuration: String,
+    pub target_configuration: String,
+    
     pub ipv4: IpAddr,
 }
 
@@ -36,6 +40,7 @@ pub enum DeviceHealthEnum {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct DeviceHealth {
+    pub name: String,
 
     pub status: DeviceHealthEnum,
 
