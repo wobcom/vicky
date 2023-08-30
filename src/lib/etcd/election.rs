@@ -37,8 +37,8 @@ impl Election {
     pub fn new(c: &Client, node_id: NodeId) -> Election {
         let m = Mutex::new(LeaseState::NoLease);
 
-        let lease_client = c.lease_client();
-        let election_client = c.election_client();
+        let lease_client = c.lease_client().clone();
+        let election_client = c.election_client().clone();
 
         Election {
             lease_client,
@@ -97,6 +97,8 @@ impl Election {
 
         let mut lease_client = self.lease_client.clone();
 
+
+        // tokio does some funky stuff here, it blocks the requests sometimes.
         tokio::spawn(async move {
             loop {
                 {

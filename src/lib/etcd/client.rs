@@ -27,10 +27,10 @@ pub trait ClientExt {
         key: String,
         options: Option<GetOptions>,
     ) -> Result<Option<T>, ClientError>;
-    async fn put_yaml<T: Serialize + Send>(
+    async fn put_yaml<T: Serialize + Send + Sync>(
         &mut self,
         key: String,
-        elem: T,
+        elem: &T,
         options: Option<PutOptions>,
     ) -> Result<(), ClientError>;
 }
@@ -61,20 +61,24 @@ impl ClientExt for KvClient {
         options: Option<GetOptions>,
     ) -> Result<Option<T>, ClientError> {
         let mut list: Vec<T> = self.get_yaml_list(key, options).await?;
-        assert_eq!(list.len(), 1);
+        assert!(list.len() <= 1, "list had too many entries");
+
+        if list.len() == 0 {
+            return Ok(None);
+        }
 
         let out = list.remove(0);
 
         Ok(Some(out))
     }
 
-    async fn put_yaml<T: Serialize + Send>(
+    async fn put_yaml<T: Serialize + Send + Sync>(
         &mut self,
         key: String,
-        elem: T,
+        elem: &T,
         options: Option<PutOptions>,
     ) -> Result<(), ClientError> {
-        let yaml_str = serde_yaml::to_string(&elem)?;
+        let yaml_str = serde_yaml::to_string(elem)?;
         self.put(key, yaml_str, options).await?;
         return Ok(());
     }

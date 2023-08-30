@@ -1,12 +1,16 @@
+#[macro_use] extern crate rocket;
+
 use etcd_client::{Client};
 use log::info;
 
 use rand::Rng;
+use rocket::routes;
 use vickylib::etcd::election::{NodeId, Election};
-use std::{thread, time};
 
-mod healthchecker;
-mod operator;
+use crate::routes::{tasks_claim, tasks_finish, tasks_get, tasks_add};
+
+mod routes;
+mod errors;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -25,14 +29,12 @@ async fn main() -> anyhow::Result<()> {
     election.elect().await?;
     info!("Leader election won, we are now the leader!");
 
-    let mut hs = healthchecker::Healthchecker::new(&client);
-    let mut op = operator::Operator::new(&client);
 
-    loop {
-        hs.check_nodes().await?;
+    let _rocket = rocket::build()
+        .manage(client)
+        .mount("/api/v1/tasks", routes![tasks_get, tasks_claim, tasks_finish, tasks_add])
+        .launch()
+        .await?;
 
-        op.evaluate_tasks().await?;
-        thread::sleep(time::Duration::from_secs(10))
-    }
-
+    Ok(())
 }

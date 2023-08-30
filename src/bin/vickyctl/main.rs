@@ -6,28 +6,12 @@ use etcd_client::Client;
 use serde_yaml::to_string;
 use uuid::Uuid;
 use std::{fs, path::Path};
-use vickylib::documents::DeviceManifest;
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Project commands
-    #[clap(name = "node")]
-    Node(Node),
 
     #[clap(name = "config-bundle")]
     ConfigBundle(ConfigBundle),
-}
-
-#[derive(Parser)]
-pub struct Node {
-    #[structopt(subcommand)]
-    pub node_commands: NodeCommands,
-}
-
-#[derive(Subcommand)]
-pub enum NodeCommands {
-    Apply { path: String },
-    Delete { path: String },
 }
 
 #[derive(Parser)]
@@ -100,26 +84,7 @@ async fn main() -> Result<()> {
 
             },
         }
-        
-        Commands::Node(args) => match args.node_commands {
-            NodeCommands::Apply { path } => {
-                let yaml = fs::read_to_string(path).unwrap();
-                let node_manifest: DeviceManifest = serde_yaml::from_str(&yaml)?;
-                let node_manifest_string = to_string(&node_manifest)?;
-
-                let node_key = format!("vicky.wobcom.de/node/manifest/{}", node_manifest.name);
-                etcd_client
-                    .put(node_key, node_manifest_string, None)
-                    .await?;
-            }
-            NodeCommands::Delete { path } => {
-                let yaml = fs::read_to_string(path).unwrap();
-                let node_manifest: DeviceManifest = serde_yaml::from_str(&yaml)?;
-
-                let node_key = format!("vicky.wobcom.de/node/manifest/{}", node_manifest.name);
-                etcd_client.delete(node_key, None).await?;
-            }
-        },
+     
     }
 
     Ok(())
