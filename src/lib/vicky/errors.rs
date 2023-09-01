@@ -53,12 +53,9 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for VickyError {
         // log `self` to your favored error tracker, e.g.
         // sentry::capture_error(&self);
 
-        match self {
-            // in our simplistic example, we're happy to respond with the default 500 responder in all cases 
-            _ => {
-                error!("Error: {}", self);
-                Status::InternalServerError.respond_to(req)
-            }
+        {
+            error!("Error: {}", self);
+            Status::InternalServerError.respond_to(req)
         }
     }
 }
