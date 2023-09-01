@@ -80,7 +80,8 @@ impl DocumentClient for etcd_client::Client {
 
     async fn put_task(&self, task: &Task) -> Result<(), VickyError> {
         let mut kv = self.kv_client();
-        kv.put_yaml(task.id.to_string(), &task, None).await?;
+        let key = format!("vicky.wobcom.de/task/manifest/{}", task.id);
+        kv.put_yaml(key, &task, None).await?;
         Ok(())
     }
 }
