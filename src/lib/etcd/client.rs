@@ -5,15 +5,7 @@ use etcd_client::{
 use serde::de::DeserializeOwned;
 use serde::{Serialize};
 
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum ClientError {
-    #[error("Failed to interact with etcd")]
-    EtcdError(#[from] etcd_client::Error),
-    #[error("Failed to parse yaml")]
-    YamlError(#[from] serde_yaml::Error),
-}
+use crate::vicky::errors::VickyError;
 
 #[async_trait]
 pub trait ClientExt {
@@ -21,18 +13,18 @@ pub trait ClientExt {
         &mut self,
         key: String,
         options: Option<GetOptions>,
-    ) -> Result<Vec<T>, ClientError>;
+    ) -> Result<Vec<T>, VickyError>;
     async fn get_yaml<T: DeserializeOwned>(
         &mut self,
         key: String,
         options: Option<GetOptions>,
-    ) -> Result<Option<T>, ClientError>;
+    ) -> Result<Option<T>, VickyError>;
     async fn put_yaml<T: Serialize + Send + Sync>(
         &mut self,
         key: String,
         elem: &T,
         options: Option<PutOptions>,
-    ) -> Result<(), ClientError>;
+    ) -> Result<(), VickyError>;
 }
 
 #[async_trait]
@@ -41,7 +33,7 @@ impl ClientExt for KvClient {
         &mut self,
         key: String,
         options: Option<GetOptions>,
-    ) -> Result<Vec<T>, ClientError> {
+    ) -> Result<Vec<T>, VickyError> {
         let get_resp = self.get(key, options).await?;
         let x = get_resp.kvs();
 
@@ -59,11 +51,11 @@ impl ClientExt for KvClient {
         &mut self,
         key: String,
         options: Option<GetOptions>,
-    ) -> Result<Option<T>, ClientError> {
+    ) -> Result<Option<T>, VickyError> {
         let mut list: Vec<T> = self.get_yaml_list(key, options).await?;
         assert!(list.len() <= 1, "list had too many entries");
 
-        if list.len() == 0 {
+        if list.is_empty() {
             return Ok(None);
         }
 
@@ -77,7 +69,7 @@ impl ClientExt for KvClient {
         key: String,
         elem: &T,
         options: Option<PutOptions>,
-    ) -> Result<(), ClientError> {
+    ) -> Result<(), VickyError> {
         let yaml_str = serde_yaml::to_string(elem)?;
         self.put(key, yaml_str, options).await?;
         return Ok(());

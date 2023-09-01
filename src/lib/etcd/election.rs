@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::{thread, time};
 use tokio::sync::Mutex;
 
-use super::client::{ClientError};
+use crate::vicky::errors::VickyError;
 
 const ELECTION_NAME: &str = "vicky.wobcom.de/leader-election";
 
@@ -37,8 +37,8 @@ impl Election {
     pub fn new(c: &Client, node_id: NodeId) -> Election {
         let m = Mutex::new(LeaseState::NoLease);
 
-        let lease_client = c.lease_client().clone();
-        let election_client = c.election_client().clone();
+        let lease_client = c.lease_client();
+        let election_client = c.election_client();
 
         Election {
             lease_client,
@@ -50,7 +50,7 @@ impl Election {
         }
     }
 
-    pub async fn elect(&mut self) -> Result<(), ClientError> {
+    pub async fn elect(&mut self) -> Result<(), VickyError> {
         self.state = ElectionState::Waiting;
 
         let resp = self.lease_client.grant(10, None).await?;

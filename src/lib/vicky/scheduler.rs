@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
-use vickylib::documents::{Task, Lock, TaskStatus};
+use log::debug;
 
-use crate::errors::SchedulerError;
+use crate::documents::{Lock, Task, TaskStatus};
+
+use super::errors::SchedulerError;
+
 
 type Constraints = HashMap<String, LockSum>;
 
@@ -18,14 +21,14 @@ trait ConstraintMgmt {
 impl ConstraintMgmt for Constraints {
 
     fn get_map_key(lock: &Lock) -> &String {
-        return match lock {
+        match lock {
             Lock::WRITE { object } => {
                 object                    
             },
             Lock::READ { object } => {
                 object 
             },
-        };
+        }
     }
 
     fn get_mut_lock_sum(&mut self, lock: &Lock) -> Option<&mut LockSum> {
@@ -42,12 +45,12 @@ impl ConstraintMgmt for Constraints {
         match self.get_mut_lock_sum(lock) {
             Some(c) => {
                 debug!("Found existing LockSum {:?}", lock);
-                c.add_lock(&lock)?;
+                c.add_lock(lock)?;
             },
             None => {
                 debug!("Found no LockSum");
                 let object = Constraints::get_map_key(lock);
-                self.insert(object.clone(), LockSum::from_lock(&lock));
+                self.insert(object.clone(), LockSum::from_lock(lock));
             },
         }
 
@@ -65,14 +68,14 @@ struct LockSum {
 
 impl LockSum {
     pub fn from_lock(lock: &Lock) -> LockSum {
-        return LockSum { lock: lock.clone(), count: 1 }
+        LockSum { lock: lock.clone(), count: 1 }
     }
 
     pub fn can_add_lock(&self, lock: &Lock) -> bool {
         match (&self.lock, lock) {
-            (Lock::WRITE { object }, Lock::WRITE { object: object2 }) => false,
-            (Lock::WRITE { object }, Lock::READ { object: object2 }) => false,
-            (Lock::READ { object }, Lock::WRITE { object: object2 }) => false,
+            (Lock::WRITE { object: _ }, Lock::WRITE { object: _ }) => false,
+            (Lock::WRITE { object: _ }, Lock::READ { object: _ }) => false,
+            (Lock::READ { object: _ }, Lock::WRITE { object: _ }) => false,
             (Lock::READ { object }, Lock::READ { object: object2 }) => object == object2,
         }
     }
@@ -87,7 +90,7 @@ impl LockSum {
         match lock {
             Lock::READ { object: _ } => {
                 self.count += 1;
-                return Ok(())
+                Ok(())
             },
             _ => unreachable!()
         }
@@ -123,7 +126,7 @@ impl Scheduler {
             tasks,
         };
 
-        return Ok(s);
+        Ok(s)
     }
 
 
@@ -137,10 +140,10 @@ impl Scheduler {
             let mut has_conflicts = false;
 
             for lock in &task.locks {
-                let lock_sum = self.constraints.get_lock_sum(&lock);
+                let lock_sum = self.constraints.get_lock_sum(lock);
                 match lock_sum {
                     Some(ls) => {
-                        if !ls.can_add_lock(&lock) {
+                        if !ls.can_add_lock(lock) {
                             has_conflicts = true;
                         }
                     },
@@ -153,7 +156,7 @@ impl Scheduler {
             }
         }
 
-        return None;
+        None
 
     }    
 }
@@ -162,7 +165,8 @@ impl Scheduler {
 #[cfg(test)]
 mod tests {
     use uuid::Uuid;
-    use vickylib::documents::{Task, TaskStatus, FlakeRef, Lock};
+
+    use crate::documents::{TaskStatus, Task, FlakeRef, Lock};
 
     use super::Scheduler;
 

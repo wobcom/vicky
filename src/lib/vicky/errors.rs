@@ -1,31 +1,35 @@
-use rocket::{response::Responder, Request, Response, http::Status};
+use log::error;
+use rocket::{response::Responder, Request, http::Status};
 use thiserror::Error;
-use vickylib::etcd::client::ClientError;
-use uuid;
 
 #[derive(Error, Debug)]
-pub enum Error {
-    #[error("HTTP Error {source:?}")]
+pub enum VickyError {
+    #[error("serde_json Error {source:?}")]
     SerdeJson {
         #[from] source: serde_json::Error,
     },
+
+    #[error("serde_yaml Error {source:?}")]
+    SerdeYaml {
+        #[from] source: serde_yaml::Error,
+    },
     #[error("etcd Error {source:?}")]
-    ClientError {
-        #[from] source: ClientError,
+    EtcdClient {
+        #[from] source: etcd_client::Error,
     },
 
     #[error("uuid Error {source:?}")]
-    UuidError {
+    Uuid {
         #[from] source: uuid::Error,
     },
 
     #[error("HTTP Error {source:?}")]
-    HTTPError {
+    Http {
         #[from] source: HTTPError,
     },
 
     #[error("Scheduling Error {source:?}")]
-    SchedulerError {
+    Scheduler {
         #[from] source: SchedulerError,
     }
 }
@@ -44,7 +48,7 @@ pub enum SchedulerError {
 
 
 
-impl<'r, 'o: 'r> Responder<'r, 'o> for Error {
+impl<'r, 'o: 'r> Responder<'r, 'o> for VickyError {
     fn respond_to(self, req: &'r Request<'_>) -> rocket::response::Result<'o> {
         // log `self` to your favored error tracker, e.g.
         // sentry::capture_error(&self);

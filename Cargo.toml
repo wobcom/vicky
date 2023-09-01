@@ -27,10 +27,6 @@ rocket = { version="=0.5.0-rc.3", features = ["json"] }
 name = "vicky"
 path = "src/bin/vicky/main.rs"
 
-[[bin]]
-name = "vickyctl"
-path = "src/bin/vickyctl/main.rs"
-
 [lib]
 name = "vickylib"
 path = "src/lib/lib.rs"
