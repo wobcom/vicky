@@ -11,6 +11,7 @@ use crate::routes::{tasks_claim, tasks_finish, tasks_get, tasks_add};
 
 mod routes;
 mod errors;
+mod scheduler;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

@@ -22,6 +22,11 @@ pub enum Error {
     #[error("HTTP Error {source:?}")]
     HTTPError {
         #[from] source: HTTPError,
+    },
+
+    #[error("Scheduling Error {source:?}")]
+    SchedulerError {
+        #[from] source: SchedulerError,
     }
 }
 
@@ -30,6 +35,13 @@ pub enum HTTPError {
     #[error("Resource Not Found")]
     NotFound
 }
+
+#[derive(Error, Debug)]
+pub enum SchedulerError {
+    #[error("Invalid Scheduling")]
+    GeneralSchedulingError
+}
+
 
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for Error {
