@@ -30,7 +30,8 @@
 
         buildNpmPackage {
           pname = "vicky-dashboard";
-          version = "0.0.0";
+          version =
+            self.shortRev or "dirty-${toString self.lastModifiedDate}";
 
           src = ./dashboard;
 
