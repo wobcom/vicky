@@ -7,12 +7,15 @@
     "start": "parcel",
     "build": "parcel build"
   },
+  "files": [
+    "dist",
+    "pacakge.json",
+    "pacakge-lock.json"
+  ],
   "author": "Johann Wagner <johann.wagner@wobcom>",
   "license": "MIT",
   "dependencies": {
     "axios": "^1.5.0",
-    "install": "^0.13.0",
-    "npm": "^10.1.0",
     "parcel": "^2.9.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

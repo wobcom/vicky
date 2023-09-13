@@ -25,6 +25,27 @@
           buildInputs = [ openssl ];
         }
       ) { };
+      vicky-dashboard = final.callPackage (
+        { lib, stdenv, buildNpmPackage}:
+
+        buildNpmPackage {
+          pname = "vicky-dashboard";
+          version = "0.0.0";
+
+          src = ./dashboard;
+
+          npmDepsHash = "sha256-AyOct5lYq9fapwu8Zo84iYkhqpJzjW1NYUDaS4zvRiA=";
+
+          installPhase = ''
+            runHook preInstall
+
+            mkdir -p $out
+            cp -r dist/* $out
+
+            runHook postInstall
+          '';
+        }
+      ) { };
     };
   } // flake-utils.lib.eachDefaultSystem (system: let
     pkgs = import nixpkgs {
@@ -33,16 +54,17 @@
     };
   in rec {
     packages = {
-      inherit (pkgs) vicky;
+      inherit (pkgs) vicky vicky-dashboard;
       default = packages.vicky;
     };
     legacyPackages = pkgs;
 
     devShells.default = pkgs.mkShell {
-      name = "rucli-shell";
+      name = "vicky-shell";
       RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
       nativeBuildInputs = with pkgs; [ rustc clippy cargo rustfmt pkg-config protobuf ];
       buildInputs = with pkgs; [ openssl ];
     };
+
   });
 }
