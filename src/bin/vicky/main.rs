@@ -1,15 +1,35 @@
 #[macro_use] extern crate rocket;
 
+use std::collections::HashMap;
+
+use auth::User;
 use etcd_client::{Client};
 use log::info;
 
 use rand::Rng;
+use rocket::fairing::AdHoc;
+use rocket::http::CookieJar;
 use rocket::routes;
+use rocket_oauth2::OAuth2;
+use serde::Deserialize;
 use vickylib::etcd::election::{NodeId, Election};
 
-use crate::routes::{tasks_claim, tasks_finish, tasks_get, tasks_add};
+use crate::tasks::{tasks_claim, tasks_finish, tasks_get_machine, tasks_get_user, tasks_add, tasks_get_logs};
+use crate::auth::{github_login, github_callback, logout, GitHubUserInfo};
+use crate::user::{get_user};
 
-mod routes;
+mod tasks;
+mod auth;
+mod user;
+
+
+
+#[derive(Deserialize)]
+struct Config {
+    users: HashMap<String, User>,
+    machines: Vec<String>,
+}
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -31,7 +51,11 @@ async fn main() -> anyhow::Result<()> {
 
     let _rocket = rocket::build()
         .manage(client)
-        .mount("/api/v1/tasks", routes![tasks_get, tasks_claim, tasks_finish, tasks_add])
+        .attach(OAuth2::<GitHubUserInfo>::fairing("github"))
+        .attach(AdHoc::config::<Config>())
+        .mount("/api/v1/user", routes![get_user])
+        .mount("/api/v1/auth", routes![github_login, github_callback, logout])
+        .mount("/api/v1/tasks", routes![tasks_get_machine, tasks_get_user, tasks_claim, tasks_finish, tasks_add, tasks_get_logs])
         .launch()
         .await?;
 

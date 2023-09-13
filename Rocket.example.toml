@@ -1,0 +1,18 @@
+
+
+[default]
+
+machines = [
+    "abc1234"
+]
+
+[default.oauth.github]
+provider = "GitHub"
+client_id = ""
+client_secret = ""
+redirect_uri = "http://localhost:1234/api/auth/callback/github"
+
+
+[default.users.example]
+full_name = "Example"
+role = "example"

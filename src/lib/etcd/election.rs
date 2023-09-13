@@ -113,7 +113,7 @@ impl Election {
                     };
                 }
 
-                thread::sleep(time::Duration::from_secs(5));
+                tokio::time::sleep(time::Duration::from_secs(5)).await;
             }
         });
     }

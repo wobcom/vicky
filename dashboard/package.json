@@ -1,0 +1,29 @@
+{
+  "name": "@wobcom/vicky-dashboard",
+  "version": "0.0.0",
+  "description": "",
+  "source": "src/index.html",
+  "scripts": {
+    "start": "parcel",
+    "build": "parcel build"
+  },
+  "author": "Johann Wagner <johann.wagner@wobcom>",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.5.0",
+    "install": "^0.13.0",
+    "npm": "^10.1.0",
+    "parcel": "^2.9.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.15.0",
+    "rsuite": "^5.39.0",
+    "xterm": "^5.3.0",
+    "xterm-addon-fit": "^0.8.0"
+  },
+  "devDependencies": {
+    "@types/react-dom": "^18.2.7",
+    "buffer": "^6.0.3",
+    "process": "^0.11.10"
+  }
+}
