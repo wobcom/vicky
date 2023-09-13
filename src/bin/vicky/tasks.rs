@@ -1,5 +1,5 @@
 use etcd_client::{Client};
-use rocket::{State, serde::json::Json};
+use rocket::{get, post, State, serde::json::Json};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use vickylib::{documents::{Task, TaskStatus, TaskResult, FlakeRef, Lock, DocumentClient}, vicky::{scheduler::Scheduler, errors::{HTTPError, VickyError}}};
@@ -45,8 +45,8 @@ pub async fn tasks_get_machine(etcd: &State<Client>, _machine: Machine) -> Resul
 
 
 #[get("/<id>/logs")]
-pub async fn tasks_get_logs(id: String, user: User) -> Result<Json<LogLines>, VickyError> {
-    let task_uuid = Uuid::parse_str(&id)?;
+pub async fn tasks_get_logs(id: String, _user: User) -> Result<Json<LogLines>, VickyError> {
+    let _task_uuid = Uuid::parse_str(&id)?;
 
     let test_logs = r#"[1;37m{
     [0m[34;1m"name"[0m[1;37m: [0m[0;32m"v2raya"[0m[1;37m,

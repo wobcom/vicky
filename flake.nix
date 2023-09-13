@@ -1,49 +1,48 @@
 {
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-      };
+  description = "vicky";
+
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/master";
+  inputs.flake-utils.url = "github:numtide/flake-utils";
+
+  outputs = { self, nixpkgs, flake-utils }: {
+    overlays.default = final: prev: {
+      vicky = final.callPackage (
+        { lib, stdenv, rustPlatform, pkg-config, openssl, protobuf }:
+
+        rustPlatform.buildRustPackage {
+          pname = "vicky";
+          version =
+            self.shortRev or "dirty-${toString self.lastModifiedDate}";
+          src = self;
+
+          cargoBuildFlags = lib.optionals (stdenv.hostPlatform.isMusl && stdenv.hostPlatform.isStatic) [ "--features" "mimalloc" ];
+          cargoLock = {
+            lockFile = ./Cargo.lock;
+            allowBuiltinFetchGit = true;
+          };
+
+          nativeBuildInputs = [ pkg-config protobuf ];
+          buildInputs = [ openssl ];
+        }
+      ) { };
     };
-  };
+  } // flake-utils.lib.eachDefaultSystem (system: let
+    pkgs = import nixpkgs {
+      inherit system;
+      overlays = [ self.overlays.default ];
+    };
+  in rec {
+    packages = {
+      inherit (pkgs) vicky;
+      default = packages.vicky;
+    };
+    legacyPackages = pkgs;
 
-  outputs = { self, nixpkgs, rust-overlay, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        overlays = [ (import rust-overlay) ];
-        pkgs = import nixpkgs {
-          inherit system overlays;
-        };
-        lib = pkgs.lib;
-        toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-      in
-      {
-        devShells.default = pkgs.mkShell {
-          name = "vicky";
-          nativeBuildInputs = [
-            pkgs.pkg-config
-            pkgs.clang
-            # Mold Linker for faster builds (only on Linux)
-            (lib.optionals pkgs.stdenv.isLinux pkgs.mold)
-          ];
-          buildInputs = [
-            pkgs.protobuf
-            pkgs.openssl
-            # We want the unwrapped version, wrapped comes with nixpkgs' toolchain
-            pkgs.rust-analyzer-unwrapped
-            # Finally the toolchain
-            toolchain
-          ];
-          packages = [ ];
-
-          # Environment variables
-          RUST_SRC_PATH = "${toolchain}/lib/rustlib/src/rust/library";
-          LD_LIBRARY_PATH = lib.makeLibraryPath [ pkgs.openssl pkgs.gmp ];
-        };
-      }
-    );
+    devShells.default = pkgs.mkShell {
+      name = "rucli-shell";
+      RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
+      nativeBuildInputs = with pkgs; [ rustc clippy cargo rustfmt pkg-config protobuf ];
+      buildInputs = with pkgs; [ openssl ];
+    };
+  });
 }

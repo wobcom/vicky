@@ -1,14 +1,14 @@
-use rocket::{http::CookieJar, serde::json::Json, State};
+use rocket::{get, serde::json::Json};
 use serde::{Serialize, Deserialize};
 use vickylib::vicky::errors::VickyError;
 
-use crate::{Config, auth::User};
+use crate::{auth::User};
 
 
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 
-struct Me {
+pub struct Me {
     full_name: String,
     role: String,
 }

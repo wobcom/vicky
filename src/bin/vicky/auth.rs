@@ -3,10 +3,9 @@ use reqwest::header::{ACCEPT, AUTHORIZATION, USER_AGENT};
 use rocket::http::{Cookie, CookieJar, SameSite};
 use rocket::{request, State};
 use rocket::response::{Debug, Redirect};
-use rocket::{get, routes};
+use rocket::{get};
 use rocket_oauth2::{OAuth2, TokenResponse};
 use serde::Deserialize;
-use serde_json::{self, Value};
 use rocket::http::Status;
 
 use crate::Config;
@@ -135,7 +134,6 @@ pub async fn github_callback(
     // We also check, if the username within the cookie still matches our list later on.
 
     let user = config.users.get(&user_info.login);
-    debug!("Login from {}", user_info.login);
 
     if user.is_some() {
         // Set a private cookie with the user's name, and redirect to the home page.

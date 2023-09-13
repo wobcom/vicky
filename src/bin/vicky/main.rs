@@ -1,5 +1,3 @@
-#[macro_use] extern crate rocket;
-
 use std::collections::HashMap;
 
 use auth::User;
@@ -8,7 +6,6 @@ use log::info;
 
 use rand::Rng;
 use rocket::fairing::AdHoc;
-use rocket::http::CookieJar;
 use rocket::routes;
 use rocket_oauth2::OAuth2;
 use serde::Deserialize;
@@ -25,7 +22,7 @@ mod user;
 
 
 #[derive(Deserialize)]
-struct Config {
+pub struct Config {
     users: HashMap<String, User>,
     machines: Vec<String>,
 }

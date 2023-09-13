@@ -1,7 +1,7 @@
 use etcd_client::{ElectionClient, Client, LeaseClient};
 use log::{debug};
 use std::sync::Arc;
-use std::{thread, time};
+use std::{time};
 use tokio::sync::Mutex;
 
 use crate::vicky::errors::VickyError;
