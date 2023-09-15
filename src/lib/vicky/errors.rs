@@ -1,6 +1,8 @@
+use aws_sdk_s3::{operation::{put_object::PutObjectError, get_object::GetObjectError}, primitives::ByteStreamError};
 use log::error;
 use rocket::{response::Responder, Request, http::Status};
 use thiserror::Error;
+use tokio::sync::broadcast::error::SendError;
 
 #[derive(Error, Debug)]
 pub enum VickyError {
@@ -23,21 +25,23 @@ pub enum VickyError {
         #[from] source: uuid::Error,
     },
 
-    #[error("HTTP Error {source:?}")]
-    Http {
-        #[from] source: HTTPError,
-    },
+    #[error("HTTP Error {0:?}")]
+    HttpError(Status),
 
     #[error("Scheduling Error {source:?}")]
     Scheduler {
         #[from] source: SchedulerError,
-    }
-}
+    },
 
-#[derive(Error, Debug)]
-pub enum HTTPError {
-    #[error("Resource Not Found")]
-    NotFound
+    #[error("Push Error {source:?}")]
+    PushError {
+        #[from] source: SendError<(String, String)>,
+    },
+
+    #[error("S3 Client Error {source:?}")]
+    S3ClientError {
+        #[from] source: S3ClientError,
+    }
 }
 
 #[derive(Error, Debug)]
@@ -47,15 +51,46 @@ pub enum SchedulerError {
 }
 
 
+#[derive(Error, Debug)]
+pub enum S3ClientError {
+    #[error("Object Already Exists")]
+    ObjectAlreadyExistsError,
+
+    #[error(transparent)]
+    SdkError {
+        #[from] source: aws_sdk_s3::Error,
+    },
+
+    #[error(transparent)]
+    SdkPutObjectError {
+        #[from] source: aws_sdk_s3::error::SdkError<PutObjectError>,
+    },
+
+    #[error(transparent)]
+    SdkGetObjectError {
+        #[from] source: aws_sdk_s3::error::SdkError<GetObjectError>,
+    },
+
+    #[error(transparent)]
+    ByteStreamError {
+        #[from] source: ByteStreamError,
+    }
+
+}
+
+
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for VickyError {
     fn respond_to(self, req: &'r Request<'_>) -> rocket::response::Result<'o> {
         // log `self` to your favored error tracker, e.g.
         // sentry::capture_error(&self);
+        error!("Error: {}", self);
 
-        {
-            error!("Error: {}", self);
-            Status::InternalServerError.respond_to(req)
+        match self {
+            Self::HttpError(x) => x.respond_to(req),
+            _ => {
+                Status::InternalServerError.respond_to(req)
+            }
         }
     }
 }

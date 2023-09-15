@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { getAnimationEnd } from "rsuite/esm/DOMHelper";
 import { Terminal as XTerm } from "xterm"
 import { FitAddon } from 'xterm-addon-fit';
@@ -12,23 +12,29 @@ const Terminal = (props: TerminalProps) => {
     const name = useMemo(() => "terminal-" + Math.random().toString(36).substr(2, 8), [])
     const [ref, setRef] = useState<HTMLDivElement | null>(null);
     const [termRef, setTermRef] = useState<XTerm | null>(null);
+    const openEventSource = useRef(false);
 
     const {taskId} = props;
 
     const api = useAPI();
     
     useEffect(() => {
-        if (!termRef) {
+        if (!termRef || openEventSource.current) {
             return
         }
 
-        api.getTaskLogs(taskId).then((x) => {
-            x.lines.forEach(l => {
-                termRef.reset()
-                termRef.write(l + "\r\n")
-            })
-        })
+        console.log("Foo")
+        let evtSource = new EventSource(`/api/tasks/${taskId}/logs`);
+
+        openEventSource.current = true;
+
+        evtSource.onmessage = evt => {
+            termRef.write(evt.data + "\r\n")
+        }
+
     }, [termRef])
+
+
 
 
     useEffect(() => {

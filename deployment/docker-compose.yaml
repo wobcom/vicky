@@ -16,3 +16,14 @@ services:
       - '--initial-cluster=node1=http://127.0.0.1:2380'
     volumes:
         - "./data/etcd_data:/etcd-data"
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - "./data/minio_data:/data"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: aichudiKohr6aithi4ahh3aeng2eL7xo
+    command: server --console-address ":9001" /data

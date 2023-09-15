@@ -2,9 +2,15 @@ use etcd_client::{Client};
 use rocket::{get, post, State, serde::json::Json};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use vickylib::{documents::{Task, TaskStatus, TaskResult, FlakeRef, Lock, DocumentClient}, vicky::{scheduler::Scheduler, errors::{HTTPError, VickyError}}};
+use vickylib::{documents::{Task, TaskStatus, TaskResult, FlakeRef, Lock, DocumentClient}, vicky::{scheduler::Scheduler, errors::{VickyError}}, logs::LogDrain, s3::client::S3Client};
+use rocket::response::stream::{EventStream, Event};
+use std::time;
+use tokio::sync::broadcast::{error::{TryRecvError}};
+use rocket::{http::Status};
+
 
 use crate::auth::{User, Machine};
+
 
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -42,150 +48,75 @@ pub async fn tasks_get_machine(etcd: &State<Client>, _machine: Machine) -> Resul
     Ok(Json(tasks))
 }
 
-
-
 #[get("/<id>/logs")]
-pub async fn tasks_get_logs(id: String, _user: User) -> Result<Json<LogLines>, VickyError> {
-    let _task_uuid = Uuid::parse_str(&id)?;
+pub async fn tasks_get_logs<'a>(id: String, etcd: &State<Client>, s3: &'a State<S3Client>, _user: User, log_drain: &'a State<&'_ LogDrain>) -> EventStream![Event + 'a] {
+    // TODO: Fix Error Handling
+    let task_uuid = Uuid::parse_str(&id).unwrap();
+    let task = etcd.get_task(task_uuid).await.unwrap().ok_or(VickyError::HttpError(Status::NotFound)).unwrap(); 
 
-    let test_logs = r#"[1;37m{
-    [0m[34;1m"name"[0m[1;37m: [0m[0;32m"v2raya"[0m[1;37m,
-    [0m[34;1m"version"[0m[1;37m: [0m[0;32m"0.1.0"[0m[1;37m,
-    [0m[34;1m"private"[0m[1;37m: [0m[0;37mtrue[0m[1;37m,
-    [0m[34;1m"license"[0m[1;37m: [0m[0;32m"GPL-3.0"[0m[1;37m,
-    [0m[34;1m"scripts"[0m[1;37m: [0m[1;37m{
-        [0m[34;1m"serve"[0m[1;37m: [0m[0;32m"vue-cli-service serve"[0m[1;37m,
-        [0m[34;1m"build"[0m[1;37m: [0m[0;32m"vue-cli-service build"[0m[1;37m,
-        [0m[34;1m"lint"[0m[1;37m: [0m[0;32m"vue-cli-service lint"[0m[1;37m
-    [1;37m}[0m[1;37m,
-    [0m[34;1m"dependencies"[0m[1;37m: [0m[1;37m{
-        [0m[34;1m"@mdi/font"[0m[1;37m: [0m[0;32m"^5.8.55"[0m[1;37m,
-        [0m[34;1m"@nuintun/qrcode"[0m[1;37m: [0m[0;32m"^3.3.0"[0m[1;37m,
-        [0m[34;1m"@vue/babel-preset-app"[0m[1;37m: [0m[0;32m"^4.2.2"[0m[1;37m,
-        [0m[34;1m"axios"[0m[1;37m: [0m[0;32m"^0.21.1"[0m[1;37m,
-        [0m[34;1m"buefy"[0m[1;37m: [0m[0;32m"^0.9.22"[0m[1;37m,
-        [0m[34;1m"clipboard"[0m[1;37m: [0m[0;32m"^2.0.4"[0m[1;37m,
-        [0m[34;1m"dayjs"[0m[1;37m: [0m[0;32m"^1.10.6"[0m[1;37m,
-        [0m[34;1m"js-base64"[0m[1;37m: [0m[0;32m"^2.5.1"[0m[1;37m,
-        [0m[34;1m"nanoid"[0m[1;37m: [0m[0;32m"^3.1.23"[0m[1;37m,
-        [0m[34;1m"normalize.css"[0m[1;37m: [0m[0;32m"^8.0.1"[0m[1;37m,
-        [0m[34;1m"pace-js"[0m[1;37m: [0m[0;32m"^1.2.4"[0m[1;37m,
-        [0m[34;1m"qrcode"[0m[1;37m: [0m[0;32m"^1.4.2"[0m[1;37m,
-        [0m[34;1m"register-service-worker"[0m[1;37m: [0m[0;32m"^1.6.2"[0m[1;37m,
-        [0m[34;1m"vue"[0m[1;37m: [0m[0;32m"^2.7.14"[0m[1;37m,
-        [0m[34;1m"vue-i18n"[0m[1;37m: [0m[0;32m"^8.15.3"[0m[1;37m,
-        [0m[34;1m"vue-router"[0m[1;37m: [0m[0;32m"^3.0.6"[0m[1;37m,
-        [0m[34;1m"vue-virtual-scroller"[0m[1;37m: [0m[0;32m"^1.0.10"[0m[1;37m,
-        [0m[34;1m"vuex"[0m[1;37m: [0m[0;32m"^3.0.1"[0m[1;37m,
-        [0m[34;1m"webpack-iconfont-plugin-nodejs"[0m[1;37m: [0m[0;32m"^1.0.16"[0m[1;37m
-    [1;37m}[0m[1;37m,
-    [0m[34;1m"devDependencies"[0m[1;37m: [0m[1;37m{
-        [0m[34;1m"@babel/core"[0m[1;37m: [0m[0;32m"^7.12.16"[0m[1;37m,
-        [0m[34;1m"@babel/eslint-parser"[0m[1;37m: [0m[0;32m"^7.12.16"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-babel"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-eslint"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-router"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-vuex"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-service"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/eslint-config-prettier"[0m[1;37m: [0m[0;32m"^5.0.0"[0m[1;37m,
-        [0m[34;1m"css-loader"[0m[1;37m: [0m[0;32m"^5.2.0"[0m[1;37m,
-        [0m[34;1m"eslint"[0m[1;37m: [0m[0;32m"^7.32.0"[0m[1;37m,
-        [0m[34;1m"eslint-config-prettier"[0m[1;37m: [0m[0;32m"^8.3.0"[0m[1;37m,
-        [0m[34;1m"eslint-plugin-prettier"[0m[1;37m: [0m[0;32m"^4.0.0"[0m[1;37m,
-        [0m[34;1m"eslint-plugin-vue"[0m[1;37m: [0m[0;32m"^8.0.3"[0m[1;37m,
-        [0m[34;1m"highlight.js"[0m[1;37m: [0m[0;32m"^11.4.0"[0m[1;37m,
-        [0m[34;1m"prettier"[0m[1;37m: [0m[0;32m"^2.4.1"[0m[1;37m,
-        [0m[34;1m"sass"[0m[1;37m: [0m[0;32m"^1.19.0"[0m[1;37m,
-        [0m[34;1m"sass-loader"[0m[1;37m: [0m[0;32m"^8.0.0"[0m[1;37m,
-        [0m[34;1m"terser-webpack-plugin"[0m[1;37m: [0m[0;32m"^5.3.6"[0m[1;37m,
-        [0m[34;1m"urijs"[0m[1;37m: [0m[0;32m"^1.19.11"[0m[1;37m
-        [0m[34;1m"@babel/core"[0m[1;37m: [0m[0;32m"^7.12.16"[0m[1;37m,
-        [0m[34;1m"@babel/eslint-parser"[0m[1;37m: [0m[0;32m"^7.12.16"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-babel"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-eslint"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-router"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-vuex"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-service"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/eslint-config-prettier"[0m[1;37m: [0m[0;32m"^5.0.0"[0m[1;37m,
-        [0m[34;1m"css-loader"[0m[1;37m: [0m[0;32m"^5.2.0"[0m[1;37m,
-        [0m[34;1m"eslint"[0m[1;37m: [0m[0;32m"^7.32.0"[0m[1;37m,
-        [0m[34;1m"eslint-config-prettier"[0m[1;37m: [0m[0;32m"^8.3.0"[0m[1;37m,
-        [0m[34;1m"eslint-plugin-prettier"[0m[1;37m: [0m[0;32m"^4.0.0"[0m[1;37m,
-        [0m[34;1m"eslint-plugin-vue"[0m[1;37m: [0m[0;32m"^8.0.3"[0m[1;37m,
-        [0m[34;1m"highlight.js"[0m[1;37m: [0m[0;32m"^11.4.0"[0m[1;37m,
-        [0m[34;1m"prettier"[0m[1;37m: [0m[0;32m"^2.4.1"[0m[1;37m,
-        [0m[34;1m"sass"[0m[1;37m: [0m[0;32m"^1.19.0"[0m[1;37m,
-        [0m[34;1m"sass-loader"[0m[1;37m: [0m[0;32m"^8.0.0"[0m[1;37m,
-        [0m[34;1m"terser-webpack-plugin"[0m[1;37m: [0m[0;32m"^5.3.6"[0m[1;37m,
-        [0m[34;1m"urijs"[0m[1;37m: [0m[0;32m"^1.19.11"[0m[1;37m
-        [0m[34;1m"@babel/core"[0m[1;37m: [0m[0;32m"^7.12.16"[0m[1;37m,
-        [0m[34;1m"@babel/eslint-parser"[0m[1;37m: [0m[0;32m"^7.12.16"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-babel"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-eslint"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-router"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-vuex"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-service"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/eslint-config-prettier"[0m[1;37m: [0m[0;32m"^5.0.0"[0m[1;37m,
-        [0m[34;1m"css-loader"[0m[1;37m: [0m[0;32m"^5.2.0"[0m[1;37m,
-        [0m[34;1m"eslint"[0m[1;37m: [0m[0;32m"^7.32.0"[0m[1;37m,
-        [0m[34;1m"eslint-config-prettier"[0m[1;37m: [0m[0;32m"^8.3.0"[0m[1;37m,
-        [0m[34;1m"eslint-plugin-prettier"[0m[1;37m: [0m[0;32m"^4.0.0"[0m[1;37m,
-        [0m[34;1m"eslint-plugin-vue"[0m[1;37m: [0m[0;32m"^8.0.3"[0m[1;37m,
-        [0m[34;1m"highlight.js"[0m[1;37m: [0m[0;32m"^11.4.0"[0m[1;37m,
-        [0m[34;1m"prettier"[0m[1;37m: [0m[0;32m"^2.4.1"[0m[1;37m,
-        [0m[34;1m"sass"[0m[1;37m: [0m[0;32m"^1.19.0"[0m[1;37m,
-        [0m[34;1m"sass-loader"[0m[1;37m: [0m[0;32m"^8.0.0"[0m[1;37m,
-        [0m[34;1m"terser-webpack-plugin"[0m[1;37m: [0m[0;32m"^5.3.6"[0m[1;37m,
-        [0m[34;1m"urijs"[0m[1;37m: [0m[0;32m"^1.19.11"[0m[1;37m
-        [0m[34;1m"@babel/core"[0m[1;37m: [0m[0;32m"^7.12.16"[0m[1;37m,
-        [0m[34;1m"@babel/eslint-parser"[0m[1;37m: [0m[0;32m"^7.12.16"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-babel"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-eslint"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-router"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-vuex"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-service"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/eslint-config-prettier"[0m[1;37m: [0m[0;32m"^5.0.0"[0m[1;37m,
-        [0m[34;1m"css-loader"[0m[1;37m: [0m[0;32m"^5.2.0"[0m[1;37m,
-        [0m[34;1m"eslint"[0m[1;37m: [0m[0;32m"^7.32.0"[0m[1;37m,
-        [0m[34;1m"eslint-config-prettier"[0m[1;37m: [0m[0;32m"^8.3.0"[0m[1;37m,
-        [0m[34;1m"eslint-plugin-prettier"[0m[1;37m: [0m[0;32m"^4.0.0"[0m[1;37m,
-        [0m[34;1m"eslint-plugin-vue"[0m[1;37m: [0m[0;32m"^8.0.3"[0m[1;37m,
-        [0m[34;1m"highlight.js"[0m[1;37m: [0m[0;32m"^11.4.0"[0m[1;37m,
-        [0m[34;1m"prettier"[0m[1;37m: [0m[0;32m"^2.4.1"[0m[1;37m,
-        [0m[34;1m"sass"[0m[1;37m: [0m[0;32m"^1.19.0"[0m[1;37m,
-        [0m[34;1m"sass-loader"[0m[1;37m: [0m[0;32m"^8.0.0"[0m[1;37m,
-        [0m[34;1m"terser-webpack-plugin"[0m[1;37m: [0m[0;32m"^5.3.6"[0m[1;37m,
-        [0m[34;1m"urijs"[0m[1;37m: [0m[0;32m"^1.19.11"[0m[1;37m
-        [0m[34;1m"@babel/core"[0m[1;37m: [0m[0;32m"^7.12.16"[0m[1;37m,
-        [0m[34;1m"@babel/eslint-parser"[0m[1;37m: [0m[0;32m"^7.12.16"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-babel"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-eslint"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-router"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-plugin-vuex"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/cli-service"[0m[1;37m: [0m[0;32m"~5.0.8"[0m[1;37m,
-        [0m[34;1m"@vue/eslint-config-prettier"[0m[1;37m: [0m[0;32m"^5.0.0"[0m[1;37m,
-        [0m[34;1m"css-loader"[0m[1;37m: [0m[0;32m"^5.2.0"[0m[1;37m,
-        [0m[34;1m"eslint"[0m[1;37m: [0m[0;32m"^7.32.0"[0m[1;37m,
-        [0m[34;1m"eslint-config-prettier"[0m[1;37m: [0m[0;32m"^8.3.0"[0m[1;37m,
-        [0m[34;1m"eslint-plugin-prettier"[0m[1;37m: [0m[0;32m"^4.0.0"[0m[1;37m,
-        [0m[34;1m"eslint-plugin-vue"[0m[1;37m: [0m[0;32m"^8.0.3"[0m[1;37m,
-        [0m[34;1m"highlight.js"[0m[1;37m: [0m[0;32m"^11.4.0"[0m[1;37m,
-        [0m[34;1m"prettier"[0m[1;37m: [0m[0;32m"^2.4.1"[0m[1;37m,
-        [0m[34;1m"sass"[0m[1;37m: [0m[0;32m"^1.19.0"[0m[1;37m,
-        [0m[34;1m"sass-loader"[0m[1;37m: [0m[0;32m"^8.0.0"[0m[1;37m,
-        [0m[34;1m"terser-webpack-plugin"[0m[1;37m: [0m[0;32m"^5.3.6"[0m[1;37m,
-        [0m[34;1m"urijs"[0m[1;37m: [0m[0;32m"^1.19.11"[0m[1;37m
-    [1;37m}[0m[1;37m
-[1;37m}[0m[1;37m
-    "#;
 
-    let lines = LogLines{
-        lines: test_logs.split('\n').map(ToString::to_string).collect(), 
-    };
-    
-    Ok(Json(lines))
+    EventStream! {
+
+        match task.status {
+            TaskStatus::NEW => {},
+            TaskStatus::RUNNING => {
+                let mut recv = log_drain.send_handle.subscribe();
+                let existing_log_messages = log_drain.get_logs(task_uuid.to_string()).await.unwrap();
+
+                for element in existing_log_messages {
+                    yield Event::data(element)
+                }
+                
+                loop {
+                    let read_val = recv.try_recv();
+        
+                    match read_val {
+                        Ok((task_id, log_text)) => {
+                            if task_id == id {
+                                yield Event::data(log_text)
+                            }
+                        },
+                        Err(TryRecvError::Closed) => {
+                            break;
+                        },
+                        Err(TryRecvError::Lagged(_)) => {
+                            // Immediate Retry, doing our best efford ehre.
+                        },
+                        Err(TryRecvError::Empty) => {
+                            tokio::time::sleep(time::Duration::from_millis(100)).await;
+                        },
+                    }
+                }
+            },
+            TaskStatus::FINISHED(_) => {
+                let logs = s3.get_logs(&id).await.unwrap();
+                for element in logs {
+                    yield Event::data(element)
+                }
+                loop {
+                    tokio::time::sleep(time::Duration::from_millis(100)).await;
+                }
+            },
+        }
+        
+    }
 }
 
+#[post("/<id>/logs", format = "json", data = "<logs>")]
+pub async fn tasks_put_logs(id: String, etcd: &State<Client>, logs: Json<LogLines>, _machine: Machine, log_drain: &State<&LogDrain>) ->  Result<Json<()>, VickyError> {
+    let task_uuid = Uuid::parse_str(&id)?;
+    let task = etcd.get_task(task_uuid).await?.ok_or(VickyError::HttpError(Status::NotFound))?; 
+
+    match task.status {
+        TaskStatus::RUNNING => {
+            log_drain.push_logs(id, logs.lines.clone())?;
+            Ok(Json(()))
+        },
+        _ => {
+            Err(VickyError::HttpError(Status::Locked))?
+        }
+    }
+}
 
 #[post("/claim")]
 pub async fn tasks_claim(etcd: &State<Client>, _machine: Machine) ->  Result<Json<Option<Task>>, VickyError> {
@@ -195,30 +126,26 @@ pub async fn tasks_claim(etcd: &State<Client>, _machine: Machine) ->  Result<Jso
 
     match next_task {
         Some(next_task) => {
-            let mut task = etcd.get_task(next_task.id).await?.ok_or(HTTPError::NotFound)?;
+            let mut task = etcd.get_task(next_task.id).await?.ok_or(VickyError::HttpError(Status::NotFound))?; 
             task.status = TaskStatus::RUNNING;
             etcd.put_task(&task).await?;
             Ok(Json(Some(task)))
         },
         None => Ok(Json(None)),
     }
-
-   
 }
 
-
-
-
 #[post("/<id>/finish", format = "json", data = "<finish>")]
-pub async fn tasks_finish(id: String, finish: Json<RoTaskFinish>, etcd: &State<Client>, _machine: Machine) ->  Result<Json<Task>, VickyError> {
+pub async fn tasks_finish(id: String, finish: Json<RoTaskFinish>, etcd: &State<Client>, _machine: Machine, log_drain: &State<&LogDrain>) ->  Result<Json<Task>, VickyError> {
     let task_uuid = Uuid::parse_str(&id)?;
-    let mut task = etcd.get_task(task_uuid).await?.ok_or(HTTPError::NotFound)?; 
+    let mut task = etcd.get_task(task_uuid).await?.ok_or(VickyError::HttpError(Status::NotFound))?; 
+
+    log_drain.finish_logs(&id).await?;
+
     task.status = TaskStatus::FINISHED(finish.result.clone());
     etcd.put_task(&task).await?;
     Ok(Json(task))
 }
-
-
 
 #[post("/", data = "<task>")]
 pub async fn tasks_add(task: Json<RoTaskNew>, etcd: &State<Client>, _machine: Machine) -> Result<Json<RoTask>, VickyError> {
@@ -240,5 +167,4 @@ pub async fn tasks_add(task: Json<RoTaskNew>, etcd: &State<Client>, _machine: Ma
     };
 
     Ok(Json(ro_task))
-
 }
