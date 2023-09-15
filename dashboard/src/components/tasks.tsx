@@ -1,18 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom"
 import { Col, Grid, List, Panel, Row, Stack, Tag } from "rsuite"
-import { useAPI } from "../services/api";
-import { Terminal } from "./xterm"
-
+import { ITask, useAPI } from "../services/api";
 import { Task } from "./task";
-
+import { Terminal } from "./xterm"
 
 const Tasks = () => {
 
     const { taskId } = useParams();
     const api = useAPI();
 
-    const [tasks, setTasks] = useState<any[] | null>(null);
+    const [tasks, setTasks] = useState<ITask[] | null>(null);
     const task = useMemo(() => {
         if (!tasks || !taskId) {
             return null;

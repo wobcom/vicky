@@ -1,14 +1,13 @@
-import { Panel, Stack, Tag } from "rsuite";
-import { Task } from "../services/api"
+import { Badge, Panel, Stack, Tag } from "rsuite";
+import { ITask } from "../services/api"
 import { Terminal } from "./xterm";
 
 import * as s from "./task.module.css";
 import { useMemo } from "react";
 
 type TaskProps = {
-    task: Task
+    task: ITask
 }
-
 
 const Task = (props: TaskProps) => {
     const { task } = props;
@@ -49,12 +48,25 @@ const Task = (props: TaskProps) => {
 
     }, [task])
 
+    console.log(task)
+
     return (
         <Panel shaded bordered>
             <Stack justifyContent="space-between" spacing={20} className={s.titleStack}>
                 <h4>{task.display_name}</h4>
-                <Tag color={tagColor} size="lg">{tagContent}</Tag>
 
+                <Stack spacing={30}>
+                    {
+                        task.locks.map(lock => {
+                            return (
+                                <Badge color={lock.type === "WRITE" ? "red" : "green"} content={lock.type === "WRITE" ? "W" : "R"}>
+                                    <Tag size="lg">{lock.object}</Tag>
+                                </Badge>
+                            )
+                        })
+                    }
+                    <Tag color={tagColor} size="lg">{tagContent}</Tag>
+                </Stack>
             </Stack>
             <Terminal key={task.id} taskId={task.id} />
         </Panel>
