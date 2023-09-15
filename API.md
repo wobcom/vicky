@@ -31,7 +31,7 @@ This API is an JSON API, therefore you need to set `Content-Type` header accordi
 
 ### Create A Task
 
-`POST /api/v1/task` creates a new task.
+`POST /api/v1/tasks` creates a new task.
 
 #### Request
 
@@ -59,7 +59,7 @@ This API is an JSON API, therefore you need to set `Content-Type` header accordi
 
 ### Claim A Task
 
-`POST /api/v1/task/claim` claims the next new task available.
+`POST /api/v1/tasks/claim` claims the next new task available.
 
 #### Response
 
@@ -86,9 +86,26 @@ If there is a new task available, the API will return the following:
 }
 ```
 
+### Log Output To A Task
+
+`POST /api/v1/tasks/<UUID>/logs` claims the next new task available.
+
+```json
+{
+    "lines": [
+        "hallo",
+        "welt"
+    ]
+}
+```
+
+#### Response
+
+It will return `null`, if successful.
+
 ### Finish A Task
 
-`POST /api/v1/task/finish/<UUID>` finishes a task with a certain result.
+`POST /api/v1/tasks/<UUID>/finish` finishes a task with a certain result.
 
 #### Request 
 
