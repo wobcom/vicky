@@ -9,7 +9,7 @@ edition = "2021"
 anyhow = "1.0.72"
 clap = { version = "4.3.17", features = ["derive"] }
 env_logger = "0.10.0"
-etcd-client = "0.11.1"
+etcd-client = { version = "0.11.1", features = ["tls"] }
 log = "0.4.19"
 rand = "0.8.5"
 thiserror = "1.0.43"

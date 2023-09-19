@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use auth::User;
 use aws_sdk_s3::config::{Credentials, Region};
+use etcd_client::{Identity, Certificate, TlsOptions, ConnectOptions};
 use log::info;
 
 use rand::Rng;
@@ -22,11 +23,37 @@ mod auth;
 mod user;
 
 
+#[derive(Deserialize)]
+pub struct TlsConfigOptions {
+    ca_file: String,
+    certificate_file: String,
+    key_file: String,
+
+}
+#[derive(Deserialize)]
+pub struct EtcdConfig {
+    endpoints: Vec<String>,
+    tls_options: Option<TlsConfigOptions>
+}
+
+#[derive(Deserialize)]
+pub struct S3Config {
+    endpoint: String,
+    access_key_id: String,
+    secret_access_key: String,
+    region: String,
+    
+    log_bucket: String,
+}
 
 #[derive(Deserialize)]
 pub struct Config {
     users: HashMap<String, User>,
     machines: Vec<String>,
+
+    etcd_config: EtcdConfig,
+    s3_config: S3Config,
+
 }
 
 
@@ -34,15 +61,46 @@ pub struct Config {
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
-    let mut rng = rand::thread_rng();
+    let build_rocket = rocket::build();
 
-    let etcd_client = etcd_client::Client::connect(["localhost:2379"], None).await?;
+    let app_config = build_rocket.figment().extract::<Config>()?;
 
-    let aws_conf = aws_config::from_env().endpoint_url("http://localhost:9000").credentials_provider(Credentials::new("minio", "aichudiKohr6aithi4ahh3aeng2eL7xo", None, None, "example")).region(Region::new("us-east-1")).load().await;
+    let options = match app_config.etcd_config.tls_options {
+        Some(tls_options) => {
+            let server_root_ca_cert = std::fs::read_to_string(tls_options.ca_file)?;
+            let server_root_ca_cert = Certificate::from_pem(server_root_ca_cert);
+            let client_cert = std::fs::read_to_string(tls_options.certificate_file)?;
+            let client_key = std::fs::read_to_string(tls_options.key_file)?;
+            let client_identity = Identity::from_pem(client_cert, client_key);
+
+            Some(
+                TlsOptions::new()
+                    .ca_certificate(server_root_ca_cert)
+                    .identity(client_identity)
+            )
+
+        },
+        None => None,
+    };
+
+    let connect_options = options.map(|options: TlsOptions| ConnectOptions::new().with_tls(options));
+    let etcd_client = etcd_client::Client::connect(app_config.etcd_config.endpoints, connect_options).await?;
+
+    let aws_cfg = app_config.s3_config; 
+
+    let aws_conf = aws_config::from_env()
+        .endpoint_url(aws_cfg.endpoint)
+        .credentials_provider(Credentials::new(aws_cfg.access_key_id, aws_cfg.secret_access_key, None, None, "static"))
+        .region(Region::new(aws_cfg.region))
+        .load()
+        .await;
+    
+    
     let s3_client = aws_sdk_s3::Client::new(&aws_conf);
-    let s3_ext_client_drain = S3Client::new(s3_client.clone(), String::from("vicky-logs"));
-    let s3_ext_client = S3Client::new(s3_client, String::from("vicky-logs"));
+    let s3_ext_client_drain = S3Client::new(s3_client.clone(), aws_cfg.log_bucket.clone());
+    let s3_ext_client = S3Client::new(s3_client, aws_cfg.log_bucket.clone());
 
+    let mut rng = rand::thread_rng();
     let node_id: NodeId = format!("node_{}", rng.gen::<i32>()).to_string();
     info!("Generated unique node id as {}", node_id);
 
@@ -54,7 +112,7 @@ async fn main() -> anyhow::Result<()> {
 
     let log_drain = LogDrain::new(s3_ext_client_drain);
 
-    let _rocket = rocket::build()
+    build_rocket
         .manage(etcd_client)
         .manage(s3_ext_client)
         .manage(log_drain)

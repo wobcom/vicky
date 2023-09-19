@@ -57,6 +57,16 @@
     packages = {
       inherit (pkgs) vicky vicky-dashboard;
       default = packages.vicky;
+
+
+      generate-certs = pkgs.writeShellScriptBin "generate-certs" ''
+        rm -rf certs || true
+        ${pkgs.certstrap}/bin/certstrap --depot-path certs init --common-name "Vicky CA" --passphrase="" 
+        ${pkgs.certstrap}/bin/certstrap --depot-path certs request-cert --common-name "Vicky" --passphrase="" --domain "localhost" --ip "127.0.0.1"
+        ${pkgs.certstrap}/bin/certstrap --depot-path certs request-cert --common-name "etcd" --passphrase="" --domain "localhost" --ip "127.0.0.1"
+        ${pkgs.certstrap}/bin/certstrap --depot-path=certs sign "Vicky" --CA="Vicky CA" --passphrase=""
+        ${pkgs.certstrap}/bin/certstrap --depot-path=certs sign "etcd" --CA="Vicky CA" --passphrase=""
+      '';
     };
     legacyPackages = pkgs;
 

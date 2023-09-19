@@ -1,18 +1,31 @@
-
-
 [default]
 
 machines = [
     "abc1234"
 ]
 
+[default.etcd_config]
+endpoints = [ "https://localhost:2379" ]
+[default.etcd_config.tls_options]
+ca_file = "./certs/Vicky_CA.crt"
+certificate_file = "./certs/Vicky.crt"
+key_file = "./certs/Vicky.key"
+
+[default.s3_config]
+endpoint = "http://localhost:9000"
+access_key_id = "minio"
+secret_access_key = "aichudiKohr6aithi4ahh3aeng2eL7xo"
+region = "us-east-1"
+log_bucket = "vicky-logs"
+
 [default.oauth.github]
 provider = "GitHub"
-client_id = ""
-client_secret = ""
+client_id = "xxx"
+client_secret = "xxx"
 redirect_uri = "http://localhost:1234/api/auth/callback/github"
 
 
-[default.users.example]
-full_name = "Example"
-role = "example"
+[default.users.johannwagner]
+full_name = "Johann Wagner"
+role = "admin"
+
