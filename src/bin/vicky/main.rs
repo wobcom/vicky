@@ -7,6 +7,8 @@ use log::info;
 
 use rand::Rng;
 use rocket::fairing::AdHoc;
+use rocket::figment::{Figment, Profile};
+use rocket::figment::providers::{Toml, Env, Format};
 use rocket::routes;
 use rocket_oauth2::OAuth2;
 use serde::Deserialize;
@@ -61,7 +63,13 @@ pub struct Config {
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
-    let build_rocket = rocket::build();
+    // Took from rocket source code and added .split("__") to be able to add keys in nested structures.
+    let rocket_config_figment = Figment::from(rocket::Config::default())
+        .merge(Toml::file(Env::var_or("ROCKET_CONFIG", "Rocket.toml")).nested())
+        .merge(Env::prefixed("ROCKET_").ignore(&["PROFILE"]).split("__").global())
+        .select(Profile::from_env_or("ROCKET_PROFILE", rocket::Config::DEFAULT_PROFILE));
+
+    let build_rocket = rocket::custom(rocket_config_figment);
 
     let app_config = build_rocket.figment().extract::<Config>()?;
 
