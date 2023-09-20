@@ -241,7 +241,7 @@ mod tests {
         
         let res = Scheduler::new(tasks).unwrap();
         // Test 1 is currently running and has the write lock
-        assert!(res.get_next_task().is_some_and(|task| task.display_name == "Test 2"))
+        assert!(res.get_next_task().unwrap().display_name == "Test 2")
         
     }
 
@@ -254,7 +254,7 @@ mod tests {
         
         let res = Scheduler::new(tasks).unwrap();
         // Test 1 is currently running and has the write lock
-        assert!(res.get_next_task().is_some_and(|task| task.display_name == "Test 2"))
+        assert!(res.get_next_task().unwrap().display_name == "Test 2")
         
     }
 
