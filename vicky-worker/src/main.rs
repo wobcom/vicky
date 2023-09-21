@@ -21,6 +21,7 @@ async fn api<Q: Serialize, R: DeserializeOwned>(cfg: &Config, method: Method, en
         .uri(format!("{}/{}", cfg.vicky_url, endpoint))
         .method(method)
         .header("content-type", "application/json")
+        .header("authorization", &cfg.machine_token)
         .body(Body::from(req_data))?;
 
     let response = client.request(request).await?;
