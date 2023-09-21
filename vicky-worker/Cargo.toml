@@ -6,3 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.75"
+env_logger = "0.10.0"
+hyper = { version = "0.14.27", features = ["client", "http1", "http2", "tcp"] }
+log = "0.4.20"
+serde = { version = "1.0.188", features = ["derive"] }
+serde_json = "1.0.107"
+serde_yaml = "0.9.25"
+tokio = { version = "1.32.0", features = ["rt", "macros"] }
+uuid = { version = "1.4.1", features = ["serde"] }
