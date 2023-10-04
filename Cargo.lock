@@ -3022,7 +3022,6 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tokio",
- "tokio-stream",
  "tokio-util",
  "uuid",
 ]
