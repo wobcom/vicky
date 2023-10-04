@@ -2,6 +2,7 @@ mod config;
 
 use config::Config;
 
+use std::sync::Arc;
 use uuid::Uuid;
 use hyper::{Client, Request, Body, Method};
 use serde::de::DeserializeOwned;
@@ -40,7 +41,7 @@ pub struct FlakeRef {
     pub args: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "result")]
 pub enum TaskResult {
     SUCCESS,
@@ -63,10 +64,29 @@ pub struct Task {
     pub flake_ref: FlakeRef,
 }
 
-async fn try_claim(cfg: &Config) -> anyhow::Result<()> {
-    if let Some(task) = api::<_, Option<Task>>(cfg, Method::POST, "api/v1/tasks/claim", &None::<u32>).await? {
-        log::info!("task claimed! 🎉");
+async fn try_run_task(cfg: &Config, task: &Task) -> anyhow::Result<()> {
+    log::info!("task finished: {} {} 🎉", task.id, task.display_name);
+    api::<_, Option<Task>>(cfg, Method::POST, &format!("api/v1/tasks/{}/logs", task.id), &serde_json::json!({ "lines": ["Hello world!"] })).await;
+    Ok(())
+}
+
+async fn run_task(cfg: Arc<Config>, task: Task) {
+    let result = match try_run_task(&cfg, &task).await {
+        Err(e) => {
+            log::info!("task failed: {} {} {:?}", task.id, task.display_name, e);
+            TaskResult::ERROR
+        },
+        Ok(_) => TaskResult::SUCCESS,
+    };
+    api::<_, Option<Task>>(&cfg, Method::POST, &format!("api/v1/tasks/{}/finish", task.id), &serde_json::json!({ "result": result })).await;
+}
+
+async fn try_claim(cfg: Arc<Config>) -> anyhow::Result<()> {
+    if let Some(task) = api::<_, Option<Task>>(&cfg, Method::POST, "api/v1/tasks/claim", &None::<u32>).await? {
+        log::info!("task claimed: {} {} 🎉", task.id, task.display_name);
         log::debug!("{:#?}", task);
+
+        tokio::task::spawn(run_task(cfg.clone(), task));
     }
 
     Ok(())
@@ -76,8 +96,9 @@ async fn try_claim(cfg: &Config) -> anyhow::Result<()> {
 async fn run(cfg: Config) -> anyhow::Result<()> {
     println!("Hello, world!");
 
+    let cfg = Arc::new(cfg);
     loop {
-        if let Err(e) = try_claim(&cfg).await {
+        if let Err(e) = try_claim(cfg.clone()).await {
             log::error!("{}", e);
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         }
