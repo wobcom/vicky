@@ -3,15 +3,15 @@ mod config;
 use config::Config;
 
 use anyhow::anyhow;
+use futures_util::{Sink, StreamExt, TryStreamExt};
+use hyper::{Body, Client, Method, Request};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use std::process::Stdio;
 use std::sync::Arc;
-use uuid::Uuid;
-use hyper::{Client, Request, Body, Method};
-use serde::de::DeserializeOwned;
-use serde::{Serialize, Deserialize};
 use tokio::process::Command;
 use tokio_util::codec::{FramedRead, LinesCodec};
-use futures_util::{Sink, StreamExt, TryStreamExt};
+use uuid::Uuid;
 
 fn main() -> anyhow::Result<()> {
     env_logger::init();
@@ -19,7 +19,12 @@ fn main() -> anyhow::Result<()> {
     run(cfg)
 }
 
-async fn api<Q: Serialize, R: DeserializeOwned>(cfg: &Config, method: Method, endpoint: &str, q: &Q) -> anyhow::Result<R> {
+async fn api<Q: Serialize, R: DeserializeOwned>(
+    cfg: &Config,
+    method: Method,
+    endpoint: &str,
+    q: &Q,
+) -> anyhow::Result<R> {
     let client = Client::new();
     let req_data = serde_json::to_vec(&q)?;
 
@@ -58,7 +63,7 @@ pub enum TaskResult {
 pub enum TaskStatus {
     NEW,
     RUNNING,
-    FINISHED(TaskResult)
+    FINISHED(TaskResult),
 }
 
 #[derive(Debug, Deserialize)]
@@ -73,18 +78,24 @@ fn log_sink(cfg: Arc<Config>, task_id: Uuid) -> impl Sink<String, Error = anyhow
     futures_util::sink::unfold((), move |_, line| {
         let cfg = cfg.clone();
         async move {
-            api::<_, ()>(&cfg, Method::POST, &format!("api/v1/tasks/{}/logs", task_id), &serde_json::json!({ "lines": [line] })).await
+            api::<_, ()>(
+                &cfg,
+                Method::POST,
+                &format!("api/v1/tasks/{}/logs", task_id),
+                &serde_json::json!({ "lines": [line] }),
+            )
+            .await
         }
     })
 }
 
 async fn try_run_task(cfg: Arc<Config>, task: &Task) -> anyhow::Result<()> {
-
-    let mut args = Vec::new();
-    args.push("run".into());
-    args.push("-v".into());
-    args.push("-L".into());
-    args.push(task.flake_ref.flake.clone());
+    let mut args = vec![
+        "run".into(),
+        "-v".into(),
+        "-L".into(),
+        task.flake_ref.flake.clone(),
+    ];
     args.extend(task.flake_ref.args.clone());
     let mut child = Command::new("nix")
         .args(args)
@@ -96,9 +107,9 @@ async fn try_run_task(cfg: Arc<Config>, task: &Task) -> anyhow::Result<()> {
 
     let logger = log_sink(cfg.clone(), task.id);
 
-    let mut lines = tokio_stream::StreamExt::merge(
+    let lines = tokio_stream::StreamExt::merge(
         FramedRead::new(child.stdout.take().unwrap(), LinesCodec::new()),
-        FramedRead::new(child.stderr.take().unwrap(), LinesCodec::new())
+        FramedRead::new(child.stderr.take().unwrap(), LinesCodec::new()),
     );
 
     lines.map_err(anyhow::Error::from).forward(logger).await?;
@@ -117,15 +128,23 @@ async fn run_task(cfg: Arc<Config>, task: Task) {
         Err(e) => {
             log::info!("task failed: {} {} {:?}", task.id, task.display_name, e);
             TaskResult::ERROR
-        },
+        }
         Ok(_) => TaskResult::SUCCESS,
     };
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    let _ = api::<_, ()>(&cfg, Method::POST, &format!("api/v1/tasks/{}/finish", task.id), &serde_json::json!({ "result": result })).await;
+    let _ = api::<_, ()>(
+        &cfg,
+        Method::POST,
+        &format!("api/v1/tasks/{}/finish", task.id),
+        &serde_json::json!({ "result": result }),
+    )
+    .await;
 }
 
 async fn try_claim(cfg: Arc<Config>) -> anyhow::Result<()> {
-    if let Some(task) = api::<_, Option<Task>>(&cfg, Method::POST, "api/v1/tasks/claim", &None::<u32>).await? {
+    if let Some(task) =
+        api::<_, Option<Task>>(&cfg, Method::POST, "api/v1/tasks/claim", &None::<u32>).await?
+    {
         log::info!("task claimed: {} {} 🎉", task.id, task.display_name);
         log::debug!("{:#?}", task);
 
