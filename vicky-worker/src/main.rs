@@ -64,9 +64,10 @@ pub struct Task {
 }
 
 async fn try_claim(cfg: &Config) -> anyhow::Result<()> {
-    let task: Task = api(cfg, Method::POST, "api/v1/tasks/claim", &None::<u32>).await?;
-    log::info!("task claimed! 🎉");
-    log::debug!("{:#?}", task);
+    if let Some(task) = api::<_, Option<Task>>(cfg, Method::POST, "api/v1/tasks/claim", &None::<u32>).await? {
+        log::info!("task claimed! 🎉");
+        log::debug!("{:#?}", task);
+    }
 
     Ok(())
 }
@@ -80,5 +81,6 @@ async fn run(cfg: Config) -> anyhow::Result<()> {
             log::error!("{}", e);
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         }
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
 }
