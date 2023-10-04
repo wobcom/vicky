@@ -74,15 +74,16 @@ pub struct Task {
     pub flake_ref: FlakeRef,
 }
 
-fn log_sink(cfg: Arc<Config>, task_id: Uuid) -> impl Sink<String, Error = anyhow::Error> + Send {
-    futures_util::sink::unfold((), move |_, line| {
+fn log_sink(cfg: Arc<Config>, task_id: Uuid) -> impl Sink<Vec<String>, Error = anyhow::Error> + Send {
+    futures_util::sink::unfold((), move |_, lines: Vec<String>| {
+        println!("{}", lines.len());
         let cfg = cfg.clone();
         async move {
             api::<_, ()>(
                 &cfg,
                 Method::POST,
                 &format!("api/v1/tasks/{}/logs", task_id),
-                &serde_json::json!({ "lines": [line] }),
+                &serde_json::json!({ "lines": lines }),
             )
             .await
         }
@@ -107,12 +108,17 @@ async fn try_run_task(cfg: Arc<Config>, task: &Task) -> anyhow::Result<()> {
 
     let logger = log_sink(cfg.clone(), task.id);
 
-    let lines = tokio_stream::StreamExt::merge(
+    let lines = futures_util::stream::select(
         FramedRead::new(child.stdout.take().unwrap(), LinesCodec::new()),
         FramedRead::new(child.stderr.take().unwrap(), LinesCodec::new()),
     );
 
-    lines.map_err(anyhow::Error::from).forward(logger).await?;
+    lines
+        .ready_chunks(1024) // TODO switch to try_ready_chunks
+        .map(|v| v.into_iter().collect::<Result<Vec<_>, _>>())
+        .map_err(anyhow::Error::from)
+        .forward(logger)
+        .await?;
     let exit_status = child.wait().await?;
 
     if exit_status.success() {
