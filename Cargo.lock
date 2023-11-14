@@ -3018,6 +3018,7 @@ dependencies = [
  "futures-util",
  "hyper",
  "log",
+ "rocket",
  "serde",
  "serde_json",
  "serde_yaml",

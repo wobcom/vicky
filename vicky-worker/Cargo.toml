@@ -17,3 +17,4 @@ serde_yaml = "0.9.25"
 tokio = { version = "1.32.0", features = ["rt", "macros", "process"] }
 tokio-util = { version = "0.7.9", features = ["codec"] }
 uuid = { version = "1.4.1", features = ["serde"] }
+rocket = { version="=0.5.0-rc.3", features = ["json", "secrets"] } 

@@ -1,7 +1,3 @@
-mod config;
-
-use config::Config;
-
 use anyhow::anyhow;
 use futures_util::{Sink, StreamExt, TryStreamExt};
 use hyper::{Body, Client, Method, Request};
@@ -13,14 +9,30 @@ use tokio::process::Command;
 use tokio_util::codec::{FramedRead, LinesCodec};
 use uuid::Uuid;
 
+
+use rocket::figment::{Figment, Profile};
+use rocket::figment::providers::{Toml, Env, Format};
+#[derive(Deserialize)]
+pub(crate) struct AppConfig {
+    pub(crate) vicky_url: String,
+    pub(crate) machine_token: String,
+}
+
 fn main() -> anyhow::Result<()> {
     env_logger::init();
-    let cfg: Config = serde_yaml::from_slice(&std::fs::read("config.yaml")?)?;
-    run(cfg)
+
+    // Took from rocket source code and added .split("__") to be able to add keys in nested structures.
+    let rocket_config_figment = Figment::from(rocket::Config::default())
+        .merge(Toml::file(Env::var_or("ROCKET_CONFIG", "Rocket.toml")).nested())
+        .merge(Env::prefixed("ROCKET_").ignore(&["PROFILE"]).split("__").global())
+        .select(Profile::from_env_or("ROCKET_PROFILE", rocket::Config::DEFAULT_PROFILE));
+
+    let app_config = rocket_config_figment.extract::<AppConfig>()?; 
+    run(app_config)
 }
 
 async fn api<Q: Serialize, R: DeserializeOwned>(
-    cfg: &Config,
+    cfg: &AppConfig,
     method: Method,
     endpoint: &str,
     q: &Q,
@@ -74,7 +86,7 @@ pub struct Task {
     pub flake_ref: FlakeRef,
 }
 
-fn log_sink(cfg: Arc<Config>, task_id: Uuid) -> impl Sink<Vec<String>, Error = anyhow::Error> + Send {
+fn log_sink(cfg: Arc<AppConfig>, task_id: Uuid) -> impl Sink<Vec<String>, Error = anyhow::Error> + Send {
     futures_util::sink::unfold((), move |_, lines: Vec<String>| {
         println!("{}", lines.len());
         let cfg = cfg.clone();
@@ -90,7 +102,7 @@ fn log_sink(cfg: Arc<Config>, task_id: Uuid) -> impl Sink<Vec<String>, Error = a
     })
 }
 
-async fn try_run_task(cfg: Arc<Config>, task: &Task) -> anyhow::Result<()> {
+async fn try_run_task(cfg: Arc<AppConfig>, task: &Task) -> anyhow::Result<()> {
     let mut args = vec![
         "run".into(),
         "-v".into(),
@@ -129,7 +141,7 @@ async fn try_run_task(cfg: Arc<Config>, task: &Task) -> anyhow::Result<()> {
     }
 }
 
-async fn run_task(cfg: Arc<Config>, task: Task) {
+async fn run_task(cfg: Arc<AppConfig>, task: Task) {
     let result = match try_run_task(cfg.clone(), &task).await {
         Err(e) => {
             log::info!("task failed: {} {} {:?}", task.id, task.display_name, e);
@@ -147,7 +159,7 @@ async fn run_task(cfg: Arc<Config>, task: Task) {
     .await;
 }
 
-async fn try_claim(cfg: Arc<Config>) -> anyhow::Result<()> {
+async fn try_claim(cfg: Arc<AppConfig>) -> anyhow::Result<()> {
     if let Some(task) =
         api::<_, Option<Task>>(&cfg, Method::POST, "api/v1/tasks/claim", &None::<u32>).await?
     {
@@ -161,7 +173,7 @@ async fn try_claim(cfg: Arc<Config>) -> anyhow::Result<()> {
 }
 
 #[tokio::main(flavor = "current_thread")]
-async fn run(cfg: Config) -> anyhow::Result<()> {
+async fn run(cfg: AppConfig) -> anyhow::Result<()> {
     println!("Hello, world!");
 
     let cfg = Arc::new(cfg);
