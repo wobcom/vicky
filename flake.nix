@@ -35,7 +35,7 @@
 
           src = ./dashboard;
 
-          npmDepsHash = "sha256-AyOct5lYq9fapwu8Zo84iYkhqpJzjW1NYUDaS4zvRiA=";
+          npmDepsHash = "sha256-z1Uv629N8qUEPmC/ec7cCj6regp/dp//Gwiq5Wa25ZI=";
 
           installPhase = ''
             runHook preInstall
