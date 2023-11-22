@@ -16,7 +16,7 @@ const Menu = () => {
     const user = useContext(UserContext)
 
     return (
-        <Navbar bordered shaded className={s.Navbar}>
+        <Navbar bordered shaded>
             <Navbar.Brand>
                 <Link to={"/"}>Vicky</Link>
             </Navbar.Brand>
