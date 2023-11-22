@@ -20,7 +20,7 @@ pub struct LogDrain {
 impl LogDrain {
 
     pub fn new(s3_client: S3Client) -> &'static LogDrain {
-        let (tx, rx1) = broadcast::channel(100);
+        let (tx, rx1) = broadcast::channel(1000);
         let s3_client_m = Box::leak(Box::new(s3_client.clone()));
 
 
@@ -88,7 +88,7 @@ impl LogDrain {
                         // Immediate Retry, doing our best efford ehre.
                     },
                     Err(TryRecvError::Empty) => {
-                        tokio::time::sleep(time::Duration::from_millis(100)).await;
+                        tokio::time::sleep(time::Duration::from_millis(10)).await;
                     },
                 }
             }
