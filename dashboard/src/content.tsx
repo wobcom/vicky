@@ -5,6 +5,8 @@ import { Menu } from "./components/menu"
 import { Tasks } from "./components/tasks"
 import { UserContext } from "./contexts/user"
 
+import * as s from "./content.module.css"
+
 
 const Content = () => {
 
@@ -13,6 +15,8 @@ const Content = () => {
     return (
         <>
             <Menu></Menu>
+            <div className={s.Content}>
+
             {
                 user ? (
                     <Routes>
@@ -29,7 +33,7 @@ const Content = () => {
                 )
 
             }
-
+            </div>
         </>
     )
 }

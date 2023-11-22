@@ -1,5 +1,5 @@
+import { useWindowSize } from "@uidotdev/usehooks";
 import { useEffect, useMemo, useRef, useState } from "react"
-import { getAnimationEnd } from "rsuite/esm/DOMHelper";
 import { Terminal as XTerm } from "xterm"
 import { FitAddon } from 'xterm-addon-fit';
 import { useAPI } from "../services/api";
@@ -11,19 +11,20 @@ type TerminalProps = {
 const Terminal = (props: TerminalProps) => {
     const name = useMemo(() => "terminal-" + Math.random().toString(36).substr(2, 8), [])
     const [ref, setRef] = useState<HTMLDivElement | null>(null);
+    const fitRef = useRef<FitAddon | null>(null);
     const [termRef, setTermRef] = useState<XTerm | null>(null);
     const openEventSource = useRef(false);
 
     const {taskId} = props;
 
     const api = useAPI();
+    const size = useWindowSize();
     
     useEffect(() => {
         if (!termRef || openEventSource.current) {
             return
         }
 
-        console.log("Foo")
         let evtSource = new EventSource(`/api/tasks/${taskId}/logs`);
 
         openEventSource.current = true;
@@ -32,25 +33,39 @@ const Terminal = (props: TerminalProps) => {
             termRef.write(evt.data + "\r\n")
         }
 
-    }, [termRef])
+        return () => {
+            evtSource.close()
+        }
 
+    }, [termRef, taskId])
+
+    useEffect(() => {
+        // Window Resizing takes some more time than JS execution...
+        setTimeout(() => fitRef.current?.fit(), 0)
+    }, [size])
 
 
 
     useEffect(() => {
         if (ref && !termRef) {
-            const iTerm = new XTerm()
+            const iTerm = new XTerm({
+                scrollback: 100000,
+            })
             const fitAddon = new FitAddon();
             iTerm.loadAddon(fitAddon)
             iTerm.open(ref)
+
+            iTerm.element!.style.padding = "1em";
+
             setTermRef(iTerm)
             fitAddon.fit();
+            fitRef.current = fitAddon;
         }
     }, [ref])
 
 
     return (
-        <div style={{width: "100%", height: "930px"}} id={name} ref={(ref) => setRef(ref)}></div>
+        <div style={{width: "100%", height: "calc( 100% - 48px )"}} id={name} ref={(ref) => setRef(ref)}></div>
     )
 
 }

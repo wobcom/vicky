@@ -1,4 +1,12 @@
 
-.titleStack {
+.TitleStack {
     margin-bottom: 1em;
+}
+
+.Panel {
+    height: 100%;
+}
+
+.Panel > * {
+    height: 100%;
 }

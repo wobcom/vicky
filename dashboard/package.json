@@ -9,12 +9,13 @@
   },
   "files": [
     "dist",
-    "pacakge.json",
-    "pacakge-lock.json"
+    "package.json",
+    "package-lock.json"
   ],
   "author": "Johann Wagner <johann.wagner@wobcom>",
   "license": "MIT",
   "dependencies": {
+    "@uidotdev/usehooks": "^2.4.1",
     "axios": "^1.5.0",
     "parcel": "^2.9.3",
     "react": "^18.2.0",
