@@ -110,8 +110,11 @@ async fn try_run_task(cfg: Arc<AppConfig>, task: &Task) -> anyhow::Result<()> {
         task.flake_ref.flake.clone(),
     ];
     args.extend(task.flake_ref.args.clone());
+
     let mut child = Command::new("nix")
         .args(args)
+        .env("VICKY_URL", &cfg.vicky_url)
+        .env("VICKY_MACHINE_TOKEN", &cfg.machine_token)
         .kill_on_drop(true)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
