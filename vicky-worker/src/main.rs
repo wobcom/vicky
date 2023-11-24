@@ -106,7 +106,6 @@ fn log_sink(cfg: Arc<AppConfig>, task_id: Uuid) -> impl Sink<Vec<String>, Error 
 async fn try_run_task(cfg: Arc<AppConfig>, task: &Task) -> anyhow::Result<()> {
     let mut args = vec![
         "run".into(),
-        "-v".into(),
         "-L".into(),
         task.flake_ref.flake.clone(),
     ];
