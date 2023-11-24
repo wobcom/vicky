@@ -22,7 +22,14 @@ const Tasks = () => {
     }, [tasks, taskId])
 
     useEffect(() => {
-        api.getTasks().then((tasks) => setTasks(tasks))
+        api.getTasks().then((tasks) => setTasks(tasks));
+
+        // TODO: Implement websocket or long polling
+        const interval = setInterval(() => {
+            api.getTasks().then((tasks) => setTasks(tasks));
+        }, 1000);
+
+        return () => clearInterval(interval);
     }, [])
 
     return (
