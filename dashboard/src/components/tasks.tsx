@@ -34,7 +34,7 @@ const Tasks = () => {
 
     return (
         <Grid fluid className={s.Grid}>
-            <Col xs="8">
+            <Col xs={task ? "8" : "24"}>
                 <Panel shaded bordered class>
                     <h4>Tasks</h4>
                     <List bordered className={s.List}>
@@ -58,14 +58,13 @@ const Tasks = () => {
                 </Panel>
 
             </Col>
-            <Col xs="16" className={s.GridElement}>
-                {
-                    task ? (
+            {
+	        task ? (
+                    <Col xs="16" className={s.GridElement}>
                         <Task task={task}/>
-                    ) : null
-                }
-
-            </Col>
+                    </Col>
+                ) : null
+	    }
         </Grid>
     )
 }
