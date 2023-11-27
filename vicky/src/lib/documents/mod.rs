@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 
 use uuid::Uuid;
 
-use crate::{etcd::client::ClientExt, vicky::errors::VickyError};
+use crate::{etcd::client::ClientExt, errors::VickyError};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "result")]

@@ -20,20 +20,14 @@ pub enum VickyError {
         #[from] source: etcd_client::Error,
     },
 
-    #[error("uuid Error {source:?}")]
-    Uuid {
-        #[from] source: uuid::Error,
-    },
 
-    #[error("HTTP Error {0:?}")]
-    HttpError(Status),
 
     #[error("Scheduling Error {source:?}")]
     Scheduler {
         #[from] source: SchedulerError,
     },
 
-    #[error("Push Error {source:?}")]
+    #[error("Log Push Error {source:?}")]
     PushError {
         #[from] source: SendError<(String, String)>,
     },
@@ -78,8 +72,6 @@ pub enum S3ClientError {
 
 }
 
-
-
 impl<'r, 'o: 'r> Responder<'r, 'o> for VickyError {
     fn respond_to(self, req: &'r Request<'_>) -> rocket::response::Result<'o> {
         // log `self` to your favored error tracker, e.g.
@@ -87,7 +79,6 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for VickyError {
         error!("Error: {}", self);
 
         match self {
-            Self::HttpError(x) => x.respond_to(req),
             _ => {
                 Status::InternalServerError.respond_to(req)
             }

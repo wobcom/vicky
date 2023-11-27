@@ -2,10 +2,7 @@ use std::collections::HashMap;
 
 use log::debug;
 
-use crate::documents::{Lock, Task, TaskStatus};
-
-use super::errors::SchedulerError;
-
+use crate::{documents::{Lock, Task, TaskStatus}, errors::SchedulerError};
 
 type Constraints = HashMap<String, LockSum>;
 

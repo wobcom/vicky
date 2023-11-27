@@ -1,6 +1,7 @@
 use aws_sdk_s3::primitives::ByteStream;
-use crate::vicky::errors::{S3ClientError};
 use log::{info};
+
+use crate::errors::S3ClientError;
 
 #[derive(Clone, )]
 pub struct S3Client {

@@ -1,8 +1,7 @@
 use rocket::{get, serde::json::Json};
 use serde::{Serialize, Deserialize};
-use vickylib::vicky::errors::VickyError;
 
-use crate::{auth::User};
+use crate::{auth::User, errors::AppError};
 
 
 
@@ -14,7 +13,7 @@ pub struct Me {
 }
 
 #[get("/")]
-pub fn get_user(user: User) -> Result<Json<Me>, VickyError>  {
+pub fn get_user(user: User) -> Result<Json<Me>, AppError>  {
 
     let me = Me {
         full_name: user.full_name,

@@ -15,7 +15,7 @@ type ITask = {
 }
 
 type IUser = {
-    full_name: String,
+    full_name: string,
     role: "admin",
 }
 
@@ -25,6 +25,10 @@ const useAPI = () => {
 
     const getTasks = (): Promise<ITask[]> => {
         return fetch(`${BASE_URL}/tasks`).then(x => x.json());
+    }
+
+    const getTask = (id: string): Promise<ITask> => {
+        return fetch(`${BASE_URL}/tasks/${id}`).then(x => x.json());
     }
 
     const getTaskLogs = (id: string) => {
@@ -37,6 +41,7 @@ const useAPI = () => {
 
     return {
         getTasks,
+        getTask,
         getTaskLogs,
         getUser
     }

@@ -12,18 +12,22 @@ use rocket::figment::providers::{Toml, Env, Format};
 use rocket::routes;
 use rocket_oauth2::OAuth2;
 use serde::Deserialize;
+use tokio::sync::broadcast;
 use vickylib::etcd::election::{NodeId, Election};
 use vickylib::logs::LogDrain;
 use vickylib::s3::client::S3Client;
 
-use crate::tasks::{tasks_claim, tasks_finish, tasks_get_machine, tasks_get_user, tasks_add, tasks_get_logs, tasks_put_logs};
+use crate::tasks::{tasks_claim, tasks_finish, tasks_get_machine, tasks_get_user, tasks_add, tasks_get_logs, tasks_put_logs, tasks_specific_get_machine, tasks_specific_get_user};
+use crate::events::{get_global_events, GlobalEvent};
+
 use crate::auth::{github_login, github_callback, logout, GitHubUserInfo};
 use crate::user::{get_user};
 
 mod tasks;
 mod auth;
 mod user;
-
+mod events;
+mod errors;
 
 #[derive(Deserialize)]
 pub struct TlsConfigOptions {
@@ -120,15 +124,19 @@ async fn main() -> anyhow::Result<()> {
 
     let log_drain = LogDrain::new(s3_ext_client_drain);
 
+    let (tx_global_events, _rx_task_events) = broadcast::channel::<GlobalEvent>(5);
+
     build_rocket
         .manage(etcd_client)
         .manage(s3_ext_client)
         .manage(log_drain)
+        .manage(tx_global_events)
         .attach(OAuth2::<GitHubUserInfo>::fairing("github"))
         .attach(AdHoc::config::<Config>())
         .mount("/api/v1/user", routes![get_user])
         .mount("/api/v1/auth", routes![github_login, github_callback, logout])
-        .mount("/api/v1/tasks", routes![tasks_get_machine, tasks_get_user, tasks_claim, tasks_finish, tasks_add, tasks_get_logs, tasks_put_logs])
+        .mount("/api/v1/events", routes![get_global_events])
+        .mount("/api/v1/tasks", routes![tasks_get_machine, tasks_get_user, tasks_specific_get_machine, tasks_specific_get_user, tasks_claim, tasks_finish, tasks_add, tasks_get_logs, tasks_put_logs])
         .launch()
         .await?;
 

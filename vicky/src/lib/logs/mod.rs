@@ -3,7 +3,7 @@ use std::{time};
 use rocket::futures::lock::Mutex;
 use tokio::sync::broadcast::{Sender, self, error::{TryRecvError, SendError}};
 
-use crate::{s3::client::S3Client, vicky::errors::{S3ClientError}};
+use crate::{s3::client::S3Client, errors::{S3ClientError, VickyError} };
 
 const LOG_BUFFER: usize = 10000;
 
@@ -98,7 +98,7 @@ impl LogDrain {
     }
 
 
-    pub fn push_logs(&self, task_id: String, logs: Vec<String>) -> Result<(), SendError<(String, String)>> {
+    pub fn push_logs(&self, task_id: String, logs: Vec<String>) -> Result<(), VickyError> {
         for log in logs {
             self.send_handle.send((task_id.clone(), log))?;
         }
@@ -111,7 +111,7 @@ impl LogDrain {
         Some(new_vec)
     }
 
-    pub async fn finish_logs(&self, task_id: &str) -> Result<(), S3ClientError> {
+    pub async fn finish_logs(&self, task_id: &str) -> Result<(), VickyError> {
         let mut push_log_buffers = self.push_log_buffers.lock().await;
         if let Some(push_log_buffer) = push_log_buffers.get_mut(task_id) {
             if !push_log_buffer.is_empty(){

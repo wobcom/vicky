@@ -5,7 +5,8 @@ use etcd_client::{
 use serde::de::DeserializeOwned;
 use serde::{Serialize};
 
-use crate::vicky::errors::VickyError;
+use crate::errors::VickyError;
+
 
 #[async_trait]
 pub trait ClientExt {

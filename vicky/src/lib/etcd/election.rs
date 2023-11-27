@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::{time};
 use tokio::sync::Mutex;
 
-use crate::vicky::errors::VickyError;
+use crate::errors::VickyError;
 
 const ELECTION_NAME: &str = "vicky.wobcom.de/leader-election";
 

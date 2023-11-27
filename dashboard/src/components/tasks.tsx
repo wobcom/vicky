@@ -7,30 +7,15 @@ import { Task } from "./task";
 import { Terminal } from "./xterm"
 
 import * as s from "./tasks.module.css";
+import { useTask, useTasks } from "../hooks/useTasks";
 
 const Tasks = () => {
 
     const { taskId } = useParams();
     const api = useAPI();
 
-    const [tasks, setTasks] = useState<ITask[] | null>(null);
-    const task = useMemo(() => {
-        if (!tasks || !taskId) {
-            return null;
-        }
-        return tasks.find(t => t.id == taskId)
-    }, [tasks, taskId])
-
-    useEffect(() => {
-        api.getTasks().then((tasks) => setTasks(tasks));
-
-        // TODO: Implement websocket or long polling
-        const interval = setInterval(() => {
-            api.getTasks().then((tasks) => setTasks(tasks));
-        }, 1000);
-
-        return () => clearInterval(interval);
-    }, [])
+    const tasks = useTasks();
+    const task = useTask(taskId)
 
     return (
         <Grid fluid className={s.Grid}>
@@ -39,12 +24,12 @@ const Tasks = () => {
                     <h4>Tasks</h4>
                     <List bordered className={s.List}>
                         {
-                            tasks && tasks.map((t) => {
+                            tasks?.map((t) => {
                                 const isSelected = t.id == task?.id;
 
                                 return (
-                                    <Link to={`/tasks/${t.id}`}>
-                                    <List.Item className={isSelected ? s.ListItemSelected : ""}>
+                                    <Link key={t.id} to={`/tasks/${t.id}`}>
+                                    <List.Item key={t.id} className={isSelected ? s.ListItemSelected : ""}>
                                         <Stack direction="row" justifyContent="space-between" spacing={8}>
                                             <span>{t.display_name}</span>
                                             <TaskTag size="sm" task={t}></TaskTag>

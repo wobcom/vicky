@@ -1,7 +1,8 @@
 import { useWindowSize } from "@uidotdev/usehooks";
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Terminal as XTerm } from "xterm"
 import { FitAddon } from 'xterm-addon-fit';
+import { useEventSource } from "../hooks/useEventSource";
 import { useAPI } from "../services/api";
 
 type TerminalProps = {
@@ -19,32 +20,21 @@ const Terminal = (props: TerminalProps) => {
 
     const api = useAPI();
     const size = useWindowSize();
-    
-    useEffect(() => {
-        if (!termRef || openEventSource.current) {
+
+    const eventCallback = useCallback((logLine: string) => {
+        if (!termRef) {
             return
         }
 
-        let evtSource = new EventSource(`/api/tasks/${taskId}/logs`);
+        termRef.write(logLine + "\r\n")
+    }, [termRef])
 
-        openEventSource.current = true;
-
-        evtSource.onmessage = evt => {
-            termRef.write(evt.data + "\r\n")
-        }
-
-        return () => {
-            evtSource.close()
-        }
-
-    }, [termRef, taskId])
-
+    useEventSource(`/api/tasks/${taskId}/logs`, eventCallback, termRef != null);
+    
     useEffect(() => {
         // Window Resizing takes some more time than JS execution...
         setTimeout(() => fitRef.current?.fit(), 0)
     }, [size])
-
-
 
     useEffect(() => {
         if (ref && !termRef) {

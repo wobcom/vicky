@@ -2,14 +2,14 @@ use etcd_client::{Client};
 use rocket::{get, post, State, serde::json::Json};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use vickylib::{documents::{Task, TaskStatus, TaskResult, FlakeRef, Lock, DocumentClient}, vicky::{scheduler::Scheduler, errors::{VickyError}}, logs::LogDrain, s3::client::S3Client};
+use vickylib::{documents::{Task, TaskStatus, TaskResult, FlakeRef, Lock, DocumentClient}, vicky::{scheduler::Scheduler}, logs::LogDrain, s3::client::S3Client, errors::VickyError};
 use rocket::response::stream::{EventStream, Event};
 use std::time;
-use tokio::sync::broadcast::{error::{TryRecvError}};
+use tokio::sync::broadcast::{error::{TryRecvError}, self};
 use rocket::{http::Status};
 
 
-use crate::auth::{User, Machine};
+use crate::{auth::{User, Machine}, errors::AppError, events::GlobalEvent};
 
 
 
@@ -48,11 +48,25 @@ pub async fn tasks_get_machine(etcd: &State<Client>, _machine: Machine) -> Resul
     Ok(Json(tasks))
 }
 
+#[get("/<id>")]
+pub async fn tasks_specific_get_user(id: String, etcd: &State<Client>, _user: User) -> Result<Json<Option<Task>>, VickyError> {
+    let task_uuid = Uuid::parse_str(&id).unwrap();
+    let tasks: Option<Task> = etcd.get_task(task_uuid).await?;
+    Ok(Json(tasks))
+}
+
+#[get("/<id>", rank=2)]
+pub async fn tasks_specific_get_machine(id: String, etcd: &State<Client>, _machine: Machine) -> Result<Json<Option<Task>>, VickyError> {
+    let task_uuid = Uuid::parse_str(&id).unwrap();
+    let tasks: Option<Task> = etcd.get_task(task_uuid).await?;
+    Ok(Json(tasks))
+}
+
 #[get("/<id>/logs")]
 pub async fn tasks_get_logs<'a>(id: String, etcd: &State<Client>, s3: &'a State<S3Client>, _user: User, log_drain: &'a State<&'_ LogDrain>) -> EventStream![Event + 'a] {
     // TODO: Fix Error Handling
     let task_uuid = Uuid::parse_str(&id).unwrap();
-    let task = etcd.get_task(task_uuid).await.unwrap().ok_or(VickyError::HttpError(Status::NotFound)).unwrap(); 
+    let task = etcd.get_task(task_uuid).await.unwrap().ok_or(AppError::HttpError(Status::NotFound)).unwrap(); 
 
 
     EventStream! {
@@ -103,9 +117,9 @@ pub async fn tasks_get_logs<'a>(id: String, etcd: &State<Client>, s3: &'a State<
 }
 
 #[post("/<id>/logs", format = "json", data = "<logs>")]
-pub async fn tasks_put_logs(id: String, etcd: &State<Client>, logs: Json<LogLines>, _machine: Machine, log_drain: &State<&LogDrain>) ->  Result<Json<()>, VickyError> {
+pub async fn tasks_put_logs(id: String, etcd: &State<Client>, logs: Json<LogLines>, _machine: Machine, log_drain: &State<&LogDrain>) ->  Result<Json<()>, AppError> {
     let task_uuid = Uuid::parse_str(&id)?;
-    let task = etcd.get_task(task_uuid).await?.ok_or(VickyError::HttpError(Status::NotFound))?; 
+    let task = etcd.get_task(task_uuid).await?.ok_or(AppError::HttpError(Status::NotFound))?; 
 
     match task.status {
         TaskStatus::RUNNING => {
@@ -113,22 +127,23 @@ pub async fn tasks_put_logs(id: String, etcd: &State<Client>, logs: Json<LogLine
             Ok(Json(()))
         },
         _ => {
-            Err(VickyError::HttpError(Status::Locked))?
+            Err(AppError::HttpError(Status::Locked))?
         }
     }
 }
 
 #[post("/claim")]
-pub async fn tasks_claim(etcd: &State<Client>, _machine: Machine) ->  Result<Json<Option<Task>>, VickyError> {
+pub async fn tasks_claim(etcd: &State<Client>, global_events: &State<broadcast::Sender<GlobalEvent>>, _machine: Machine) ->  Result<Json<Option<Task>>, AppError> {
     let tasks = etcd.get_all_tasks().await?;
-    let scheduler = Scheduler::new(tasks)?;
+    let scheduler = Scheduler::new(tasks).map_err(|x| VickyError::Scheduler { source: x })?;
     let next_task = scheduler.get_next_task();
 
     match next_task {
         Some(next_task) => {
-            let mut task = etcd.get_task(next_task.id).await?.ok_or(VickyError::HttpError(Status::NotFound))?; 
+            let mut task = etcd.get_task(next_task.id).await?.ok_or(AppError::HttpError(Status::NotFound))?; 
             task.status = TaskStatus::RUNNING;
             etcd.put_task(&task).await?;
+            global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
             Ok(Json(Some(task)))
         },
         None => Ok(Json(None)),
@@ -136,19 +151,21 @@ pub async fn tasks_claim(etcd: &State<Client>, _machine: Machine) ->  Result<Jso
 }
 
 #[post("/<id>/finish", format = "json", data = "<finish>")]
-pub async fn tasks_finish(id: String, finish: Json<RoTaskFinish>, etcd: &State<Client>, _machine: Machine, log_drain: &State<&LogDrain>) ->  Result<Json<Task>, VickyError> {
+pub async fn tasks_finish(id: String, finish: Json<RoTaskFinish>, etcd: &State<Client>, global_events: &State<broadcast::Sender<GlobalEvent>>, _machine: Machine, log_drain: &State<&LogDrain>) ->  Result<Json<Task>, AppError> {
     let task_uuid = Uuid::parse_str(&id)?;
-    let mut task = etcd.get_task(task_uuid).await?.ok_or(VickyError::HttpError(Status::NotFound))?; 
+    let mut task = etcd.get_task(task_uuid).await?.ok_or(AppError::HttpError(Status::NotFound))?; 
 
     log_drain.finish_logs(&id).await?;
 
     task.status = TaskStatus::FINISHED(finish.result.clone());
     etcd.put_task(&task).await?;
+    global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
+
     Ok(Json(task))
 }
 
 #[post("/", data = "<task>")]
-pub async fn tasks_add(task: Json<RoTaskNew>, etcd: &State<Client>, _machine: Machine) -> Result<Json<RoTask>, VickyError> {
+pub async fn tasks_add(task: Json<RoTaskNew>, etcd: &State<Client>, global_events: &State<broadcast::Sender<GlobalEvent>>, _machine: Machine) -> Result<Json<RoTask>, AppError> {
     let task_uuid = Uuid::new_v4();
 
     let task_manifest = Task { 
@@ -160,6 +177,7 @@ pub async fn tasks_add(task: Json<RoTaskNew>, etcd: &State<Client>, _machine: Ma
     };
 
     etcd.put_task(&task_manifest).await?;
+    global_events.send(GlobalEvent::TaskAdd)?;
 
     let ro_task = RoTask {
         id: task_uuid,
