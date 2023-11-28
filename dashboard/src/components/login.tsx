@@ -2,9 +2,12 @@ import { Button, Col, FlexboxGrid, Panel, Stack } from "rsuite"
 
 import GitHubIcon from '@rsuite/icons/legacy/Github';
 import * as s from "./login.module.css";
+import { useAuth } from "react-oidc-context";
 
 
 const Login = () => {
+
+    const auth = useAuth();
 
     return (
         <FlexboxGrid
@@ -20,8 +23,8 @@ const Login = () => {
                             Wenn der Account nicht freigeschaltet ist, ist ein Einloggen nicht möglich.
                     </p>
 
-                    <Button href={"/api/auth/login/github"} color="violet" appearance="primary" startIcon={<GitHubIcon />}>
-                        Login With GitHub
+                    <Button onClick={() => auth.signinRedirect()} color="violet" appearance="primary" startIcon={<GitHubIcon />}>
+                        Login
                     </Button>
                 </Stack>
                 </Panel>

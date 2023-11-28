@@ -8,12 +8,14 @@ import { Link, useNavigate } from "react-router-dom";
 import { useContext, useEffect, useState } from "react";
 import { useAPI } from "../services/api";
 import { UserContext } from "../contexts/user";
+import { useAuth } from "react-oidc-context";
 
 
 const Menu = () => {
 
     const activeKey = "tasks";
     const user = useContext(UserContext)
+    const auth = useAuth();
 
     return (
         <Navbar bordered shaded>
@@ -38,7 +40,7 @@ const Menu = () => {
                 ) : null}
                 
                 { !user ? (
-                    <Nav.Item href={"/api/auth/login/github"}>
+                    <Nav.Item onClick={() => auth.signinRedirect()}>
                     Login With GitHub
                 </Nav.Item>
                 ): null}

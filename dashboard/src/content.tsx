@@ -1,41 +1,62 @@
-import { useContext } from "react"
+import { ReactNode, useContext } from "react"
 import { Navigate, Route, Routes } from "react-router-dom"
 import { Login } from "./components/login"
 import { Menu } from "./components/menu"
 import { Tasks } from "./components/tasks"
-import { UserContext } from "./contexts/user"
+import { UserContext, UserProvider } from "./contexts/user"
 
 import * as s from "./content.module.css"
+import { useAuth } from "react-oidc-context"
 
 
 const Content = () => {
 
-    const user = useContext(UserContext)
+    const auth = useAuth();
 
-    return (
-        <>
-            <Menu></Menu>
-            <div className={s.Content}>
+    switch (auth.activeNavigator) {
+        case "signinSilent":
+            return <div>Signing you in...</div>;
+        case "signoutRedirect":
+            return <div>Signing you out...</div>;
+    }
 
-            {
-                user ? (
+    if (auth.isLoading) {
+        return <div>Loading...</div>;
+    }
+
+    if (auth.error) {
+        return <div>Oops... {auth.error.message}</div>;
+    }
+
+    if (auth.isAuthenticated) {
+        return (
+            <UserProvider>
+                <Menu></Menu>
+                <div className={s.Content}>
                     <Routes>
                         <Route path="/tasks" Component={Tasks} />
                         <Route path="/tasks/:taskId" Component={Tasks} />
                         <Route path="/" element={<Navigate replace to="/tasks" />}>
                         </Route>
                     </Routes>
-    
-                ) : (
+                </div>
+
+            </UserProvider>
+        );
+    } else {
+        return (
+            <>
+                <Menu></Menu>
+                <div className={s.Content}>
                     <Routes>
+
                         <Route path="*" Component={Login} />
                     </Routes>
-                )
+                </div>
+            </>
+        )
+    }
 
-            }
-            </div>
-        </>
-    )
 }
 
 export {
