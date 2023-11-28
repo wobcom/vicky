@@ -1,8 +1,10 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
 use auth::User;
 use aws_sdk_s3::config::{Credentials, Region};
 use etcd_client::{Identity, Certificate, TlsOptions, ConnectOptions};
+use jwtk::jwk::RemoteJwksVerifier;
 use log::info;
 
 use rand::Rng;
@@ -10,7 +12,6 @@ use rocket::fairing::AdHoc;
 use rocket::figment::{Figment, Profile};
 use rocket::figment::providers::{Toml, Env, Format};
 use rocket::routes;
-use rocket_oauth2::OAuth2;
 use serde::Deserialize;
 use tokio::sync::broadcast;
 use vickylib::etcd::election::{NodeId, Election};
@@ -20,7 +21,6 @@ use vickylib::s3::client::S3Client;
 use crate::tasks::{tasks_claim, tasks_finish, tasks_get_machine, tasks_get_user, tasks_add, tasks_get_logs, tasks_put_logs, tasks_specific_get_machine, tasks_specific_get_user};
 use crate::events::{get_global_events, GlobalEvent};
 
-use crate::auth::{github_login, github_callback, logout, GitHubUserInfo};
 use crate::user::{get_user};
 
 mod tasks;
@@ -52,6 +52,12 @@ pub struct S3Config {
     log_bucket: String,
 }
 
+
+#[derive(Deserialize)]
+pub struct OIDCConfig {
+    jwks_url: String,
+}
+
 #[derive(Deserialize)]
 pub struct Config {
     users: HashMap<String, User>,
@@ -60,6 +66,9 @@ pub struct Config {
     etcd_config: EtcdConfig,
     s3_config: S3Config,
 
+    oidc_config: OIDCConfig,
+
+    base_url: String,
 }
 
 
@@ -98,6 +107,12 @@ async fn main() -> anyhow::Result<()> {
     let connect_options = options.map(|options: TlsOptions| ConnectOptions::new().with_tls(options));
     let etcd_client = etcd_client::Client::connect(app_config.etcd_config.endpoints, connect_options).await?;
 
+    let jwks_verifier = RemoteJwksVerifier::new(
+        app_config.oidc_config.jwks_url,
+        None,
+        Duration::from_secs(300),
+    );
+
     let aws_cfg = app_config.s3_config; 
 
     let aws_conf = aws_config::from_env()
@@ -130,11 +145,10 @@ async fn main() -> anyhow::Result<()> {
         .manage(etcd_client)
         .manage(s3_ext_client)
         .manage(log_drain)
+        .manage(jwks_verifier)
         .manage(tx_global_events)
-        .attach(OAuth2::<GitHubUserInfo>::fairing("github"))
         .attach(AdHoc::config::<Config>())
         .mount("/api/v1/user", routes![get_user])
-        .mount("/api/v1/auth", routes![github_login, github_callback, logout])
         .mount("/api/v1/events", routes![get_global_events])
         .mount("/api/v1/tasks", routes![tasks_get_machine, tasks_get_user, tasks_specific_get_machine, tasks_specific_get_user, tasks_claim, tasks_finish, tasks_add, tasks_get_logs, tasks_put_logs])
         .launch()

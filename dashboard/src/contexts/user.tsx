@@ -1,15 +1,15 @@
 import { createContext, PropsWithChildren, useEffect, useState } from "react";
-import { useAPI, User } from "../services/api";
+import { useAPI, IUser } from "../services/api";
 
 
 
-const defaultVal: User | null =  null
-const UserContext = createContext<User | null>(null)
+const defaultVal: IUser | null =  null
+const UserContext = createContext<IUser | null>(null)
 
 const UserProvider = (props: PropsWithChildren) => {
 
     const api = useAPI();
-    const [user, setUser] = useState<User | null>(null);
+    const [user, setUser] = useState<IUser | null>(null);
     const [userFetched, setUserFetched] = useState<boolean>(false);
 
     useEffect(() => {
