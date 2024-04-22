@@ -78,10 +78,6 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for VickyError {
         // sentry::capture_error(&self);
         error!("Error: {}", self);
 
-        match self {
-            _ => {
-                Status::InternalServerError.respond_to(req)
-            }
-        }
+        Status::InternalServerError.respond_to(req)
     }
 }

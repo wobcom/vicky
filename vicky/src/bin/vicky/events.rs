@@ -1,5 +1,4 @@
-use etcd_client::{Client};
-use rocket::{get, post, State, serde::json::Json};
+use rocket::{get, State};
 use serde::{Deserialize, Serialize};
 use rocket::response::stream::{EventStream, Event};
 use std::time;

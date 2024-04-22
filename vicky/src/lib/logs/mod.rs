@@ -1,9 +1,9 @@
 use std::{collections::{VecDeque, HashMap}};
 use std::{time};
 use rocket::futures::lock::Mutex;
-use tokio::sync::broadcast::{Sender, self, error::{TryRecvError, SendError}};
+use tokio::sync::broadcast::{Sender, self, error::{TryRecvError}};
 
-use crate::{s3::client::S3Client, errors::{S3ClientError, VickyError} };
+use crate::{s3::client::S3Client, errors::{VickyError} };
 
 const LOG_BUFFER: usize = 10000;
 
