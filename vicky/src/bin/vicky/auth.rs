@@ -43,17 +43,17 @@ impl<'r> request::FromRequest<'r> for User {
 
             let token = auth_header.trim_start_matches("Bearer ");
 
-            match jwks_verifier.verify::<Map<String, Value>>(token).await {
+            return match jwks_verifier.verify::<Map<String, Value>>(token).await {
                 Ok(jwt) => {
                     debug!("{:?}", jwt);
-                    return request::Outcome::Success(User {
+                    request::Outcome::Success(User {
                         full_name: "Test Wurst".to_string(),
                         role: Role::Admin,
                     })
                 }
                 Err(x) => {
                     warn!("Login failed: {:?}", x);
-                    return request::Outcome::Failure((Status::Forbidden, ()))
+                    request::Outcome::Failure((Status::Forbidden, ()))
                 }
             }
         }
