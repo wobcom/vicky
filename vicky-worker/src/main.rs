@@ -20,7 +20,7 @@ pub(crate) struct AppConfig {
 }
 
 fn main() -> anyhow::Result<()> {
-    env_logger::init();
+    env_logger::builder().filter_level(log::LevelFilter::Debug).init();
 
     // Took from rocket source code and added .split("__") to be able to add keys in nested structures.
     let rocket_config_figment = Figment::from(rocket::Config::default())
