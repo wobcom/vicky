@@ -66,8 +66,6 @@ pub struct Config {
     s3_config: S3Config,
 
     oidc_config: OIDCConfig,
-
-    base_url: String,
 }
 
 
