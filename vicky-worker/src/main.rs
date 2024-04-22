@@ -17,6 +17,7 @@ pub(crate) struct AppConfig {
     pub(crate) vicky_url: String,
     pub(crate) vicky_external_url: String,
     pub(crate) machine_token: String,
+    pub(crate) features: Vec<String>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -170,8 +171,13 @@ async fn run_task(cfg: Arc<AppConfig>, task: Task) {
 }
 
 async fn try_claim(cfg: Arc<AppConfig>) -> anyhow::Result<()> {
-    if let Some(task) =
-        api::<_, Option<Task>>(&cfg, Method::POST, "api/v1/tasks/claim", &None::<u32>).await?
+    if let Some(task) = api::<_, Option<Task>>(
+        &cfg,
+        Method::POST,
+        "api/v1/tasks/claim",
+        &serde_json::json!({ "features": cfg.features }),
+    )
+    .await?
     {
         log::info!("task claimed: {} {} 🎉", task.id, task.display_name);
         log::debug!("{:#?}", task);
