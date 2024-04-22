@@ -9,9 +9,9 @@ use tokio::process::Command;
 use tokio_util::codec::{FramedRead, LinesCodec};
 use uuid::Uuid;
 
-
+use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
-use rocket::figment::providers::{Toml, Env, Format};
+
 #[derive(Deserialize)]
 pub(crate) struct AppConfig {
     pub(crate) vicky_url: String,
@@ -25,10 +25,18 @@ fn main() -> anyhow::Result<()> {
     // Took from rocket source code and added .split("__") to be able to add keys in nested structures.
     let rocket_config_figment = Figment::from(rocket::Config::default())
         .merge(Toml::file(Env::var_or("ROCKET_CONFIG", "Rocket.toml")).nested())
-        .merge(Env::prefixed("ROCKET_").ignore(&["PROFILE"]).split("__").global())
-        .select(Profile::from_env_or("ROCKET_PROFILE", rocket::Config::DEFAULT_PROFILE));
+        .merge(
+            Env::prefixed("ROCKET_")
+                .ignore(&["PROFILE"])
+                .split("__")
+                .global(),
+        )
+        .select(Profile::from_env_or(
+            "ROCKET_PROFILE",
+            rocket::Config::DEFAULT_PROFILE,
+        ));
 
-    let app_config = rocket_config_figment.extract::<AppConfig>()?; 
+    let app_config = rocket_config_figment.extract::<AppConfig>()?;
     run(app_config)
 }
 
@@ -87,7 +95,10 @@ pub struct Task {
     pub flake_ref: FlakeRef,
 }
 
-fn log_sink(cfg: Arc<AppConfig>, task_id: Uuid) -> impl Sink<Vec<String>, Error = anyhow::Error> + Send {
+fn log_sink(
+    cfg: Arc<AppConfig>,
+    task_id: Uuid,
+) -> impl Sink<Vec<String>, Error = anyhow::Error> + Send {
     futures_util::sink::unfold((), move |_, lines: Vec<String>| {
         println!("{}", lines.len());
         let cfg = cfg.clone();
@@ -104,11 +115,7 @@ fn log_sink(cfg: Arc<AppConfig>, task_id: Uuid) -> impl Sink<Vec<String>, Error 
 }
 
 async fn try_run_task(cfg: Arc<AppConfig>, task: &Task) -> anyhow::Result<()> {
-    let mut args = vec![
-        "run".into(),
-        "-L".into(),
-        task.flake_ref.flake.clone(),
-    ];
+    let mut args = vec!["run".into(), "-L".into(), task.flake_ref.flake.clone()];
     args.extend(task.flake_ref.args.clone());
 
     let mut child = Command::new("nix")
