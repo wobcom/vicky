@@ -21,7 +21,8 @@ async-trait = "0.1.71"
 aws-sdk-s3 = "0.28.0"
 aws-config = "0.55.3"
 uuid = { version="1.4.1", features = ["fast-rng", "v4", "serde"] }
-rocket = { version="=0.5.0-rc.3", features = ["json", "secrets"] } 
+rocket = { version="0.5.0", features = ["json", "secrets"] } 
+rocket_dyn_templates = { version = "0.1.0", features = ["tera"] }
 rocket_oauth2 = "0.5.0-rc.2"
 reqwest = { version="0.11.20", features = ["json"]}
 

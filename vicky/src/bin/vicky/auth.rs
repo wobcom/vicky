@@ -55,12 +55,12 @@ impl<'r> request::FromRequest<'r> for User {
                     })
                 },
                 None => {
-                    return request::Outcome::Failure((Status::Forbidden, ()))
+                    return request::Outcome::Error((Status::Forbidden, ()))
                 }
             }
         }
 
-        request::Outcome::Forward(())
+        request::Outcome::Forward(Status::Forbidden)
     }
 }
 
@@ -83,12 +83,12 @@ impl<'r> request::FromRequest<'r> for Machine {
                     return request::Outcome::Success(Machine {})
                 },
                 None => {
-                    return request::Outcome::Failure((Status::Forbidden, ()))
+                    return request::Outcome::Error((Status::Forbidden, ()))
                 }
             }
         }
 
-        request::Outcome::Forward(())
+        request::Outcome::Forward(Status::Forbidden)
     }
 }
 
@@ -138,9 +138,8 @@ pub async fn github_callback(
     if user.is_some() {
         // Set a private cookie with the user's name, and redirect to the home page.
         cookies.add_private(
-            Cookie::build("vicky_username", user_info.login)
+            Cookie::build(("vicky_username", user_info.login))
                 .same_site(SameSite::Lax)
-                .finish(),
         );
         Ok(Redirect::to("/"))
     } else {
@@ -152,6 +151,6 @@ pub async fn github_callback(
 
 #[get("/logout")]
 pub fn logout(cookies: &CookieJar<'_>) -> Redirect {
-    cookies.remove(Cookie::named("vicky_username"));
+    cookies.remove(Cookie::from("vicky_username"));
     Redirect::to("/")
 }
