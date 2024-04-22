@@ -60,7 +60,6 @@ pub struct OIDCConfig {
 
 #[derive(Deserialize)]
 pub struct Config {
-    users: HashMap<String, User>,
     machines: Vec<String>,
 
     etcd_config: EtcdConfig,
