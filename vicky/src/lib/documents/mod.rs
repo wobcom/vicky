@@ -2,6 +2,8 @@
 use async_trait::async_trait;
 use etcd_client::GetOptions;
 use serde::{Serialize, Deserialize};
+use chrono::DateTime;
+use chrono::offset::Utc;
 
 use uuid::Uuid;
 
@@ -50,6 +52,18 @@ pub struct Task {
     pub id: Uuid,
     pub display_name: String,
     pub status: TaskStatus,
+    #[serde(default)]
+    pub created: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub started: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub closed: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub author: String,
+    #[serde(default)]
+    pub creator: String,
+    #[serde(default)]
+    pub parent: String,
     pub locks: Vec<Lock>,
     pub flake_ref: FlakeRef,
 }

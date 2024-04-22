@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom"
-import { Col, Grid, List, Panel, Row, Stack, Tag } from "rsuite"
+import { Col, Grid, List, Panel, Row, Stack, Tag, IconButton } from "rsuite"
 import { ITask, useAPI } from "../services/api";
 import { TaskTag } from "./tag";
 import { Task } from "./task";
@@ -8,6 +8,10 @@ import { Terminal } from "./xterm"
 
 import * as s from "./tasks.module.css";
 import { useTask, useTasks } from "../hooks/useTasks";
+
+import { Icon } from '@rsuite/icons';
+import { FaSvgIcon } from "./icons";
+import * as faPlus from '@fortawesome/free-solid-svg-icons/faPlus';
 
 const Tasks = () => {
 
@@ -32,7 +36,14 @@ const Tasks = () => {
                                     <List.Item key={t.id} className={isSelected ? s.ListItemSelected : ""}>
                                         <Stack direction="row" justifyContent="space-between" spacing={8}>
                                             <span>{t.display_name}</span>
-                                            <TaskTag size="sm" task={t}></TaskTag>
+                                            <Stack spacing={8}>
+                                                {
+                                                    t.creator ? (
+						        <Tag color="grey">{t.creator}</Tag>
+                                                    ): null
+                                                }
+                                                <TaskTag size="sm" task={t}></TaskTag>
+                                            </Stack>
                                         </Stack>
                                     </List.Item>
                                     </Link>
