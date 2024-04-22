@@ -55,7 +55,7 @@ pub struct S3Config {
 #[derive(Deserialize)]
 pub struct Config {
     users: HashMap<String, User>,
-    machines: Vec<String>,
+    machines: HashMap<String, String>,
 
     etcd_config: EtcdConfig,
     s3_config: S3Config,

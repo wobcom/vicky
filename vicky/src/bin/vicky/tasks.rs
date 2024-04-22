@@ -1,3 +1,4 @@
+use chrono::offset::Utc;
 use etcd_client::{Client};
 use rocket::{get, post, State, serde::json::Json};
 use serde::{Deserialize, Serialize};
@@ -8,7 +9,6 @@ use std::time;
 use tokio::sync::broadcast::{error::{TryRecvError}, self};
 use rocket::{http::Status};
 
-
 use crate::{auth::{User, Machine}, errors::AppError, events::GlobalEvent};
 
 
@@ -16,6 +16,10 @@ use crate::{auth::{User, Machine}, errors::AppError, events::GlobalEvent};
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct RoTaskNew {
     display_name: String,
+    #[serde(default)]
+    author: String,
+    #[serde(default)]
+    parent: String,
     flake_ref: FlakeRef,
     locks: Vec<Lock>,
 }
@@ -142,6 +146,7 @@ pub async fn tasks_claim(etcd: &State<Client>, global_events: &State<broadcast::
         Some(next_task) => {
             let mut task = etcd.get_task(next_task.id).await?.ok_or(AppError::HttpError(Status::NotFound))?; 
             task.status = TaskStatus::RUNNING;
+            task.started = Some(Utc::now());
             etcd.put_task(&task).await?;
             global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
             Ok(Json(Some(task)))
@@ -158,6 +163,7 @@ pub async fn tasks_finish(id: String, finish: Json<RoTaskFinish>, etcd: &State<C
     log_drain.finish_logs(&id).await?;
 
     task.status = TaskStatus::FINISHED(finish.result.clone());
+    task.closed = Some(Utc::now());
     etcd.put_task(&task).await?;
     global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
 
@@ -171,6 +177,12 @@ pub async fn tasks_add(task: Json<RoTaskNew>, etcd: &State<Client>, global_event
     let task_manifest = Task { 
         id: task_uuid,
         status: TaskStatus::NEW,
+        created: Some(Utc::now()),
+        started: None,
+        closed: None,
+        author: task.author.clone(),
+        parent: task.parent.clone(),
+        creator: _machine.name,
         locks: task.locks.clone(),
         display_name: task.display_name.clone(),
         flake_ref: FlakeRef { flake: task.flake_ref.flake.clone(), args: task.flake_ref.args.clone() },

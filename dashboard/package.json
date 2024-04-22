@@ -15,6 +15,9 @@
   "author": "Johann Wagner <johann.wagner@wobcom>",
   "license": "MIT",
   "dependencies": {
+    "@fortawesome/free-regular-svg-icons": "^6.5.1",
+    "@fortawesome/free-solid-svg-icons": "^6.5.1",
+    "@rsuite/icons": "^1.0.3",
     "@uidotdev/usehooks": "^2.4.1",
     "axios": "^1.5.0",
     "parcel": "^2.9.3",

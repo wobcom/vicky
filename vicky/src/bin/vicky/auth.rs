@@ -23,7 +23,7 @@ pub struct User {
 }
 
 pub struct Machine {
-    
+    pub name: String
 }
 
 #[rocket::async_trait]
@@ -76,11 +76,16 @@ impl<'r> request::FromRequest<'r> for Machine {
             .expect("request Config");
 
         if let Some(auth_header) = request.headers().get_one("Authorization") {
-            let cfg_user = config.machines.iter().find(|x| *x == auth_header);
+            let cfg_user = config.machines.iter().find_map(|(name, key)| match key == auth_header {
+                true => Some(name),
+                _ => None
+            });
 
             match cfg_user {
                 Some(_) => {
-                    return request::Outcome::Success(Machine {})
+                    return request::Outcome::Success(Machine {
+                        name: cfg_user.unwrap().to_string(),
+                    })
                 },
                 None => {
                     return request::Outcome::Failure((Status::Forbidden, ()))
