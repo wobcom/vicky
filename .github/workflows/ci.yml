@@ -16,7 +16,6 @@ jobs:
         toolchain:
           - stable
           - beta
-          - nightly
     steps:
       - uses: actions/checkout@v3
       - run: sudo apt install -y protobuf-compiler
