@@ -131,7 +131,7 @@ pub async fn tasks_get_logs<'a>(
                             break;
                         },
                         Err(TryRecvError::Lagged(_)) => {
-                            // Immediate Retry, doing our best efford ehre.
+                            // Immediate Retry, doing our best effort here.
                         },
                         Err(TryRecvError::Empty) => {
                             tokio::time::sleep(time::Duration::from_millis(100)).await;
