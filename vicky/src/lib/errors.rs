@@ -8,42 +8,45 @@ use tokio::sync::broadcast::error::SendError;
 pub enum VickyError {
     #[error("serde_json Error {source:?}")]
     SerdeJson {
-        #[from] source: serde_json::Error,
+        #[from]
+        source: serde_json::Error,
     },
 
     #[error("serde_yaml Error {source:?}")]
     SerdeYaml {
-        #[from] source: serde_yaml::Error,
+        #[from]
+        source: serde_yaml::Error,
     },
     #[error("etcd Error {source:?}")]
     EtcdClient {
-        #[from] source: etcd_client::Error,
+        #[from]
+        source: etcd_client::Error,
     },
-
-
 
     #[error("Scheduling Error {source:?}")]
     Scheduler {
-        #[from] source: SchedulerError,
+        #[from]
+        source: SchedulerError,
     },
 
     #[error("Log Push Error {source:?}")]
     PushError {
-        #[from] source: SendError<(String, String)>,
+        #[from]
+        source: SendError<(String, String)>,
     },
 
     #[error("S3 Client Error {source:?}")]
     S3ClientError {
-        #[from] source: S3ClientError,
-    }
+        #[from]
+        source: S3ClientError,
+    },
 }
 
 #[derive(Error, Debug)]
 pub enum SchedulerError {
     #[error("Invalid Scheduling")]
-    GeneralSchedulingError
+    GeneralSchedulingError,
 }
-
 
 #[derive(Error, Debug)]
 pub enum S3ClientError {
@@ -52,24 +55,27 @@ pub enum S3ClientError {
 
     #[error(transparent)]
     SdkError {
-        #[from] source: aws_sdk_s3::Error,
+        #[from]
+        source: aws_sdk_s3::Error,
     },
 
     #[error(transparent)]
     SdkPutObjectError {
-        #[from] source: aws_sdk_s3::error::SdkError<PutObjectError>,
+        #[from]
+        source: aws_sdk_s3::error::SdkError<PutObjectError>,
     },
 
     #[error(transparent)]
     SdkGetObjectError {
-        #[from] source: aws_sdk_s3::error::SdkError<GetObjectError>,
+        #[from]
+        source: aws_sdk_s3::error::SdkError<GetObjectError>,
     },
 
     #[error(transparent)]
     ByteStreamError {
-        #[from] source: ByteStreamError,
-    }
-
+        #[from]
+        source: ByteStreamError,
+    },
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for VickyError {

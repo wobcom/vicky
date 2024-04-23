@@ -19,7 +19,7 @@ pub fn get_global_events(global_events: &State<broadcast::Sender<GlobalEvent>>) 
     EventStream! {
 
         let mut global_events_rx = global_events.subscribe();
-        
+
         loop {
 
             let read_val = global_events_rx.try_recv();

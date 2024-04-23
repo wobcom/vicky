@@ -21,19 +21,14 @@ pub enum TaskResult {
 pub enum TaskStatus {
     NEW,
     RUNNING,
-    FINISHED(TaskResult)
-
+    FINISHED(TaskResult),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Lock {
-    WRITE {
-        object: String
-    },
-    READ {
-        object: String
-    },
+    WRITE { object: String },
+    READ { object: String },
 }
 
 type FlakeURI = String;
@@ -44,7 +39,6 @@ pub struct FlakeRef {
     pub args: Vec<String>,
 }
 
-
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Task {
     pub id: Uuid,
@@ -52,7 +46,7 @@ pub struct Task {
     pub status: TaskStatus,
     pub locks: Vec<Lock>,
     pub flake_ref: FlakeRef,
-    pub features: Vec<String>
+    pub features: Vec<String>,
 }
 
 #[async_trait]
@@ -60,15 +54,22 @@ pub trait DocumentClient {
     async fn get_all_tasks(&self) -> Result<Vec<Task>, VickyError>;
     async fn get_task(&self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
     async fn put_task(&self, task: &Task) -> Result<(), VickyError>;
-
 }
 
 #[async_trait]
 impl DocumentClient for etcd_client::Client {
     async fn get_all_tasks(&self) -> Result<Vec<Task>, VickyError> {
         let mut kv = self.kv_client();
-        let get_options: GetOptions = GetOptions::new().with_prefix().with_sort(etcd_client::SortTarget::Create, etcd_client::SortOrder::Descend);
-        let tasks: Vec<Task> = kv.get_yaml_list("vicky.wobcom.de/task/manifest".to_string(), Some(get_options)).await?;
+        let get_options: GetOptions = GetOptions::new().with_prefix().with_sort(
+            etcd_client::SortTarget::Create,
+            etcd_client::SortOrder::Descend,
+        );
+        let tasks: Vec<Task> = kv
+            .get_yaml_list(
+                "vicky.wobcom.de/task/manifest".to_string(),
+                Some(get_options),
+            )
+            .await?;
         Ok(tasks)
     }
 

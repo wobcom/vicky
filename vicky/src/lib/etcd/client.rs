@@ -7,7 +7,6 @@ use serde::{Serialize};
 
 use crate::errors::VickyError;
 
-
 #[async_trait]
 pub trait ClientExt {
     async fn get_yaml_list<T: DeserializeOwned>(

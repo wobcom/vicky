@@ -10,7 +10,6 @@ const ELECTION_NAME: &str = "vicky.wobcom.de/leader-election";
 
 pub type NodeId = String;
 
-
 enum ElectionState {
     Idle,
     Waiting,
@@ -96,7 +95,6 @@ impl Election {
         debug!("spawning refresh lease thread");
 
         let mut lease_client = self.lease_client.clone();
-
 
         // tokio does some funky stuff here, it blocks the requests sometimes.
         tokio::spawn(async move {

@@ -7,7 +7,6 @@ use crate::{s3::client::S3Client, errors::{VickyError} };
 
 const LOG_BUFFER: usize = 10000;
 
-
 pub struct LogDrain {
     pub send_handle: Sender<(String, String)>,
 
@@ -18,17 +17,15 @@ pub struct LogDrain {
 }
 
 impl LogDrain {
-
     pub fn new(s3_client: S3Client) -> &'static LogDrain {
         let (tx, rx1) = broadcast::channel(1000);
         let s3_client_m = Box::leak(Box::new(s3_client.clone()));
 
-
-        let ld: LogDrain = LogDrain { 
-            send_handle: tx, 
+        let ld: LogDrain = LogDrain {
+            send_handle: tx,
             live_log_buffers: Mutex::new(HashMap::new()),
             push_log_buffers: Mutex::new(HashMap::new()),
-            
+
             s3_client,
         };
 
@@ -36,15 +33,11 @@ impl LogDrain {
         let rx1r = Box::leak(Box::new(rx1));
 
         tokio::spawn(async {
-
-
             loop {
                 let read_val = rx1r.try_recv();
 
                 match read_val {
                     Ok((task_id, log_text)) => {
-
-                  
                         {
                             let mut llb = ldr.live_log_buffers.lock().await;
 
@@ -65,38 +58,38 @@ impl LogDrain {
                             if !push_log_buffers.contains_key(&task_id) {
                                 push_log_buffers.insert(task_id.clone(), vec![]);
                             }
-    
+
                             let push_log_buffer = push_log_buffers.get_mut(&task_id).unwrap();
                             push_log_buffer.push(log_text.clone());
-    
-    
+
                             // TODO: Figure out a good buffer length for our use case.
                             if push_log_buffer.len() > 16 {
                                 // Push buffer to S3
-    
-                                s3_client_m.upload_log_parts(&task_id, push_log_buffer.to_vec()).await.unwrap();
+
+                                s3_client_m
+                                    .upload_log_parts(&task_id, push_log_buffer.to_vec())
+                                    .await
+                                    .unwrap();
                                 push_log_buffer.clear()
                             }
-    
                         }
-                    },
+                    }
                     Err(TryRecvError::Closed) => {
                         // TODO: Do something about this.
                         // Technically, this should not happen, because we control all of the send handles.
-                    },
+                    }
                     Err(TryRecvError::Lagged(_)) => {
                         // Immediate Retry, doing our best efford ehre.
-                    },
+                    }
                     Err(TryRecvError::Empty) => {
                         tokio::time::sleep(time::Duration::from_millis(10)).await;
-                    },
+                    }
                 }
             }
         });
 
         ldr
     }
-
 
     pub fn push_logs(&self, task_id: String, logs: Vec<String>) -> Result<(), VickyError> {
         for log in logs {
@@ -107,20 +100,26 @@ impl LogDrain {
     }
 
     pub async fn get_logs(&self, task_id: String) -> Option<Vec<String>> {
-        let new_vec: Vec<String> = self.live_log_buffers.lock().await.get(&task_id)?.clone().into();
+        let new_vec: Vec<String> = self
+            .live_log_buffers
+            .lock()
+            .await
+            .get(&task_id)?
+            .clone()
+            .into();
         Some(new_vec)
     }
 
     pub async fn finish_logs(&self, task_id: &str) -> Result<(), VickyError> {
         let mut push_log_buffers = self.push_log_buffers.lock().await;
         if let Some(push_log_buffer) = push_log_buffers.get_mut(task_id) {
-            if !push_log_buffer.is_empty(){
-                self.s3_client.upload_log_parts(task_id, push_log_buffer.to_vec()).await?;
+            if !push_log_buffer.is_empty() {
+                self.s3_client
+                    .upload_log_parts(task_id, push_log_buffer.to_vec())
+                    .await?;
             }
             push_log_buffers.remove(task_id);
         }
         Ok(())
     }
-
 }
-

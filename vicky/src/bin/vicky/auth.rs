@@ -36,7 +36,6 @@ impl<'r> request::FromRequest<'r> for User {
             .expect("request KeyStore");
 
         if let Some(auth_header) = request.headers().get_one("Authorization") {
-
             if !auth_header.starts_with("Bearer") {
                 return request::Outcome::Forward(Status::Forbidden) 
             }
@@ -55,7 +54,7 @@ impl<'r> request::FromRequest<'r> for User {
                     warn!("Login failed: {:?}", x);
                     request::Outcome::Error((Status::Forbidden, ()))
                 }
-            }
+            };
         }
 
         request::Outcome::Forward(Status::Forbidden)

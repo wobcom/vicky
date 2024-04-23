@@ -3,8 +3,6 @@ use serde::{Serialize, Deserialize};
 
 use crate::{auth::User, errors::AppError};
 
-
-
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 
 pub struct Me {
@@ -13,13 +11,11 @@ pub struct Me {
 }
 
 #[get("/")]
-pub fn get_user(user: User) -> Result<Json<Me>, AppError>  {
-
+pub fn get_user(user: User) -> Result<Json<Me>, AppError> {
     let me = Me {
         full_name: user.full_name,
         role: String::from("admin"),
     };
 
     Ok(Json(me))
-
 }
