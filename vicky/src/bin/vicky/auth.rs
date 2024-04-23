@@ -74,9 +74,9 @@ impl<'r> request::FromRequest<'r> for Machine {
         if let Some(auth_header) = request.headers().get_one("Authorization") {
             let cfg_user = config.machines.iter().find(|x| *x == auth_header);
 
-            match cfg_user {
-                Some(_) => return request::Outcome::Success(Machine {}),
-                None => return request::Outcome::Error((Status::Forbidden, ())),
+            return match cfg_user {
+                Some(_) => request::Outcome::Success(Machine {}),
+                None => request::Outcome::Error((Status::Forbidden, ())),
             }
         }
 
