@@ -48,7 +48,7 @@ async fn api<Q: Serialize, R: DeserializeOwned>(
     q: &Q,
 ) -> anyhow::Result<R> {
     let client = Client::new();
-    let req_data = serde_json::to_vec(&q)?;
+    let req_data = serde_json::to_vec(q)?;
 
     let request = Request::builder()
         .uri(format!("{}/{}", cfg.vicky_url, endpoint))
