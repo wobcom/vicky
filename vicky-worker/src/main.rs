@@ -9,14 +9,15 @@ use tokio::process::Command;
 use tokio_util::codec::{FramedRead, LinesCodec};
 use uuid::Uuid;
 
-
+use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
-use rocket::figment::providers::{Toml, Env, Format};
+
 #[derive(Deserialize)]
 pub(crate) struct AppConfig {
     pub(crate) vicky_url: String,
     pub(crate) vicky_external_url: String,
     pub(crate) machine_token: String,
+    pub(crate) features: Vec<String>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -25,10 +26,18 @@ fn main() -> anyhow::Result<()> {
     // Took from rocket source code and added .split("__") to be able to add keys in nested structures.
     let rocket_config_figment = Figment::from(rocket::Config::default())
         .merge(Toml::file(Env::var_or("ROCKET_CONFIG", "Rocket.toml")).nested())
-        .merge(Env::prefixed("ROCKET_").ignore(&["PROFILE"]).split("__").global())
-        .select(Profile::from_env_or("ROCKET_PROFILE", rocket::Config::DEFAULT_PROFILE));
+        .merge(
+            Env::prefixed("ROCKET_")
+                .ignore(&["PROFILE"])
+                .split("__")
+                .global(),
+        )
+        .select(Profile::from_env_or(
+            "ROCKET_PROFILE",
+            rocket::Config::DEFAULT_PROFILE,
+        ));
 
-    let app_config = rocket_config_figment.extract::<AppConfig>()?; 
+    let app_config = rocket_config_figment.extract::<AppConfig>()?;
     run(app_config)
 }
 
@@ -39,7 +48,7 @@ async fn api<Q: Serialize, R: DeserializeOwned>(
     q: &Q,
 ) -> anyhow::Result<R> {
     let client = Client::new();
-    let req_data = serde_json::to_vec(&q)?;
+    let req_data = serde_json::to_vec(q)?;
 
     let request = Request::builder()
         .uri(format!("{}/{}", cfg.vicky_url, endpoint))
@@ -87,7 +96,10 @@ pub struct Task {
     pub flake_ref: FlakeRef,
 }
 
-fn log_sink(cfg: Arc<AppConfig>, task_id: Uuid) -> impl Sink<Vec<String>, Error = anyhow::Error> + Send {
+fn log_sink(
+    cfg: Arc<AppConfig>,
+    task_id: Uuid,
+) -> impl Sink<Vec<String>, Error = anyhow::Error> + Send {
     futures_util::sink::unfold((), move |_, lines: Vec<String>| {
         println!("{}", lines.len());
         let cfg = cfg.clone();
@@ -104,11 +116,7 @@ fn log_sink(cfg: Arc<AppConfig>, task_id: Uuid) -> impl Sink<Vec<String>, Error 
 }
 
 async fn try_run_task(cfg: Arc<AppConfig>, task: &Task) -> anyhow::Result<()> {
-    let mut args = vec![
-        "run".into(),
-        "-L".into(),
-        task.flake_ref.flake.clone(),
-    ];
+    let mut args = vec!["run".into(), "-L".into(), task.flake_ref.flake.clone()];
     args.extend(task.flake_ref.args.clone());
 
     let mut child = Command::new("nix")
@@ -163,8 +171,13 @@ async fn run_task(cfg: Arc<AppConfig>, task: Task) {
 }
 
 async fn try_claim(cfg: Arc<AppConfig>) -> anyhow::Result<()> {
-    if let Some(task) =
-        api::<_, Option<Task>>(&cfg, Method::POST, "api/v1/tasks/claim", &None::<u32>).await?
+    if let Some(task) = api::<_, Option<Task>>(
+        &cfg,
+        Method::POST,
+        "api/v1/tasks/claim",
+        &serde_json::json!({ "features": cfg.features }),
+    )
+    .await?
     {
         log::info!("task claimed: {} {} 🎉", task.id, task.display_name);
         log::debug!("{:#?}", task);

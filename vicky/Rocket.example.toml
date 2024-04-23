@@ -7,9 +7,9 @@ machines = [
 [default.etcd_config]
 endpoints = [ "https://localhost:2379" ]
 [default.etcd_config.tls_options]
-ca_file = "./certs/Vicky_CA.crt"
-certificate_file = "./certs/Vicky.crt"
-key_file = "./certs/Vicky.key"
+ca_file = "../certs/Vicky_CA.crt"
+certificate_file = "../certs/Vicky.crt"
+key_file = "../certs/Vicky.key"
 
 [default.s3_config]
 endpoint = "http://localhost:9000"
@@ -18,14 +18,6 @@ secret_access_key = "aichudiKohr6aithi4ahh3aeng2eL7xo"
 region = "us-east-1"
 log_bucket = "vicky-logs"
 
-[default.oauth.github]
-provider = "GitHub"
-client_id = "xxx"
-client_secret = "xxx"
-redirect_uri = "http://localhost:1234/api/auth/callback/github"
-
-
-[default.users.johannwagner]
-full_name = "Johann Wagner"
-role = "admin"
+[default.oidc_config]
+jwks_url = ""
 

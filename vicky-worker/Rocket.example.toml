@@ -1,5 +1,6 @@
 [default]
 
-vicky_url = ""
+vicky_url = "http://localhost:8000"
 vicky_external_url = "https://vicky.lab.wobcom.de"
 machine_token = ""
+features = []

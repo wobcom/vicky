@@ -1,12 +1,9 @@
 use async_trait::async_trait;
-use etcd_client::{
-    GetOptions, PutOptions, KvClient
-};
+use etcd_client::{GetOptions, KvClient, PutOptions};
 use serde::de::DeserializeOwned;
-use serde::{Serialize};
+use serde::Serialize;
 
 use crate::errors::VickyError;
-
 
 #[async_trait]
 pub trait ClientExt {

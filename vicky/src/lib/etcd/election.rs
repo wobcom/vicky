@@ -1,7 +1,7 @@
-use etcd_client::{ElectionClient, Client, LeaseClient};
-use log::{debug};
+use etcd_client::{Client, ElectionClient, LeaseClient};
+use log::debug;
 use std::sync::Arc;
-use std::{time};
+use std::time;
 use tokio::sync::Mutex;
 
 use crate::errors::VickyError;
@@ -9,7 +9,6 @@ use crate::errors::VickyError;
 const ELECTION_NAME: &str = "vicky.wobcom.de/leader-election";
 
 pub type NodeId = String;
-
 
 enum ElectionState {
     Idle,
@@ -96,7 +95,6 @@ impl Election {
         debug!("spawning refresh lease thread");
 
         let mut lease_client = self.lease_client.clone();
-
 
         // tokio does some funky stuff here, it blocks the requests sometimes.
         tokio::spawn(async move {
