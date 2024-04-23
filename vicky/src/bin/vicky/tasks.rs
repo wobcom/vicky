@@ -18,6 +18,12 @@ pub struct RoTaskNew {
     display_name: String,
     flake_ref: FlakeRef,
     locks: Vec<Lock>,
+    features: Vec<String>,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct RoTaskClaim {
+    features: Vec<String>
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -132,10 +138,10 @@ pub async fn tasks_put_logs(id: String, etcd: &State<Client>, logs: Json<LogLine
     }
 }
 
-#[post("/claim")]
-pub async fn tasks_claim(etcd: &State<Client>, global_events: &State<broadcast::Sender<GlobalEvent>>, _machine: Machine) ->  Result<Json<Option<Task>>, AppError> {
+#[post("/claim", format = "json", data = "<features>")]
+pub async fn tasks_claim(etcd: &State<Client>, features: Json<RoTaskClaim>, global_events: &State<broadcast::Sender<GlobalEvent>>, _machine: Machine) ->  Result<Json<Option<Task>>, AppError> {
     let tasks = etcd.get_all_tasks().await?;
-    let scheduler = Scheduler::new(tasks).map_err(|x| VickyError::Scheduler { source: x })?;
+    let scheduler = Scheduler::new(tasks, &features.features).map_err(|x| VickyError::Scheduler { source: x })?;
     let next_task = scheduler.get_next_task();
 
     match next_task {
@@ -174,6 +180,7 @@ pub async fn tasks_add(task: Json<RoTaskNew>, etcd: &State<Client>, global_event
         locks: task.locks.clone(),
         display_name: task.display_name.clone(),
         flake_ref: FlakeRef { flake: task.flake_ref.flake.clone(), args: task.flake_ref.args.clone() },
+        features: task.features.clone(),
     };
 
     etcd.put_task(&task_manifest).await?;

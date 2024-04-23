@@ -52,6 +52,7 @@ pub struct Task {
     pub status: TaskStatus,
     pub locks: Vec<Lock>,
     pub flake_ref: FlakeRef,
+    pub features: Vec<String>
 }
 
 #[async_trait]
