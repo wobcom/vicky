@@ -1,5 +1,5 @@
 use rocket::response::stream::{Event, EventStream};
-use rocket::{get, post, serde::json::Json, State};
+use rocket::{get, State};
 use serde::{Deserialize, Serialize};
 use std::time;
 use tokio::sync::broadcast::{self, error::TryRecvError};
