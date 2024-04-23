@@ -118,40 +118,31 @@ impl Scheduler {
         Ok(s)
     }
 
-    pub fn get_next_task(self) -> Option<Task> {
-        for task in self.tasks {
-            if task.status != TaskStatus::NEW {
-                continue;
-            }
+    fn is_unconstrained(&self, task: &Task) -> bool {
+        task.locks.iter().all(|lock| {
+            self.constraints
+                .get_lock_sum(lock)
+                .map_or(true, |ls| ls.can_add_lock(lock))
+        })
+    }
 
-            if !task
-                .features
-                .iter()
-                .all(|feat| self.machine_features.contains(feat))
-            {
-                continue;
-            }
+    fn supports_all_features(&self, task: &Task) -> bool {
+        task.features
+            .iter()
+            .all(|feat| self.machine_features.contains(feat))
+    }
 
-            let mut has_conflicts = false;
+    fn should_pick_task(&self, task: &Task) -> bool {
+        task.status == TaskStatus::NEW
+            && self.supports_all_features(task)
+            && self.is_unconstrained(task)
+    }
 
-            for lock in &task.locks {
-                let lock_sum = self.constraints.get_lock_sum(lock);
-                match lock_sum {
-                    Some(ls) => {
-                        if !ls.can_add_lock(lock) {
-                            has_conflicts = true;
-                        }
-                    }
-                    None => continue,
-                }
-            }
-
-            if !has_conflicts {
-                return Some(task);
-            }
-        }
-
-        None
+    pub fn get_next_task(mut self) -> Option<Task> {
+        self.tasks
+            .iter()
+            .position(|task| self.should_pick_task(task))
+            .map(|idx| self.tasks.remove(idx))
     }
 }
 
