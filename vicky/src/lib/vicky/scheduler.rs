@@ -98,12 +98,13 @@ impl LockSum {
 pub struct Scheduler {
     constraints: Constraints,
     tasks: Vec<Task>,
+    machine_features: Vec<String>,
 }
 
 
 impl Scheduler {
 
-    pub fn new(tasks: Vec<Task>) -> Result<Self, SchedulerError> {
+    pub fn new(tasks: Vec<Task>, machine_features: &[String]) -> Result<Self, SchedulerError> {
         
         let mut constraints: Constraints = HashMap::new();
 
@@ -121,6 +122,7 @@ impl Scheduler {
         let s = Scheduler {
             constraints,
             tasks,
+            machine_features: machine_features.clone().to_vec()
         };
 
         Ok(s)
@@ -132,7 +134,11 @@ impl Scheduler {
         for task in self.tasks {
             if task.status != TaskStatus::NEW {
                 continue;
-            }     
+            }
+
+            if !task.features.iter().all(|feat| self.machine_features.contains(feat)) {
+                continue;
+            }
 
             let mut has_conflicts = false;
 
@@ -171,11 +177,11 @@ mod tests {
     fn scheduler_creation_no_constraints() {
 
         let tasks = vec![
-            Task { id: Uuid::new_v4(), display_name: String::from("Test 1"), status: TaskStatus::RUNNING, locks: vec![], flake_ref: FlakeRef { flake: String::from(""), args: vec![] } },
-            Task { id: Uuid::new_v4(), display_name: String::from("Test 2"), status: TaskStatus::RUNNING, locks: vec![], flake_ref: FlakeRef { flake: String::from(""), args: vec![] } },
+            Task { id: Uuid::new_v4(), display_name: String::from("Test 1"), status: TaskStatus::RUNNING, locks: vec![], flake_ref: FlakeRef { flake: String::from(""), args: vec![] }, features: vec![] },
+            Task { id: Uuid::new_v4(), display_name: String::from("Test 2"), status: TaskStatus::RUNNING, locks: vec![], flake_ref: FlakeRef { flake: String::from(""), args: vec![] }, features: vec![] },
         ];
 
-        Scheduler::new(tasks).unwrap();
+        Scheduler::new(tasks, &[]).unwrap();
 
     }
 
@@ -183,11 +189,11 @@ mod tests {
     fn scheduler_creation_multiple_read_constraints() {
 
         let tasks = vec![
-            Task { id: Uuid::new_v4(), display_name: String::from("Test 1"), status: TaskStatus::RUNNING, locks: vec![Lock::READ { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] } },
-            Task { id: Uuid::new_v4(), display_name: String::from("Test 2"), status: TaskStatus::RUNNING, locks: vec![Lock::READ { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] } },
+            Task { id: Uuid::new_v4(), display_name: String::from("Test 1"), status: TaskStatus::RUNNING, locks: vec![Lock::READ { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] }, features: vec![] },
+            Task { id: Uuid::new_v4(), display_name: String::from("Test 2"), status: TaskStatus::RUNNING, locks: vec![Lock::READ { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] }, features: vec![] },
         ];
 
-        Scheduler::new(tasks).unwrap();
+        Scheduler::new(tasks, &[]).unwrap();
 
     }
 
@@ -195,11 +201,11 @@ mod tests {
     fn scheduler_creation_single_write_constraints() {
 
         let tasks = vec![
-            Task { id: Uuid::new_v4(), display_name: String::from("Test 1"), status: TaskStatus::RUNNING, locks: vec![Lock::WRITE { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] } },
-            Task { id: Uuid::new_v4(), display_name: String::from("Test 2"), status: TaskStatus::RUNNING, locks: vec![Lock::WRITE { object: String::from("foo2") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] } },
+            Task { id: Uuid::new_v4(), display_name: String::from("Test 1"), status: TaskStatus::RUNNING, locks: vec![Lock::WRITE { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] }, features: vec![] },
+            Task { id: Uuid::new_v4(), display_name: String::from("Test 2"), status: TaskStatus::RUNNING, locks: vec![Lock::WRITE { object: String::from("foo2") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] }, features: vec![] },
         ];
 
-        Scheduler::new(tasks).unwrap();
+        Scheduler::new(tasks, &[]).unwrap();
 
     }
 
@@ -207,11 +213,11 @@ mod tests {
     fn scheduler_creation_multiple_write_constraints() {
 
         let tasks = vec![
-            Task { id: Uuid::new_v4(), display_name: String::from("Test 1"), status: TaskStatus::RUNNING, locks: vec![Lock::WRITE { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] } },
-            Task { id: Uuid::new_v4(), display_name: String::from("Test 2"), status: TaskStatus::RUNNING, locks: vec![Lock::WRITE { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] } },
+            Task { id: Uuid::new_v4(), display_name: String::from("Test 1"), status: TaskStatus::RUNNING, locks: vec![Lock::WRITE { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] }, features: vec![] },
+            Task { id: Uuid::new_v4(), display_name: String::from("Test 2"), status: TaskStatus::RUNNING, locks: vec![Lock::WRITE { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] }, features: vec![] },
         ];
         
-        let res = Scheduler::new(tasks);
+        let res = Scheduler::new(tasks, &[]);
         assert!(res.is_err());
 
     }
@@ -219,11 +225,11 @@ mod tests {
     #[test]
     fn scheduler_no_new_task() {
         let tasks = vec![
-            Task { id: Uuid::new_v4(), display_name: String::from("Test 1"), status: TaskStatus::RUNNING, locks: vec![Lock::WRITE { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] } },
-            Task { id: Uuid::new_v4(), display_name: String::from("Test 2"), status: TaskStatus::NEW, locks: vec![Lock::WRITE { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] } },
+            Task { id: Uuid::new_v4(), display_name: String::from("Test 1"), status: TaskStatus::RUNNING, locks: vec![Lock::WRITE { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] }, features: vec![] },
+            Task { id: Uuid::new_v4(), display_name: String::from("Test 2"), status: TaskStatus::NEW, locks: vec![Lock::WRITE { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] }, features: vec![] },
         ];
         
-        let res = Scheduler::new(tasks).unwrap();
+        let res = Scheduler::new(tasks, &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task(), None)
         
@@ -232,11 +238,11 @@ mod tests {
     #[test]
     fn scheduler_new_task() {
         let tasks = vec![
-            Task { id: Uuid::new_v4(), display_name: String::from("Test 1"), status: TaskStatus::RUNNING, locks: vec![Lock::WRITE { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] } },
-            Task { id: Uuid::new_v4(), display_name: String::from("Test 2"), status: TaskStatus::NEW, locks: vec![Lock::WRITE { object: String::from("foo2") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] } },
+            Task { id: Uuid::new_v4(), display_name: String::from("Test 1"), status: TaskStatus::RUNNING, locks: vec![Lock::WRITE { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] }, features: vec![] },
+            Task { id: Uuid::new_v4(), display_name: String::from("Test 2"), status: TaskStatus::NEW, locks: vec![Lock::WRITE { object: String::from("foo2") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] }, features: vec![] },
         ];
         
-        let res = Scheduler::new(tasks).unwrap();
+        let res = Scheduler::new(tasks, &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert!(res.get_next_task().unwrap().display_name == "Test 2")
         
@@ -245,11 +251,11 @@ mod tests {
     #[test]
     fn scheduler_new_task_ro() {
         let tasks = vec![
-            Task { id: Uuid::new_v4(), display_name: String::from("Test 1"), status: TaskStatus::RUNNING, locks: vec![Lock::READ { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] } },
-            Task { id: Uuid::new_v4(), display_name: String::from("Test 2"), status: TaskStatus::NEW, locks: vec![Lock::READ { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] } },
+            Task { id: Uuid::new_v4(), display_name: String::from("Test 1"), status: TaskStatus::RUNNING, locks: vec![Lock::READ { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] }, features: vec![] },
+            Task { id: Uuid::new_v4(), display_name: String::from("Test 2"), status: TaskStatus::NEW, locks: vec![Lock::READ { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] }, features: vec![] },
         ];
         
-        let res = Scheduler::new(tasks).unwrap();
+        let res = Scheduler::new(tasks, &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert!(res.get_next_task().unwrap().display_name == "Test 2")
         
@@ -258,11 +264,11 @@ mod tests {
     #[test]
     fn scheduler_new_task_rw_ro() {
         let tasks = vec![
-            Task { id: Uuid::new_v4(), display_name: String::from("Test 1"), status: TaskStatus::RUNNING, locks: vec![Lock::WRITE { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] } },
-            Task { id: Uuid::new_v4(), display_name: String::from("Test 2"), status: TaskStatus::NEW, locks: vec![Lock::READ { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] } },
+            Task { id: Uuid::new_v4(), display_name: String::from("Test 1"), status: TaskStatus::RUNNING, locks: vec![Lock::WRITE { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] }, features: vec![] },
+            Task { id: Uuid::new_v4(), display_name: String::from("Test 2"), status: TaskStatus::NEW, locks: vec![Lock::READ { object: String::from("foo1") }], flake_ref: FlakeRef { flake: String::from(""), args: vec![] }, features: vec![] },
         ];
         
-        let res = Scheduler::new(tasks).unwrap();
+        let res = Scheduler::new(tasks, &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task(), None)
         
