@@ -1,9 +1,8 @@
-use rocket::{get, State};
+use rocket::response::stream::{Event, EventStream};
+use rocket::{get, post, serde::json::Json, State};
 use serde::{Deserialize, Serialize};
-use rocket::response::stream::{EventStream, Event};
 use std::time;
-use tokio::sync::broadcast::{error::{TryRecvError}, self};
-
+use tokio::sync::broadcast::{self, error::TryRecvError};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
