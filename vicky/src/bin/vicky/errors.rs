@@ -1,22 +1,23 @@
 use log::error;
-use rocket::{response::Responder, Request, http::Status};
+use rocket::{http::Status, response::Responder, Request};
+use thiserror::Error;
 use tokio::sync::broadcast::error::SendError;
 use vickylib::errors::VickyError;
-use thiserror::Error;
 
 use crate::events::GlobalEvent;
 
 #[derive(Error, Debug)]
 pub enum AppError {
-    
     #[error("GlobalEvent Push Error {source:?}")]
     PushError2 {
-        #[from] source: SendError<GlobalEvent>,
+        #[from]
+        source: SendError<GlobalEvent>,
     },
 
     #[error("Vicky Error {source:?}")]
     VickyError {
-        #[from] source: VickyError,
+        #[from]
+        source: VickyError,
     },
 
     #[error("HTTP Error {0:?}")]
@@ -24,11 +25,10 @@ pub enum AppError {
 
     #[error("uuid Error {source:?}")]
     Uuid {
-        #[from] source: uuid::Error,
+        #[from]
+        source: uuid::Error,
     },
 }
-
-
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for AppError {
     fn respond_to(self, req: &'r Request<'_>) -> rocket::response::Result<'o> {
@@ -38,9 +38,7 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for AppError {
 
         match self {
             Self::HttpError(x) => x.respond_to(req),
-            _ => {
-                Status::InternalServerError.respond_to(req)
-            }
+            _ => Status::InternalServerError.respond_to(req),
         }
     }
 }

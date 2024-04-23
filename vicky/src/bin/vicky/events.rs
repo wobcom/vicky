@@ -1,25 +1,24 @@
+use rocket::response::stream::{Event, EventStream};
 use rocket::{get, State};
 use serde::{Deserialize, Serialize};
-use rocket::response::stream::{EventStream, Event};
 use std::time;
-use tokio::sync::broadcast::{error::{TryRecvError}, self};
-
+use tokio::sync::broadcast::{self, error::TryRecvError};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum GlobalEvent {
     TaskAdd,
-    TaskUpdate {
-        uuid: uuid::Uuid
-    }
+    TaskUpdate { uuid: uuid::Uuid },
 }
 
 #[get("/")]
-pub fn get_global_events(global_events: &State<broadcast::Sender<GlobalEvent>>) -> EventStream![Event + '_] {
+pub fn get_global_events(
+    global_events: &State<broadcast::Sender<GlobalEvent>>,
+) -> EventStream![Event + '_] {
     EventStream! {
 
         let mut global_events_rx = global_events.subscribe();
-        
+
         loop {
 
             let read_val = global_events_rx.try_recv();
