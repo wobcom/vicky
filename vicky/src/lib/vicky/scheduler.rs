@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use log::debug;
 
-use crate::{documents::{Lock, Task, TaskStatus}, errors::SchedulerError};
+use crate::{
+    documents::{Lock, Task, TaskStatus},
+    errors::SchedulerError,
+};
 
 type Constraints = HashMap<String, LockSum>;
 
@@ -156,7 +159,7 @@ impl Scheduler {
 mod tests {
     use uuid::Uuid;
 
-    use crate::documents::{TaskStatus, Task, FlakeRef, Lock};
+    use crate::documents::{FlakeRef, Lock, Task, TaskStatus};
 
     use super::Scheduler;
 

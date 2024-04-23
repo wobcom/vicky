@@ -1,17 +1,24 @@
-use etcd_client::{Client};
-use rocket::{get, post, State, serde::json::Json};
+use etcd_client::Client;
+use rocket::http::Status;
+use rocket::response::stream::{Event, EventStream};
+use rocket::{get, post, serde::json::Json, State};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use vickylib::{documents::{Task, TaskStatus, TaskResult, FlakeRef, Lock, DocumentClient}, vicky::{scheduler::Scheduler}, logs::LogDrain, s3::client::S3Client, errors::VickyError};
-use rocket::response::stream::{EventStream, Event};
 use std::time;
-use tokio::sync::broadcast::{error::{TryRecvError}, self};
-use rocket::{http::Status};
+use tokio::sync::broadcast::{self, error::TryRecvError};
+use uuid::Uuid;
+use vickylib::{
+    documents::{DocumentClient, FlakeRef, Lock, Task, TaskResult, TaskStatus},
+    errors::VickyError,
+    logs::LogDrain,
+    s3::client::S3Client,
+    vicky::scheduler::Scheduler,
+};
 
-
-use crate::{auth::{User, Machine}, errors::AppError, events::GlobalEvent};
-
-
+use crate::{
+    auth::{Machine, User},
+    errors::AppError,
+    events::GlobalEvent,
+};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct RoTaskNew {

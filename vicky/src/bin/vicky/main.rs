@@ -1,27 +1,28 @@
-use std::collections::HashMap;
 use std::time::Duration;
 
-use auth::User;
 use aws_sdk_s3::config::{Credentials, Region};
-use etcd_client::{Identity, Certificate, TlsOptions, ConnectOptions};
+use etcd_client::{Certificate, ConnectOptions, Identity, TlsOptions};
 use jwtk::jwk::RemoteJwksVerifier;
 use log::info;
 
 use rand::Rng;
 use rocket::fairing::AdHoc;
+use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
-use rocket::figment::providers::{Toml, Env, Format};
 use rocket::routes;
 use serde::Deserialize;
 use tokio::sync::broadcast;
-use vickylib::etcd::election::{NodeId, Election};
+use vickylib::etcd::election::{Election, NodeId};
 use vickylib::logs::LogDrain;
 use vickylib::s3::client::S3Client;
 
-use crate::tasks::{tasks_claim, tasks_finish, tasks_get_machine, tasks_get_user, tasks_add, tasks_get_logs, tasks_put_logs, tasks_specific_get_machine, tasks_specific_get_user};
 use crate::events::{get_global_events, GlobalEvent};
+use crate::tasks::{
+    tasks_add, tasks_claim, tasks_finish, tasks_get_logs, tasks_get_machine, tasks_get_user,
+    tasks_put_logs, tasks_specific_get_machine, tasks_specific_get_user,
+};
 
-use crate::user::{get_user};
+use crate::user::get_user;
 
 mod auth;
 mod errors;

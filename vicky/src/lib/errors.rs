@@ -1,6 +1,9 @@
-use aws_sdk_s3::{operation::{put_object::PutObjectError, get_object::GetObjectError}, primitives::ByteStreamError};
+use aws_sdk_s3::{
+    operation::{get_object::GetObjectError, put_object::PutObjectError},
+    primitives::ByteStreamError,
+};
 use log::error;
-use rocket::{response::Responder, Request, http::Status};
+use rocket::{http::Status, response::Responder, Request};
 use thiserror::Error;
 use tokio::sync::broadcast::error::SendError;
 

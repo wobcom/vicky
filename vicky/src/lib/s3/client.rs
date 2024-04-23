@@ -1,5 +1,5 @@
 use aws_sdk_s3::primitives::ByteStream;
-use log::{info};
+use log::info;
 
 use crate::errors::S3ClientError;
 

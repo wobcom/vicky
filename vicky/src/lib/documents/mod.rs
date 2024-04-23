@@ -1,11 +1,10 @@
-
 use async_trait::async_trait;
 use etcd_client::GetOptions;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use uuid::Uuid;
 
-use crate::{etcd::client::ClientExt, errors::VickyError};
+use crate::{errors::VickyError, etcd::client::ClientExt};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "result")]

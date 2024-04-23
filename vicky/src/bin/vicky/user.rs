@@ -1,5 +1,5 @@
 use rocket::{get, serde::json::Json};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{auth::User, errors::AppError};
 

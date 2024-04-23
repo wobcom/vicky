@@ -1,15 +1,15 @@
 use anyhow::{Context, Error};
 use jwtk::jwk::RemoteJwksVerifier;
-use log::{warn, debug};
+use log::{debug, warn};
 use rocket::get;
 use rocket::http::Status;
 use rocket::http::{Cookie, CookieJar, SameSite};
 use rocket::response::{Debug, Redirect};
 use rocket::{request, State};
 use serde::Deserialize;
-use serde_json::{Value, Map};
+use serde_json::{Map, Value};
 
-use crate::{Config, OIDCConfig};
+use crate::{Config};
 
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "lowercase")]
