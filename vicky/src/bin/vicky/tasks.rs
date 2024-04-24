@@ -270,6 +270,7 @@ pub async fn tasks_add(
     Ok(Json(ro_task))
 }
 
+#[cfg(test)]
 mod tests {
     use crate::tasks::check_lock_conflict;
     use uuid::Uuid;
