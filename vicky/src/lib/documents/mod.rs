@@ -48,6 +48,93 @@ pub struct Task {
     pub features: Vec<String>,
 }
 
+impl Task {
+    pub fn builder() -> TaskBuilder {
+        TaskBuilder::default()
+    }
+}
+
+impl From<TaskBuilder> for Task {
+    fn from(builder: TaskBuilder) -> Self {
+        builder.build()
+    }
+}
+
+pub struct TaskBuilder {
+    id: Option<Uuid>,
+    display_name: Option<String>,
+    status: TaskStatus,
+    locks: Vec<Lock>,
+    flake_ref: FlakeRef,
+    features: Vec<String>
+}
+
+impl Default for TaskBuilder {
+    fn default() -> Self {
+        TaskBuilder {
+            id: None,
+            display_name: None,
+            status: TaskStatus::NEW,
+            locks: Vec::new(),
+            flake_ref: FlakeRef { flake: "".to_string(), args: Vec::new() },
+            features: Vec::new()
+        }
+    }
+}
+
+impl TaskBuilder {
+    pub fn with_id(mut self, id: Uuid) -> Self {
+        self.id = Some(id);
+        self
+    }
+    
+    pub fn with_display_name<S: Into<String>>(mut self, display_name: S) -> Self {
+        self.display_name = Some(display_name.into());
+        self
+    }
+    
+    pub fn with_status(mut self, status: TaskStatus) -> Self {
+        self.status = status;
+        self
+    }
+    
+    pub fn with_read_lock<S: Into<String>>(mut self, name: S) -> Self {
+        self.locks.push(Lock::READ { name: name.into() });
+        self
+    }
+
+    pub fn with_write_lock<S: Into<String>>(mut self, name: S) -> Self {
+        self.locks.push(Lock::WRITE { name: name.into() });
+        self
+    }
+    
+    pub fn with_flake<S: Into<FlakeURI>>(mut self, flake_uri: S) -> Self {
+        self.flake_ref.flake = flake_uri.into();
+        self
+    }
+    
+    pub fn with_flake_arg<S: Into<String>>(mut self, flake_arg: S) -> Self {
+        self.flake_ref.args.push(flake_arg.into());
+        self
+    }
+    
+    pub fn requires_feature<S: Into<String>>(mut self, feature: S) -> Self {
+        self.features.push(feature.into());
+        self
+    }
+    
+    pub fn build(self) -> Task {
+        Task {
+            id: self.id.unwrap_or_else(Uuid::new_v4),
+            display_name: self.display_name.unwrap_or_else(|| "Task".to_string()),
+            features: self.features,
+            status: self.status,
+            locks: self.locks,
+            flake_ref: self.flake_ref
+        }
+    }
+}
+
 #[async_trait]
 pub trait DocumentClient {
     async fn get_all_tasks(&self) -> Result<Vec<Task>, VickyError>;
