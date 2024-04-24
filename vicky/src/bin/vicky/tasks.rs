@@ -274,54 +274,26 @@ pub async fn tasks_add(
 mod tests {
     use crate::tasks::check_lock_conflict;
     use uuid::Uuid;
-    use vickylib::documents::{FlakeRef, Lock, Task, TaskStatus};
+    use vickylib::documents::{FlakeRef, Lock, Task, TaskBuilder, TaskStatus};
 
     #[test]
     fn add_new_conflicting_task() {
-        let task = Task {
-            id: Uuid::new_v4(),
-            display_name: String::from("Test 1"),
-            status: TaskStatus::NEW,
-            locks: vec![
-                Lock::READ {
-                    name: String::from("mauz"),
-                },
-                Lock::WRITE {
-                    name: String::from("mauz"),
-                },
-            ],
-            flake_ref: FlakeRef {
-                flake: String::from(""),
-                args: vec![],
-            },
-            features: vec![],
-        };
+        let task = Task::builder()
+            .with_display_name("Test 1")
+            .with_read_lock("mauz")
+            .with_write_lock("mauz")
+            .build();
         assert!(check_lock_conflict(&task))
     }
 
     #[test]
     fn add_new_not_conflicting_task() {
-        let task = Task {
-            id: Uuid::new_v4(),
-            display_name: String::from("Test 1"),
-            status: TaskStatus::NEW,
-            locks: vec![
-                Lock::READ {
-                    name: String::from("mauz"),
-                },
-                Lock::READ {
-                    name: String::from("mauz"),
-                },
-                Lock::WRITE {
-                    name: String::from("delete_everything"),
-                },
-            ],
-            flake_ref: FlakeRef {
-                flake: String::from(""),
-                args: vec![],
-            },
-            features: vec![],
-        };
+        let task = Task::builder()
+            .with_display_name("Test 1")
+            .with_read_lock("mauz")
+            .with_read_lock("mauz")
+            .with_write_lock("delete_everything")
+            .build();
         assert!(!check_lock_conflict(&task))
     }
 }
