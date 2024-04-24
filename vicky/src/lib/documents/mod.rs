@@ -66,7 +66,7 @@ pub struct TaskBuilder {
     status: TaskStatus,
     locks: Vec<Lock>,
     flake_ref: FlakeRef,
-    features: Vec<String>
+    features: Vec<String>,
 }
 
 impl Default for TaskBuilder {
@@ -76,8 +76,11 @@ impl Default for TaskBuilder {
             display_name: None,
             status: TaskStatus::NEW,
             locks: Vec::new(),
-            flake_ref: FlakeRef { flake: "".to_string(), args: Vec::new() },
-            features: Vec::new()
+            flake_ref: FlakeRef {
+                flake: "".to_string(),
+                args: Vec::new(),
+            },
+            features: Vec::new(),
         }
     }
 }
@@ -87,17 +90,17 @@ impl TaskBuilder {
         self.id = Some(id);
         self
     }
-    
+
     pub fn with_display_name<S: Into<String>>(mut self, display_name: S) -> Self {
         self.display_name = Some(display_name.into());
         self
     }
-    
+
     pub fn with_status(mut self, status: TaskStatus) -> Self {
         self.status = status;
         self
     }
-    
+
     pub fn with_read_lock<S: Into<String>>(mut self, name: S) -> Self {
         self.locks.push(Lock::READ { name: name.into() });
         self
@@ -107,17 +110,17 @@ impl TaskBuilder {
         self.locks.push(Lock::WRITE { name: name.into() });
         self
     }
-    
+
     pub fn with_locks(mut self, locks: Vec<Lock>) -> Self {
         self.locks = locks;
         self
     }
-    
+
     pub fn with_flake<S: Into<FlakeURI>>(mut self, flake_uri: S) -> Self {
         self.flake_ref.flake = flake_uri.into();
         self
     }
-    
+
     pub fn with_flake_arg<S: Into<String>>(mut self, flake_arg: S) -> Self {
         self.flake_ref.args.push(flake_arg.into());
         self
@@ -127,7 +130,7 @@ impl TaskBuilder {
         self.flake_ref.args = args;
         self
     }
-    
+
     pub fn requires_feature<S: Into<String>>(mut self, feature: S) -> Self {
         self.features.push(feature.into());
         self
@@ -169,7 +172,7 @@ impl TaskBuilder {
             features: self.features,
             status: self.status,
             locks: self.locks,
-            flake_ref: self.flake_ref
+            flake_ref: self.flake_ref,
         }
     }
 }
