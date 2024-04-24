@@ -227,6 +227,16 @@ pub async fn tasks_finish(
     Ok(Json(task))
 }
 
+// TODO: Move into Task Builder
+fn check_lock_conflict(task: &Task) -> bool {
+    task.locks.iter().enumerate().any(|(i, lock)| {
+        task.locks
+            .iter()
+            .enumerate()
+            .any(|(j, lock2)| i < j && lock.is_conflicting(lock2))
+    })
+}
+
 #[post("/", data = "<task>")]
 pub async fn tasks_add(
     task: Json<RoTaskNew>,
@@ -245,6 +255,10 @@ pub async fn tasks_add(
         .requires_features(task.features.clone())
         .build();
 
+    if check_lock_conflict(&task_manifest) {
+        return Err(AppError::HttpError(Status::Conflict));
+    }
+
     etcd.put_task(&task_manifest).await?;
     global_events.send(GlobalEvent::TaskAdd)?;
 
@@ -254,4 +268,32 @@ pub async fn tasks_add(
     };
 
     Ok(Json(ro_task))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tasks::check_lock_conflict;
+    use uuid::Uuid;
+    use vickylib::documents::{FlakeRef, Lock, Task, TaskBuilder, TaskStatus};
+
+    #[test]
+    fn add_new_conflicting_task() {
+        let task = Task::builder()
+            .with_display_name("Test 1")
+            .with_read_lock("mauz")
+            .with_write_lock("mauz")
+            .build();
+        assert!(check_lock_conflict(&task))
+    }
+
+    #[test]
+    fn add_new_not_conflicting_task() {
+        let task = Task::builder()
+            .with_display_name("Test 1")
+            .with_read_lock("mauz")
+            .with_read_lock("mauz")
+            .with_write_lock("delete_everything")
+            .build();
+        assert!(!check_lock_conflict(&task))
+    }
 }
