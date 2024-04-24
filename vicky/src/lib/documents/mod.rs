@@ -122,6 +122,11 @@ impl TaskBuilder {
         self.flake_ref.args.push(flake_arg.into());
         self
     }
+
+    pub fn with_flake_args(mut self, args: Vec<String>) -> Self {
+        self.flake_ref.args = args;
+        self
+    }
     
     pub fn requires_feature<S: Into<String>>(mut self, feature: S) -> Self {
         self.features.push(feature.into());
