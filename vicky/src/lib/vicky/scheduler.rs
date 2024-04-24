@@ -148,37 +148,21 @@ impl Scheduler {
 
 #[cfg(test)]
 mod tests {
-    use uuid::Uuid;
-
-    use crate::documents::{FlakeRef, Lock, Task, TaskStatus};
+    use crate::documents::{Task, TaskStatus};
 
     use super::Scheduler;
 
     #[test]
     fn scheduler_creation_no_constraints() {
         let tasks = vec![
-            Task {
-                id: Uuid::new_v4(),
-                display_name: String::from("Test 1"),
-                status: TaskStatus::RUNNING,
-                locks: vec![],
-                flake_ref: FlakeRef {
-                    flake: String::from(""),
-                    args: vec![],
-                },
-                features: vec![],
-            },
-            Task {
-                id: Uuid::new_v4(),
-                display_name: String::from("Test 2"),
-                status: TaskStatus::RUNNING,
-                locks: vec![],
-                flake_ref: FlakeRef {
-                    flake: String::from(""),
-                    args: vec![],
-                },
-                features: vec![],
-            },
+            Task::builder()
+                .with_display_name("Test 1")
+                .with_status(TaskStatus::RUNNING)
+                .build(),
+            Task::builder()
+                .with_display_name("Test 2")
+                .with_status(TaskStatus::RUNNING)
+                .build()
         ];
 
         Scheduler::new(tasks, &[]).unwrap();
@@ -187,32 +171,16 @@ mod tests {
     #[test]
     fn scheduler_creation_multiple_read_constraints() {
         let tasks = vec![
-            Task {
-                id: Uuid::new_v4(),
-                display_name: String::from("Test 1"),
-                status: TaskStatus::RUNNING,
-                locks: vec![Lock::READ {
-                    name: String::from("foo1"),
-                }],
-                flake_ref: FlakeRef {
-                    flake: String::from(""),
-                    args: vec![],
-                },
-                features: vec![],
-            },
-            Task {
-                id: Uuid::new_v4(),
-                display_name: String::from("Test 2"),
-                status: TaskStatus::RUNNING,
-                locks: vec![Lock::READ {
-                    name: String::from("foo1"),
-                }],
-                flake_ref: FlakeRef {
-                    flake: String::from(""),
-                    args: vec![],
-                },
-                features: vec![],
-            },
+            Task::builder()
+                .with_display_name("Test 1")
+                .with_status(TaskStatus::RUNNING)
+                .with_read_lock("foo 1")
+                .build(),
+            Task::builder()
+                .with_display_name("Test 2")
+                .with_status(TaskStatus::RUNNING)
+                .with_read_lock("foo 1")
+                .build()
         ];
 
         Scheduler::new(tasks, &[]).unwrap();
@@ -221,32 +189,16 @@ mod tests {
     #[test]
     fn scheduler_creation_single_write_constraints() {
         let tasks = vec![
-            Task {
-                id: Uuid::new_v4(),
-                display_name: String::from("Test 1"),
-                status: TaskStatus::RUNNING,
-                locks: vec![Lock::WRITE {
-                    name: String::from("foo1"),
-                }],
-                flake_ref: FlakeRef {
-                    flake: String::from(""),
-                    args: vec![],
-                },
-                features: vec![],
-            },
-            Task {
-                id: Uuid::new_v4(),
-                display_name: String::from("Test 2"),
-                status: TaskStatus::RUNNING,
-                locks: vec![Lock::WRITE {
-                    name: String::from("foo2"),
-                }],
-                flake_ref: FlakeRef {
-                    flake: String::from(""),
-                    args: vec![],
-                },
-                features: vec![],
-            },
+            Task::builder()
+                .with_display_name("Test 1")
+                .with_status(TaskStatus::RUNNING)
+                .with_write_lock("foo1")
+                .build(),
+            Task::builder()
+                .with_display_name("Test 2")
+                .with_status(TaskStatus::RUNNING)
+                .with_write_lock("foo2")
+                .build()
         ];
 
         Scheduler::new(tasks, &[]).unwrap();
@@ -255,32 +207,16 @@ mod tests {
     #[test]
     fn scheduler_creation_multiple_write_constraints() {
         let tasks = vec![
-            Task {
-                id: Uuid::new_v4(),
-                display_name: String::from("Test 1"),
-                status: TaskStatus::RUNNING,
-                locks: vec![Lock::WRITE {
-                    name: String::from("foo1"),
-                }],
-                flake_ref: FlakeRef {
-                    flake: String::from(""),
-                    args: vec![],
-                },
-                features: vec![],
-            },
-            Task {
-                id: Uuid::new_v4(),
-                display_name: String::from("Test 2"),
-                status: TaskStatus::RUNNING,
-                locks: vec![Lock::WRITE {
-                    name: String::from("foo1"),
-                }],
-                flake_ref: FlakeRef {
-                    flake: String::from(""),
-                    args: vec![],
-                },
-                features: vec![],
-            },
+            Task::builder()
+                .with_display_name("Test 1")
+                .with_status(TaskStatus::RUNNING)
+                .with_write_lock("foo1")
+                .build(),
+            Task::builder()
+                .with_display_name("Test 2")
+                .with_status(TaskStatus::RUNNING)
+                .with_write_lock("foo1")
+                .build(),
         ];
 
         let res = Scheduler::new(tasks, &[]);
@@ -290,32 +226,16 @@ mod tests {
     #[test]
     fn scheduler_no_new_task() {
         let tasks = vec![
-            Task {
-                id: Uuid::new_v4(),
-                display_name: String::from("Test 1"),
-                status: TaskStatus::RUNNING,
-                locks: vec![Lock::WRITE {
-                    name: String::from("foo1"),
-                }],
-                flake_ref: FlakeRef {
-                    flake: String::from(""),
-                    args: vec![],
-                },
-                features: vec![],
-            },
-            Task {
-                id: Uuid::new_v4(),
-                display_name: String::from("Test 2"),
-                status: TaskStatus::NEW,
-                locks: vec![Lock::WRITE {
-                    name: String::from("foo1"),
-                }],
-                flake_ref: FlakeRef {
-                    flake: String::from(""),
-                    args: vec![],
-                },
-                features: vec![],
-            },
+            Task::builder()
+                .with_display_name("Test 1")
+                .with_status(TaskStatus::RUNNING)
+                .with_write_lock("foo1")
+                .build(),
+            Task::builder()
+                .with_display_name("Test 2")
+                .with_status(TaskStatus::NEW)
+                .with_write_lock("foo1")
+                .build(),
         ];
 
         let res = Scheduler::new(tasks, &[]).unwrap();
@@ -326,32 +246,16 @@ mod tests {
     #[test]
     fn scheduler_new_task() {
         let tasks = vec![
-            Task {
-                id: Uuid::new_v4(),
-                display_name: String::from("Test 1"),
-                status: TaskStatus::RUNNING,
-                locks: vec![Lock::WRITE {
-                    name: String::from("foo1"),
-                }],
-                flake_ref: FlakeRef {
-                    flake: String::from(""),
-                    args: vec![],
-                },
-                features: vec![],
-            },
-            Task {
-                id: Uuid::new_v4(),
-                display_name: String::from("Test 2"),
-                status: TaskStatus::NEW,
-                locks: vec![Lock::WRITE {
-                    name: String::from("foo2"),
-                }],
-                flake_ref: FlakeRef {
-                    flake: String::from(""),
-                    args: vec![],
-                },
-                features: vec![],
-            },
+            Task::builder()
+                .with_display_name("Test 1")
+                .with_status(TaskStatus::RUNNING)
+                .with_write_lock("foo1")
+                .build(),
+            Task::builder()
+                .with_display_name("Test 2")
+                .with_status(TaskStatus::NEW)
+                .with_write_lock("foo2")
+                .build(),
         ];
 
         let res = Scheduler::new(tasks, &[]).unwrap();
@@ -362,32 +266,16 @@ mod tests {
     #[test]
     fn scheduler_new_task_ro() {
         let tasks = vec![
-            Task {
-                id: Uuid::new_v4(),
-                display_name: String::from("Test 1"),
-                status: TaskStatus::RUNNING,
-                locks: vec![Lock::READ {
-                    name: String::from("foo1"),
-                }],
-                flake_ref: FlakeRef {
-                    flake: String::from(""),
-                    args: vec![],
-                },
-                features: vec![],
-            },
-            Task {
-                id: Uuid::new_v4(),
-                display_name: String::from("Test 2"),
-                status: TaskStatus::NEW,
-                locks: vec![Lock::READ {
-                    name: String::from("foo1"),
-                }],
-                flake_ref: FlakeRef {
-                    flake: String::from(""),
-                    args: vec![],
-                },
-                features: vec![],
-            },
+            Task::builder()
+                .with_display_name("Test 1")
+                .with_status(TaskStatus::RUNNING)
+                .with_read_lock("foo1")
+                .build(),
+            Task::builder()
+                .with_display_name("Test 2")
+                .with_status(TaskStatus::NEW)
+                .with_read_lock("foo1")
+                .build(),
         ];
 
         let res = Scheduler::new(tasks, &[]).unwrap();
@@ -398,32 +286,16 @@ mod tests {
     #[test]
     fn scheduler_new_task_rw_ro() {
         let tasks = vec![
-            Task {
-                id: Uuid::new_v4(),
-                display_name: String::from("Test 1"),
-                status: TaskStatus::RUNNING,
-                locks: vec![Lock::WRITE {
-                    name: String::from("foo1"),
-                }],
-                flake_ref: FlakeRef {
-                    flake: String::from(""),
-                    args: vec![],
-                },
-                features: vec![],
-            },
-            Task {
-                id: Uuid::new_v4(),
-                display_name: String::from("Test 2"),
-                status: TaskStatus::NEW,
-                locks: vec![Lock::READ {
-                    name: String::from("foo1"),
-                }],
-                flake_ref: FlakeRef {
-                    flake: String::from(""),
-                    args: vec![],
-                },
-                features: vec![],
-            },
+            Task::builder()
+                .with_display_name("Test 1")
+                .with_status(TaskStatus::RUNNING)
+                .with_write_lock("foo1")
+                .build(),
+            Task::builder()
+                .with_display_name("Test 2")
+                .with_status(TaskStatus::NEW)
+                .with_read_lock("foo1")
+                .build(),
         ];
 
         let res = Scheduler::new(tasks, &[]).unwrap();
