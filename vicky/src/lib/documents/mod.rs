@@ -26,8 +26,8 @@ pub enum TaskStatus {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Lock {
-    WRITE { object: String },
-    READ { object: String },
+    WRITE { name: String },
+    READ { name: String },
 }
 
 type FlakeURI = String;

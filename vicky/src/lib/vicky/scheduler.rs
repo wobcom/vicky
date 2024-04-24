@@ -19,8 +19,8 @@ trait ConstraintMgmt {
 impl ConstraintMgmt for Constraints {
     fn get_map_key(lock: &Lock) -> &String {
         match lock {
-            Lock::WRITE { object } => object,
-            Lock::READ { object } => object,
+            Lock::WRITE { name: object } => object,
+            Lock::READ { name: object } => object,
         }
     }
 
@@ -66,10 +66,10 @@ impl LockSum {
 
     pub fn can_add_lock(&self, lock: &Lock) -> bool {
         match (&self.lock, lock) {
-            (Lock::WRITE { object: _ }, Lock::WRITE { object: _ }) => false,
-            (Lock::WRITE { object: _ }, Lock::READ { object: _ }) => false,
-            (Lock::READ { object: _ }, Lock::WRITE { object: _ }) => false,
-            (Lock::READ { object }, Lock::READ { object: object2 }) => object == object2,
+            (Lock::WRITE { name: _ }, Lock::WRITE { name: _ }) => false,
+            (Lock::WRITE { name: _ }, Lock::READ { name: _ }) => false,
+            (Lock::READ { name: _ }, Lock::WRITE { name: _ }) => false,
+            (Lock::READ { name: object }, Lock::READ { name: object2 }) => object == object2,
         }
     }
 
@@ -80,7 +80,7 @@ impl LockSum {
         }
 
         match lock {
-            Lock::READ { object: _ } => {
+            Lock::READ { name: _ } => {
                 self.count += 1;
                 Ok(())
             }
@@ -192,7 +192,7 @@ mod tests {
                 display_name: String::from("Test 1"),
                 status: TaskStatus::RUNNING,
                 locks: vec![Lock::READ {
-                    object: String::from("foo1"),
+                    name: String::from("foo1"),
                 }],
                 flake_ref: FlakeRef {
                     flake: String::from(""),
@@ -205,7 +205,7 @@ mod tests {
                 display_name: String::from("Test 2"),
                 status: TaskStatus::RUNNING,
                 locks: vec![Lock::READ {
-                    object: String::from("foo1"),
+                    name: String::from("foo1"),
                 }],
                 flake_ref: FlakeRef {
                     flake: String::from(""),
@@ -226,7 +226,7 @@ mod tests {
                 display_name: String::from("Test 1"),
                 status: TaskStatus::RUNNING,
                 locks: vec![Lock::WRITE {
-                    object: String::from("foo1"),
+                    name: String::from("foo1"),
                 }],
                 flake_ref: FlakeRef {
                     flake: String::from(""),
@@ -239,7 +239,7 @@ mod tests {
                 display_name: String::from("Test 2"),
                 status: TaskStatus::RUNNING,
                 locks: vec![Lock::WRITE {
-                    object: String::from("foo2"),
+                    name: String::from("foo2"),
                 }],
                 flake_ref: FlakeRef {
                     flake: String::from(""),
@@ -260,7 +260,7 @@ mod tests {
                 display_name: String::from("Test 1"),
                 status: TaskStatus::RUNNING,
                 locks: vec![Lock::WRITE {
-                    object: String::from("foo1"),
+                    name: String::from("foo1"),
                 }],
                 flake_ref: FlakeRef {
                     flake: String::from(""),
@@ -273,7 +273,7 @@ mod tests {
                 display_name: String::from("Test 2"),
                 status: TaskStatus::RUNNING,
                 locks: vec![Lock::WRITE {
-                    object: String::from("foo1"),
+                    name: String::from("foo1"),
                 }],
                 flake_ref: FlakeRef {
                     flake: String::from(""),
@@ -295,7 +295,7 @@ mod tests {
                 display_name: String::from("Test 1"),
                 status: TaskStatus::RUNNING,
                 locks: vec![Lock::WRITE {
-                    object: String::from("foo1"),
+                    name: String::from("foo1"),
                 }],
                 flake_ref: FlakeRef {
                     flake: String::from(""),
@@ -308,7 +308,7 @@ mod tests {
                 display_name: String::from("Test 2"),
                 status: TaskStatus::NEW,
                 locks: vec![Lock::WRITE {
-                    object: String::from("foo1"),
+                    name: String::from("foo1"),
                 }],
                 flake_ref: FlakeRef {
                     flake: String::from(""),
@@ -331,7 +331,7 @@ mod tests {
                 display_name: String::from("Test 1"),
                 status: TaskStatus::RUNNING,
                 locks: vec![Lock::WRITE {
-                    object: String::from("foo1"),
+                    name: String::from("foo1"),
                 }],
                 flake_ref: FlakeRef {
                     flake: String::from(""),
@@ -344,7 +344,7 @@ mod tests {
                 display_name: String::from("Test 2"),
                 status: TaskStatus::NEW,
                 locks: vec![Lock::WRITE {
-                    object: String::from("foo2"),
+                    name: String::from("foo2"),
                 }],
                 flake_ref: FlakeRef {
                     flake: String::from(""),
@@ -367,7 +367,7 @@ mod tests {
                 display_name: String::from("Test 1"),
                 status: TaskStatus::RUNNING,
                 locks: vec![Lock::READ {
-                    object: String::from("foo1"),
+                    name: String::from("foo1"),
                 }],
                 flake_ref: FlakeRef {
                     flake: String::from(""),
@@ -380,7 +380,7 @@ mod tests {
                 display_name: String::from("Test 2"),
                 status: TaskStatus::NEW,
                 locks: vec![Lock::READ {
-                    object: String::from("foo1"),
+                    name: String::from("foo1"),
                 }],
                 flake_ref: FlakeRef {
                     flake: String::from(""),
@@ -403,7 +403,7 @@ mod tests {
                 display_name: String::from("Test 1"),
                 status: TaskStatus::RUNNING,
                 locks: vec![Lock::WRITE {
-                    object: String::from("foo1"),
+                    name: String::from("foo1"),
                 }],
                 flake_ref: FlakeRef {
                     flake: String::from(""),
@@ -416,7 +416,7 @@ mod tests {
                 display_name: String::from("Test 2"),
                 status: TaskStatus::NEW,
                 locks: vec![Lock::READ {
-                    object: String::from("foo1"),
+                    name: String::from("foo1"),
                 }],
                 flake_ref: FlakeRef {
                     flake: String::from(""),
