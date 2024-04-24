@@ -236,17 +236,14 @@ pub async fn tasks_add(
 ) -> Result<Json<RoTask>, AppError> {
     let task_uuid = Uuid::new_v4();
 
-    let task_manifest = Task {
-        id: task_uuid,
-        status: TaskStatus::NEW,
-        locks: task.locks.clone(),
-        display_name: task.display_name.clone(),
-        flake_ref: FlakeRef {
-            flake: task.flake_ref.flake.clone(),
-            args: task.flake_ref.args.clone(),
-        },
-        features: task.features.clone(),
-    };
+    let task_manifest = Task::builder()
+        .with_id(task_uuid)
+        .with_display_name(&task.display_name)
+        .with_flake(&task.flake_ref.flake)
+        .with_flake_args(task.flake_ref.args.clone())
+        .with_locks(task.locks.clone())
+        .requires_features(task.features.clone())
+        .build();
 
     etcd.put_task(&task_manifest).await?;
     global_events.send(GlobalEvent::TaskAdd)?;
