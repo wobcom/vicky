@@ -65,12 +65,10 @@ impl LockSum {
     }
 
     pub fn can_add_lock(&self, lock: &Lock) -> bool {
-        match (&self.lock, lock) {
-            (Lock::WRITE { object: _ }, Lock::WRITE { object: _ }) => false,
-            (Lock::WRITE { object: _ }, Lock::READ { object: _ }) => false,
-            (Lock::READ { object: _ }, Lock::WRITE { object: _ }) => false,
-            (Lock::READ { object }, Lock::READ { object: object2 }) => object == object2,
-        }
+        !matches!((&self.lock, lock), 
+            (Lock::WRITE { name: _ }, Lock::WRITE { name: _ }) |
+            (Lock::WRITE { name: _ }, Lock::READ { name: _ }) |
+            (Lock::READ { name: _ }, Lock::WRITE { name: _ }))
     }
 
     pub fn add_lock(&mut self, lock: &Lock) -> Result<(), SchedulerError> {
