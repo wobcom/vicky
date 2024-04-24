@@ -227,6 +227,16 @@ pub async fn tasks_finish(
     Ok(Json(task))
 }
 
+// TODO: Move into Task Builder
+fn check_lock_conflict(task: &Task) -> bool {
+    task.locks.iter().enumerate().any(|(i, lock)| {
+        task.locks
+            .iter()
+            .enumerate()
+            .any(|(j, lock2)| i < j && lock.is_conflicting(lock2))
+    })
+}
+
 #[post("/", data = "<task>")]
 pub async fn tasks_add(
     task: Json<RoTaskNew>,
@@ -245,6 +255,10 @@ pub async fn tasks_add(
         .requires_features(task.features.clone())
         .build();
 
+    if check_lock_conflict(&task_manifest) {
+        return Err(AppError::HttpError(Status::Conflict));
+    }
+
     etcd.put_task(&task_manifest).await?;
     global_events.send(GlobalEvent::TaskAdd)?;
 
@@ -254,4 +268,59 @@ pub async fn tasks_add(
     };
 
     Ok(Json(ro_task))
+}
+
+mod tests {
+    use crate::tasks::check_lock_conflict;
+    use uuid::Uuid;
+    use vickylib::documents::{FlakeRef, Lock, Task, TaskStatus};
+
+    #[test]
+    fn add_new_conflicting_task() {
+        let task = Task {
+            id: Uuid::new_v4(),
+            display_name: String::from("Test 1"),
+            status: TaskStatus::NEW,
+            locks: vec![
+                Lock::READ {
+                    name: String::from("mauz"),
+                },
+                Lock::WRITE {
+                    name: String::from("mauz"),
+                },
+            ],
+            flake_ref: FlakeRef {
+                flake: String::from(""),
+                args: vec![],
+            },
+            features: vec![],
+        };
+        assert!(check_lock_conflict(&task))
+    }
+
+    #[test]
+    fn add_new_not_conflicting_task() {
+        let task = Task {
+            id: Uuid::new_v4(),
+            display_name: String::from("Test 1"),
+            status: TaskStatus::NEW,
+            locks: vec![
+                Lock::READ {
+                    name: String::from("mauz"),
+                },
+                Lock::READ {
+                    name: String::from("mauz"),
+                },
+                Lock::WRITE {
+                    name: String::from("delete_everything"),
+                },
+            ],
+            flake_ref: FlakeRef {
+                flake: String::from(""),
+                args: vec![],
+            },
+            features: vec![],
+        };
+        assert!(!check_lock_conflict(&task))
+    }
 }
