@@ -132,6 +132,11 @@ impl TaskBuilder {
         self.features.push(feature.into());
         self
     }
+
+    pub fn requires_features(mut self, features: Vec<String>) -> Self {
+        self.features = features;
+        self
+    }
     
     pub fn build(self) -> Task {
         Task {
