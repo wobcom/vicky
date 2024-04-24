@@ -57,6 +57,47 @@ This API is an JSON API, therefore you need to set `Content-Type` header accordi
 }
 ```
 
+#### With Locks
+
+```json
+{
+  "display_name": "Deployment 3",
+  "locks": [
+    {
+      "name": "anything",
+      "type": "WRITE"
+    }
+  ],
+  "flake_ref": {
+    "flake": "gitlab:wobcom/example",
+    "args": []
+  }
+}
+```
+
+```json
+{
+  "display_name": "Deployment 3",
+  "locks": [
+    {
+      "name": "also_anything",
+      "type": "READ"
+    },
+    {
+      "name": "also_anything",
+      "type": "READ"
+    },
+    {
+      "name": "another_thing",
+      "type": "WRITE"
+    }
+  ],
+  "flake_ref": {
+    "flake": "gitlab:wobcom/example",
+    "args": []
+  }
+}
+```
 ### Claim A Task
 
 `POST /api/v1/tasks/claim` claims the next new task available.
