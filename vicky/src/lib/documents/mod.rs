@@ -108,6 +108,11 @@ impl TaskBuilder {
         self
     }
     
+    pub fn with_locks(mut self, locks: Vec<Lock>) -> Self {
+        self.locks = locks;
+        self
+    }
+    
     pub fn with_flake<S: Into<FlakeURI>>(mut self, flake_uri: S) -> Self {
         self.flake_ref.flake = flake_uri.into();
         self
