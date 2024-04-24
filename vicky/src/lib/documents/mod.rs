@@ -138,6 +138,30 @@ impl TaskBuilder {
         self
     }
     
+    pub fn id(&self) -> Option<Uuid> {
+        self.id
+    }
+    
+    pub fn display_name(&self) -> &Option<String> {
+        &self.display_name
+    }
+    
+    pub fn status(&self) -> &TaskStatus {
+        &self.status
+    }
+    
+    pub fn locks(&self) -> &Vec<Lock> {
+        &self.locks
+    }
+    
+    pub fn flake_ref(&self) -> &FlakeRef {
+        &self.flake_ref
+    }
+    
+    pub fn features(&self) -> &Vec<String> {
+        &self.features
+    }
+
     pub fn build(self) -> Task {
         Task {
             id: self.id.unwrap_or_else(Uuid::new_v4),
