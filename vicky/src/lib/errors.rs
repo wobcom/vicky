@@ -15,17 +15,6 @@ pub enum VickyError {
         source: serde_json::Error,
     },
 
-    #[error("serde_yaml Error {source:?}")]
-    SerdeYaml {
-        #[from]
-        source: serde_yaml::Error,
-    },
-    #[error("etcd Error {source:?}")]
-    EtcdClient {
-        #[from]
-        source: etcd_client::Error,
-    },
-
     #[error("Scheduling Error {source:?}")]
     Scheduler {
         #[from]
