@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use log::debug;
 
 use crate::{
-    database::{Lock, Task, TaskStatus},
+    database::entities::{Lock, Task, TaskStatus},
     errors::SchedulerError,
 };
 
@@ -148,7 +148,7 @@ impl Scheduler {
 
 #[cfg(test)]
 mod tests {
-    use crate::database::{Task, TaskStatus};
+    use crate::database::entities::{Task, TaskStatus};
 
     use super::Scheduler;
 
