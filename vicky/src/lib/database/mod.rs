@@ -190,14 +190,14 @@ impl TaskBuilder {
 }
 
 #[async_trait]
-pub trait DocumentClient {
+pub trait TaskDatabase {
     async fn get_all_tasks(&self) -> Result<Vec<Task>, VickyError>;
     async fn get_task(&self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
     async fn put_task(&self, task: &Task) -> Result<(), VickyError>;
 }
 
 #[async_trait]
-impl DocumentClient for etcd_client::Client {
+impl TaskDatabase for diesel::pg::PgConnection {
     async fn get_all_tasks(&self) -> Result<Vec<Task>, VickyError> {
         let mut kv = self.kv_client();
         let get_options: GetOptions = GetOptions::new().with_prefix().with_sort(
