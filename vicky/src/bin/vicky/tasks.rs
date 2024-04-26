@@ -7,7 +7,7 @@ use std::time;
 use tokio::sync::broadcast::{self, error::TryRecvError};
 use uuid::Uuid;
 use vickylib::{
-    documents::{DocumentClient, FlakeRef, Lock, Task, TaskResult, TaskStatus},
+    database::{TaskDatabase, FlakeRef, Lock, Task, TaskResult, TaskStatus},
     errors::VickyError,
     logs::LogDrain,
     s3::client::S3Client,
@@ -274,7 +274,7 @@ pub async fn tasks_add(
 mod tests {
     use crate::tasks::check_lock_conflict;
     use uuid::Uuid;
-    use vickylib::documents::{FlakeRef, Lock, Task, TaskBuilder, TaskStatus};
+    use vickylib::database::{FlakeRef, Lock, Task, TaskBuilder, TaskStatus};
 
     #[test]
     fn add_new_conflicting_task() {

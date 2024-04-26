@@ -1,4 +1,4 @@
-pub mod documents;
+pub mod database;
 pub mod errors;
 pub mod etcd;
 pub mod logs;

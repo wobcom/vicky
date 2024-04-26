@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use etcd_client::GetOptions;
 use serde::{Deserialize, Serialize};
 
 use uuid::Uuid;
