@@ -971,6 +971,7 @@ dependencies = [
  "diesel_derives",
  "itoa",
  "pq-sys",
+ "uuid",
 ]
 
 [[package]]
