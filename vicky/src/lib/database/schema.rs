@@ -16,7 +16,7 @@ diesel::table! {
         display_name -> Nullable<Varchar>,
         status -> Nullable<Varchar>,
         flake_ref_uri -> Nullable<Varchar>,
-        args -> Nullable<Varchar>,
+        flake_ref_args -> Nullable<Varchar>,
     }
 }
 
