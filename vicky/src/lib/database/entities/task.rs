@@ -172,8 +172,11 @@ pub mod db_impl {
     use crate::database::entities::task::{Task, TaskResult, TaskStatus};
     use crate::errors::VickyError;
     use async_trait::async_trait;
-    use diesel::{Insertable, Queryable, Selectable};
+    use diesel::{Associations, ExpressionMethods, Identifiable, Insertable, Queryable, QueryDsl, RunQueryDsl, Selectable};
+    use diesel::associations::HasTable;
+    use log::{error, warn};
     use uuid::Uuid;
+    use crate::database::entities::FlakeRef;
     use crate::database::entities::lock::Lock;
     // these here are evil >:(
     use crate::database::schema::locks;
@@ -228,7 +231,7 @@ pub mod db_impl {
         }
     }
 
-    #[derive(Insertable, Queryable)]
+    #[derive(Selectable, Identifiable, Insertable, Queryable)]
     #[diesel(table_name = locks)]
     struct DbLock {
         id: i32,
@@ -270,11 +273,35 @@ pub mod db_impl {
 
     #[async_trait]
     impl TaskDatabase for diesel::pg::PgConnection {
-        async fn get_all_tasks(mut self) -> Result<Vec<Task>, VickyError> {
+        async fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError> {
             // very evil >>:(
             use self::tasks::dsl::*;
-            
-            todo!()
+            use self::locks::dsl::*;
+
+            let db_tasks = tasks
+                .load::<DbTask>(self)?;
+            let mut real_tasks: Vec<Task> = vec![];
+
+            real_tasks = db_tasks.iter().map(|t| {
+                let real_locks: Vec<Lock> = match locks.filter(task_id.eq(t.id)).load::<DbLock>(self) {
+                    Ok(db_locks) => db_locks.into_iter().map(|l| l.into()).collect(),
+                    Err(_) => { warn!("could not load lock"); vec![] },
+                };
+                
+                Task {
+                    id: t.id.clone(),
+                    display_name: t.display_name.clone(),
+                    status: t.status.as_str().into(),
+                    locks: real_locks,
+                    features: t.features.split("||").map(|s| s.to_string()).collect(),
+                    flake_ref: FlakeRef {
+                        flake: t.flake_ref_uri.clone(),
+                        args: t.flake_ref_args.split("||").map(|s| s.to_string()).collect(),
+                    }
+                }
+            }).collect();
+
+            Ok(real_tasks)
         }
 
         async fn get_task(&self, task_id: Uuid) -> Result<Option<Task>, VickyError> {
