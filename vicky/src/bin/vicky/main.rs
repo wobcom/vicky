@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use aws_sdk_s3::config::{Credentials, Region};
-use diesel::{Connection, PgConnection};
 use jwtk::jwk::RemoteJwksVerifier;
 
 use rocket::fairing::AdHoc;
@@ -10,6 +9,7 @@ use rocket::figment::{Figment, Profile};
 use rocket::routes;
 use serde::Deserialize;
 use tokio::sync::broadcast;
+use vickylib::database::entities::db_impl::Database;
 use vickylib::logs::LogDrain;
 use vickylib::s3::client::S3Client;
 
@@ -26,20 +26,6 @@ mod errors;
 mod events;
 mod tasks;
 mod user;
-
-#[derive(Deserialize)]
-pub struct TlsConfigOptions {
-    ca_file: String,
-    certificate_file: String,
-    key_file: String,
-}
-#[derive(Deserialize)]
-pub struct DatabaseConfig {
-    endpoint: String,
-    username: String,
-    password: String,
-    database: String,
-}
 
 #[derive(Deserialize)]
 pub struct S3Config {
@@ -60,7 +46,6 @@ pub struct OIDCConfig {
 pub struct Config {
     machines: Vec<String>,
 
-    db_config: DatabaseConfig,
     s3_config: S3Config,
 
     oidc_config: OIDCConfig,
@@ -89,12 +74,6 @@ async fn main() -> anyhow::Result<()> {
     let build_rocket = rocket::custom(rocket_config_figment);
 
     let app_config = build_rocket.figment().extract::<Config>()?;
-    let dbc = &app_config.db_config;
-
-    let db_client = PgConnection::establish(format!(
-        "postgres://{}:{}@{}/{}",
-        dbc.username, dbc.password, dbc.endpoint, dbc.database
-    ));
 
     let jwks_verifier = RemoteJwksVerifier::new(
         app_config.oidc_config.jwks_url,
@@ -126,7 +105,6 @@ async fn main() -> anyhow::Result<()> {
     let (tx_global_events, _rx_task_events) = broadcast::channel::<GlobalEvent>(5);
 
     build_rocket
-        .manage(db_client)
         .manage(s3_ext_client)
         .manage(log_drain)
         .manage(jwks_verifier)
