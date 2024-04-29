@@ -109,6 +109,7 @@ async fn main() -> anyhow::Result<()> {
         .manage(log_drain)
         .manage(jwks_verifier)
         .manage(tx_global_events)
+        .attach(Database::fairing())
         .attach(AdHoc::config::<Config>())
         .mount("/api/v1/user", routes![get_user])
         .mount("/api/v1/events", routes![get_global_events])

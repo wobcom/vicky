@@ -25,7 +25,7 @@ pub struct FlakeRef {
     pub args: Vec<String>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct Task {
     pub id: Uuid,
     pub display_name: String,

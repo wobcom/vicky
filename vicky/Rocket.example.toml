@@ -4,12 +4,8 @@ machines = [
     "abc1234"
 ]
 
-[default.db]
-endpoints = [ "https://localhost:5432" ]
-user = "vicky"
-database = "vicky"
-password = "vicky"
-
+[default.databases]
+postgres_db = { url = "postgres://vicky:vicky@localhost/vicky" }
 
 [default.s3_config]
 endpoint = "http://localhost:9000"

@@ -1,4 +1,3 @@
-use diesel::PgConnection;
 use rocket::http::Status;
 use rocket::response::stream::{Event, EventStream};
 use rocket::{get, post, serde::json::Json, State};
@@ -6,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::time;
 use tokio::sync::broadcast::{self, error::TryRecvError};
 use uuid::Uuid;
-use vickylib::database::entities::db_impl::TaskDatabase;
+use vickylib::database::entities::db_impl::{Database, TaskDatabase};
 use vickylib::database::entities::{FlakeRef, Lock, Task, TaskResult, TaskStatus};
 use vickylib::{
     errors::VickyError, logs::LogDrain, s3::client::S3Client, vicky::scheduler::Scheduler,
@@ -48,49 +47,46 @@ pub struct LogLines {
 }
 
 #[get("/")]
-pub async fn tasks_get_user(
-    db: &mut State<PgConnection>,
-    _user: User,
-) -> Result<Json<Vec<Task>>, VickyError> {
-    let tasks: Vec<Task> = db.get_all_tasks().await?;
+pub async fn tasks_get_user(db: Database, _user: User) -> Result<Json<Vec<Task>>, VickyError> {
+    let tasks: Vec<Task> = db.run(|conn| conn.get_all_tasks()).await?;
     Ok(Json(tasks))
 }
 
 #[get("/", rank = 2)]
 pub async fn tasks_get_machine(
-    db: &mut State<PgConnection>,
+    db: Database,
     _machine: Machine,
 ) -> Result<Json<Vec<Task>>, VickyError> {
-    let tasks: Vec<Task> = db.get_all_tasks().await?;
+    let tasks: Vec<Task> = db.run(|conn| conn.get_all_tasks()).await?;
     Ok(Json(tasks))
 }
 
 #[get("/<id>")]
 pub async fn tasks_specific_get_user(
     id: String,
-    db: &mut State<PgConnection>,
+    db: Database,
     _user: User,
 ) -> Result<Json<Option<Task>>, VickyError> {
     let task_uuid = Uuid::parse_str(&id).unwrap();
-    let tasks: Option<Task> = db.get_task(task_uuid).await?;
+    let tasks: Option<Task> = db.run(move |conn| conn.get_task(task_uuid)).await?;
     Ok(Json(tasks))
 }
 
 #[get("/<id>", rank = 2)]
 pub async fn tasks_specific_get_machine(
     id: String,
-    db: &mut State<PgConnection>,
+    db: Database,
     _machine: Machine,
 ) -> Result<Json<Option<Task>>, VickyError> {
     let task_uuid = Uuid::parse_str(&id).unwrap();
-    let tasks: Option<Task> = db.get_task(task_uuid).await?;
+    let tasks: Option<Task> = db.run(move |conn| conn.get_task(task_uuid)).await?;
     Ok(Json(tasks))
 }
 
 #[get("/<id>/logs")]
 pub async fn tasks_get_logs<'a>(
     id: String,
-    db: &mut State<PgConnection>,
+    db: Database,
     s3: &'a State<S3Client>,
     _user: User,
     log_drain: &'a State<&'_ LogDrain>,
@@ -98,7 +94,7 @@ pub async fn tasks_get_logs<'a>(
     // TODO: Fix Error Handling
     let task_uuid = Uuid::parse_str(&id).unwrap();
     let task = db
-        .get_task(task_uuid)
+        .run(move |conn| conn.get_task(task_uuid))
         .await
         .unwrap()
         .ok_or(AppError::HttpError(Status::NotFound))
@@ -154,14 +150,14 @@ pub async fn tasks_get_logs<'a>(
 #[post("/<id>/logs", format = "json", data = "<logs>")]
 pub async fn tasks_put_logs(
     id: String,
-    db: &mut State<PgConnection>,
+    db: Database,
     logs: Json<LogLines>,
     _machine: Machine,
     log_drain: &State<&LogDrain>,
 ) -> Result<Json<()>, AppError> {
     let task_uuid = Uuid::parse_str(&id)?;
     let task = db
-        .get_task(task_uuid)
+        .run(move |conn| conn.get_task(task_uuid))
         .await?
         .ok_or(AppError::HttpError(Status::NotFound))?;
 
@@ -176,12 +172,12 @@ pub async fn tasks_put_logs(
 
 #[post("/claim", format = "json", data = "<features>")]
 pub async fn tasks_claim(
-    db: &mut State<PgConnection>,
+    db: Database,
     features: Json<RoTaskClaim>,
     global_events: &State<broadcast::Sender<GlobalEvent>>,
     _machine: Machine,
 ) -> Result<Json<Option<Task>>, AppError> {
-    let tasks = db.get_all_tasks().await?;
+    let tasks = db.run(|conn| conn.get_all_tasks()).await?;
     let scheduler = Scheduler::new(tasks, &features.features)
         .map_err(|x| VickyError::Scheduler { source: x })?;
     let next_task = scheduler.get_next_task();
@@ -189,11 +185,12 @@ pub async fn tasks_claim(
     match next_task {
         Some(next_task) => {
             let mut task = db
-                .get_task(next_task.id)
+                .run(move |conn| conn.get_task(next_task.id))
                 .await?
                 .ok_or(AppError::HttpError(Status::NotFound))?;
             task.status = TaskStatus::RUNNING;
-            db.put_task(&task).await?;
+            let task2 = task.clone();
+            db.run(move |conn| conn.put_task(&task2)).await?;
             global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
             Ok(Json(Some(task)))
         }
@@ -205,21 +202,22 @@ pub async fn tasks_claim(
 pub async fn tasks_finish(
     id: String,
     finish: Json<RoTaskFinish>,
-    db: &mut State<PgConnection>,
+    db: Database,
     global_events: &State<broadcast::Sender<GlobalEvent>>,
     _machine: Machine,
     log_drain: &State<&LogDrain>,
 ) -> Result<Json<Task>, AppError> {
     let task_uuid = Uuid::parse_str(&id)?;
     let mut task = db
-        .get_task(task_uuid)
+        .run(move |conn| conn.get_task(task_uuid))
         .await?
         .ok_or(AppError::HttpError(Status::NotFound))?;
 
     log_drain.finish_logs(&id).await?;
 
     task.status = TaskStatus::FINISHED(finish.result.clone());
-    db.put_task(&task).await?;
+    let task2 = task.clone();
+    db.run(move |conn| conn.put_task(&task2)).await?;
     global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
 
     Ok(Json(task))
@@ -238,7 +236,7 @@ fn check_lock_conflict(task: &Task) -> bool {
 #[post("/", data = "<task>")]
 pub async fn tasks_add(
     task: Json<RoTaskNew>,
-    db: &mut State<PgConnection>,
+    db: Database,
     global_events: &State<broadcast::Sender<GlobalEvent>>,
     _machine: Machine,
 ) -> Result<Json<RoTask>, AppError> {
@@ -257,7 +255,7 @@ pub async fn tasks_add(
         return Err(AppError::HttpError(Status::Conflict));
     }
 
-    db.put_task(&task_manifest).await?;
+    db.run(move |conn| conn.put_task(&task_manifest)).await?;
     global_events.send(GlobalEvent::TaskAdd)?;
 
     let ro_task = RoTask {
@@ -271,7 +269,6 @@ pub async fn tasks_add(
 #[cfg(test)]
 mod tests {
     use crate::tasks::check_lock_conflict;
-    use uuid::Uuid;
     use vickylib::database::entities::Task;
 
     #[test]
