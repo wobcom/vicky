@@ -201,6 +201,17 @@ pub mod db_impl {
             }.to_string()
         }
     }
+    
+    impl Into<TaskStatus> for &str {
+        fn into(self) -> TaskStatus {
+            match self {
+                "RUNNING" => TaskStatus::RUNNING,
+                "FINISHED::SUCCESS" => TaskStatus::FINISHED(TaskResult::SUCCESS),
+                "FINISHED::ERROR" => TaskStatus::FINISHED(TaskResult::ERROR),
+                _ => TaskStatus::NEW,
+            }
+        }
+    }
 
     impl Into<DbTask> for Task {
         fn into(self) -> DbTask {
