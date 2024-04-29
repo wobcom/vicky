@@ -168,6 +168,7 @@ impl TaskBuilder {
 // this was on purpose because these macro-generated entity types
 // mess up the whole namespace and HAVE to be scoped
 pub mod db_impl {
+    use std::fmt::Display;
     use crate::database::entities::task::{Task, TaskResult, TaskStatus};
     use crate::errors::VickyError;
     use async_trait::async_trait;
@@ -189,16 +190,17 @@ pub mod db_impl {
         pub flake_ref_args: String,
     }
 
-    impl ToString for TaskStatus {
-        fn to_string(&self) -> String {
-            match self {
+    impl Display for TaskStatus {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let str = match self {
                 TaskStatus::NEW => "NEW",
                 TaskStatus::RUNNING => "RUNNING",
                 TaskStatus::FINISHED(r) => match r {
                     TaskResult::SUCCESS => "FINISHED::SUCCESS",
                     TaskResult::ERROR => "FINISHED::ERROR",
                 },
-            }.to_string()
+            };
+            write!(f, "{}", str)
         }
     }
     
