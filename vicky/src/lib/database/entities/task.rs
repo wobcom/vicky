@@ -1,4 +1,3 @@
-use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::database::entities::lock::Lock;
@@ -173,9 +172,7 @@ pub mod db_impl {
     use crate::database::entities::task::{Task, TaskResult, TaskStatus};
     use crate::errors::VickyError;
     use async_trait::async_trait;
-    use diesel::{Connection, ExpressionMethods, Identifiable, insert_into, Insertable, Queryable, QueryDsl, RunQueryDsl, Selectable};
-    use diesel::associations::HasTable;
-    use log::{error, warn};
+    use diesel::{ExpressionMethods, Identifiable, insert_into, Insertable, Queryable, QueryDsl, RunQueryDsl, Selectable};
     use uuid::Uuid;
     use crate::database::entities::FlakeRef;
     use crate::database::entities::lock::Lock;

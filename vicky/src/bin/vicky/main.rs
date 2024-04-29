@@ -4,7 +4,6 @@ use aws_sdk_s3::config::{Credentials, Region};
 use diesel::{Connection, PgConnection};
 use jwtk::jwk::RemoteJwksVerifier;
 
-use rand::Rng;
 use rocket::fairing::AdHoc;
 use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
