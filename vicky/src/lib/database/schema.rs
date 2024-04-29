@@ -3,7 +3,7 @@
 diesel::table! {
     locks (id) {
         id -> Int4,
-        task_id -> Nullable<Uuid>,
+        task_id -> Uuid,
         name -> Varchar,
         #[sql_name = "type"]
         type_ -> Varchar,
@@ -13,10 +13,11 @@ diesel::table! {
 diesel::table! {
     tasks (id) {
         id -> Uuid,
-        display_name -> Nullable<Varchar>,
-        status -> Nullable<Varchar>,
-        flake_ref_uri -> Nullable<Varchar>,
-        flake_ref_args -> Nullable<Varchar>,
+        display_name -> Varchar,
+        status -> Varchar,
+        features -> Varchar,
+        flake_ref_uri -> Varchar,
+        flake_ref_args -> Varchar,
     }
 }
 

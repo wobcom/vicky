@@ -1,16 +1,17 @@
 CREATE TABLE tasks
 (
     id             uuid PRIMARY KEY,
-    display_name   VARCHAR,
-    status         VARCHAR,
-    flake_ref_uri  VARCHAR,
-    flake_ref_args VARCHAR
+    display_name   VARCHAR NOT NULL,
+    status         VARCHAR NOT NULL,
+    features       VARCHAR NOT NULL,
+    flake_ref_uri  VARCHAR NOT NULL,
+    flake_ref_args VARCHAR NOT NULL
 );
 
 CREATE TABLE locks
 (
     id      INT,
-    task_id uuid,
+    task_id uuid NOT NULL,
     name    VARCHAR NOT NULL,
     type    VARCHAR NOT NULL,
     PRIMARY KEY (id),

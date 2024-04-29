@@ -182,10 +182,11 @@ pub mod db_impl {
     #[diesel(table_name = tasks)]
     struct DbTask {
         pub id: Uuid,
-        pub display_name: Option<String>,
-        pub status: Option<String>,
-        pub flake_ref_uri: Option<String>,
-        pub flake_ref_args: Option<String>,
+        pub display_name: String,
+        pub status: String,
+        pub features: String,
+        pub flake_ref_uri: String,
+        pub flake_ref_args: String,
     }
 
     impl ToString for TaskStatus {
@@ -205,10 +206,11 @@ pub mod db_impl {
         fn into(self) -> DbTask {
             DbTask {
                 id: self.id,
-                display_name: Some(self.display_name),
-                status: Some(self.status.to_string()),
-                flake_ref_uri: Some(self.flake_ref.flake),
-                flake_ref_args: Some(self.flake_ref.args.join("||")),
+                display_name: self.display_name,
+                status: self.status.to_string(),
+                features: self.features.join("||"),
+                flake_ref_uri: self.flake_ref.flake,
+                flake_ref_args: self.flake_ref.args.join("||"),
             }
         }
     }
@@ -216,7 +218,7 @@ pub mod db_impl {
     #[derive(Insertable, Queryable)]
     #[diesel(table_name = locks)]
     struct DbLock {
-        id: Option<i32>,
+        id: i32,
         task_id: Uuid,
         name: String,
         type_: String,
@@ -225,8 +227,8 @@ pub mod db_impl {
     impl DbLock {
         fn from_lock(lock: Lock, task_id: Uuid) -> Self {
             match lock {
-                Lock::WRITE { name } => DbLock { id: None, task_id, name, type_: "WRITE".to_string() },
-                Lock::READ { name } => DbLock { id: None, task_id, name, type_: "READ".to_string() },
+                Lock::WRITE { name } => DbLock { id: -1, task_id, name, type_: "WRITE".to_string() },
+                Lock::READ { name } => DbLock { id: -1, task_id, name, type_: "READ".to_string() },
             }
         }
     }
@@ -240,7 +242,7 @@ pub mod db_impl {
                     "Can't parse lock from database lock. Database corrupted? \
                 Expected READ or WRITE but found {} as type at key {}.",
                     self.type_,
-                    self.id.unwrap_or(-1)
+                    self.id
                 ),
             }
         }
