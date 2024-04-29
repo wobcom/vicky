@@ -1,6 +1,6 @@
+use crate::database::entities::lock::Lock;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::database::entities::lock::Lock;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "result")]
@@ -167,19 +167,22 @@ impl TaskBuilder {
 // this was on purpose because these macro-generated entity types
 // mess up the whole namespace and HAVE to be scoped
 pub mod db_impl {
-    use std::collections::HashMap;
-    use std::fmt::Display;
+    use crate::database::entities::lock::Lock;
     use crate::database::entities::task::{Task, TaskResult, TaskStatus};
+    use crate::database::entities::FlakeRef;
     use crate::errors::VickyError;
     use async_trait::async_trait;
-    use diesel::{ExpressionMethods, Identifiable, insert_into, Insertable, Queryable, QueryDsl, RunQueryDsl, Selectable};
+    use diesel::{
+        insert_into, ExpressionMethods, Identifiable, Insertable, QueryDsl, Queryable, RunQueryDsl,
+        Selectable,
+    };
+    use std::collections::HashMap;
+    use std::fmt::Display;
     use uuid::Uuid;
-    use crate::database::entities::FlakeRef;
-    use crate::database::entities::lock::Lock;
     // these here are evil >:(
     use crate::database::schema::locks;
-    use itertools::Itertools;
     use crate::database::schema::tasks;
+    use itertools::Itertools;
 
     #[derive(Insertable, Queryable)]
     #[diesel(table_name = tasks)]
@@ -242,8 +245,18 @@ pub mod db_impl {
     impl DbLock {
         fn from_lock(lock: &Lock, task_id: Uuid) -> Self {
             match lock {
-                Lock::WRITE { name } => DbLock { id: -1, task_id, name: name.clone(), type_: "WRITE".to_string() },
-                Lock::READ { name } => DbLock { id: -1, task_id, name: name.clone(), type_: "READ".to_string() },
+                Lock::WRITE { name } => DbLock {
+                    id: -1,
+                    task_id,
+                    name: name.clone(),
+                    type_: "WRITE".to_string(),
+                },
+                Lock::READ { name } => DbLock {
+                    id: -1,
+                    task_id,
+                    name: name.clone(),
+                    type_: "READ".to_string(),
+                },
             }
         }
     }
@@ -256,8 +269,7 @@ pub mod db_impl {
                 _ => panic!(
                     "Can't parse lock from database lock. Database corrupted? \
                 Expected READ or WRITE but found {} as type at key {}.",
-                    self.type_,
-                    self.id
+                    self.type_, self.id
                 ),
             }
         }
@@ -274,46 +286,50 @@ pub mod db_impl {
     impl TaskDatabase for diesel::pg::PgConnection {
         async fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError> {
             // very evil >>:(
-            use self::tasks::dsl::*;
             use self::locks::dsl::*;
+            use self::tasks::dsl::*;
 
             let db_tasks = tasks.load::<DbTask>(self)?;
 
             // prefetching all locks here, so we don't run into the N+1 Query Problem and distribute them
             let all_locks = locks.load::<DbLock>(self).unwrap_or_else(|_| vec![]);
 
-            let lock_map: HashMap<_, Vec<Lock>> = all_locks.into_iter()
+            let lock_map: HashMap<_, Vec<Lock>> = all_locks
+                .into_iter()
                 .map(|db_lock| (db_lock.task_id, db_lock.into()))
                 .into_group_map();
 
-            let real_tasks: Vec<Task> = db_tasks.into_iter().map(|t| {
-                let real_locks = lock_map.get(&t.id).cloned().unwrap_or_default();
+            let real_tasks: Vec<Task> = db_tasks
+                .into_iter()
+                .map(|t| {
+                    let real_locks = lock_map.get(&t.id).cloned().unwrap_or_default();
 
-                Task {
-                    id: t.id.clone(),
-                    display_name: t.display_name.clone(),
-                    status: t.status.as_str().into(),
-                    locks: real_locks,
-                    features: t.features.split("||").map(String::from).collect(),
-                    flake_ref: FlakeRef {
-                        flake: t.flake_ref_uri.clone(),
-                        args: t.flake_ref_args.split("||").map(String::from).collect(),
+                    Task {
+                        id: t.id.clone(),
+                        display_name: t.display_name.clone(),
+                        status: t.status.as_str().into(),
+                        locks: real_locks,
+                        features: t.features.split("||").map(String::from).collect(),
+                        flake_ref: FlakeRef {
+                            flake: t.flake_ref_uri.clone(),
+                            args: t.flake_ref_args.split("||").map(String::from).collect(),
+                        },
                     }
-                }
-            }).collect();
+                })
+                .collect();
 
             Ok(real_tasks)
         }
 
         async fn get_task(&mut self, tid: Uuid) -> Result<Option<Task>, VickyError> {
             // so evil >:O
-            use self::tasks::dsl::*;
             use self::locks::dsl::*;
+            use self::tasks::dsl::*;
 
-            let db_task= tasks.filter(self::tasks::id.eq(tid)).first::<DbTask>(self);
+            let db_task = tasks.filter(self::tasks::id.eq(tid)).first::<DbTask>(self);
             let db_task = match db_task {
                 Err(diesel::result::Error::NotFound) => return Ok(None),
-                _ => db_task?
+                _ => db_task?,
             };
             let db_locks: Vec<DbLock> = locks.filter(task_id.eq(task_id)).load::<DbLock>(self)?;
 
@@ -321,25 +337,37 @@ pub mod db_impl {
                 id: db_task.id,
                 display_name: db_task.display_name.clone(),
                 locks: db_locks.into_iter().map(|l| l.into()).collect(),
-                features: db_task.features.split("||").map(|s| s.to_string()).collect(),
+                features: db_task
+                    .features
+                    .split("||")
+                    .map(|s| s.to_string())
+                    .collect(),
                 flake_ref: FlakeRef {
                     flake: db_task.flake_ref_uri.clone(),
-                    args: db_task.features.split("||").map(|s| s.to_string()).collect(),
+                    args: db_task
+                        .features
+                        .split("||")
+                        .map(|s| s.to_string())
+                        .collect(),
                 },
                 status: db_task.status.as_str().into(),
             };
-            
+
             Ok(Some(task))
         }
 
         async fn put_task(&mut self, task: &Task) -> Result<(), VickyError> {
             // even more evil >;(
-            use self::tasks::dsl::*;
             use self::locks::dsl::*;
-            
-            let db_locks: Vec<DbLock> = task.locks.iter().map(|l| DbLock::from_lock(l, task.id)).collect();
+            use self::tasks::dsl::*;
+
+            let db_locks: Vec<DbLock> = task
+                .locks
+                .iter()
+                .map(|l| DbLock::from_lock(l, task.id))
+                .collect();
             let db_task: DbTask = task.into();
-            
+
             insert_into(tasks).values(db_task).execute(self)?;
             for db_lock in db_locks {
                 insert_into(locks).values(db_lock).execute(self)?;

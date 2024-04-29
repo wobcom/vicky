@@ -1,19 +1,16 @@
+use diesel::PgConnection;
 use rocket::http::Status;
 use rocket::response::stream::{Event, EventStream};
 use rocket::{get, post, serde::json::Json, State};
 use serde::{Deserialize, Serialize};
 use std::time;
-use diesel::PgConnection;
 use tokio::sync::broadcast::{self, error::TryRecvError};
 use uuid::Uuid;
-use vickylib::{
-    errors::VickyError,
-    logs::LogDrain,
-    s3::client::S3Client,
-    vicky::scheduler::Scheduler,
-};
-use vickylib::database::entities::{FlakeRef, Lock, Task, TaskResult, TaskStatus};
 use vickylib::database::entities::db_impl::TaskDatabase;
+use vickylib::database::entities::{FlakeRef, Lock, Task, TaskResult, TaskStatus};
+use vickylib::{
+    errors::VickyError, logs::LogDrain, s3::client::S3Client, vicky::scheduler::Scheduler,
+};
 
 use crate::{
     auth::{Machine, User},
