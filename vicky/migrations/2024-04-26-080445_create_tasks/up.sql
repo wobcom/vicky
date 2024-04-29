@@ -10,11 +10,10 @@ CREATE TABLE tasks
 
 CREATE TABLE locks
 (
-    id      INT,
+    id      SERIAL PRIMARY KEY,
     task_id uuid NOT NULL,
     name    VARCHAR NOT NULL,
     type    VARCHAR NOT NULL,
-    PRIMARY KEY (id),
     CONSTRAINT fk_task
         FOREIGN KEY (task_id)
             REFERENCES tasks (id)

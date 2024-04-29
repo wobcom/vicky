@@ -233,13 +233,31 @@ pub mod db_impl {
         }
     }
 
-    #[derive(Selectable, Identifiable, Insertable, Queryable)]
+    #[derive(Selectable, Identifiable, Queryable)]
     #[diesel(table_name = locks)]
     struct DbLock {
         id: i32,
         task_id: Uuid,
         name: String,
         type_: String,
+    }
+
+    #[derive(Insertable)]
+    #[diesel(table_name = locks)]
+    struct NewDbLock {
+        task_id: Uuid,
+        name: String,
+        type_: String,
+    }
+    
+    impl From<DbLock> for NewDbLock {
+        fn from(value: DbLock) -> Self {
+            NewDbLock {
+                task_id: value.task_id,
+                name: value.name,
+                type_: value.type_
+            }
+        }
     }
 
     impl DbLock {
@@ -371,7 +389,8 @@ pub mod db_impl {
 
             insert_into(tasks).values(db_task).execute(self)?;
             for db_lock in db_locks {
-                insert_into(locks).values(db_lock).execute(self)?;
+                let new_db_lock: NewDbLock = db_lock.into();
+                insert_into(locks).values(new_db_lock).execute(self)?;
             }
             Ok(())
         }
