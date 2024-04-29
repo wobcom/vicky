@@ -305,7 +305,7 @@ pub mod db_impl {
                     let real_locks = lock_map.get(&t.id).cloned().unwrap_or_default();
 
                     Task {
-                        id: t.id.clone(),
+                        id: t.id,
                         display_name: t.display_name.clone(),
                         status: t.status.as_str().into(),
                         locks: real_locks,
