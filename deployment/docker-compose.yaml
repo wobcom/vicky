@@ -6,7 +6,7 @@ services:
     restart: always
 
     volumes:
-      - "./config/postgres-passwd:/run/secrets/postgres-passwd"
+      # - "./config/postgres-passwd:/run/secrets/postgres-passwd"
       - "./data/postgres_data:/var/lib/postgresql/data"
     environment:
       # POSTGRES_PASSWORD_FILE: /run/secrets/postgres-passwd
