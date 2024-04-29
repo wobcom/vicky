@@ -209,9 +209,9 @@ pub mod db_impl {
         }
     }
 
-    impl Into<TaskStatus> for &str {
-        fn into(self) -> TaskStatus {
-            match self {
+    impl From<&str> for TaskStatus {
+        fn from(str: &str) -> TaskStatus {
+            match str {
                 "RUNNING" => TaskStatus::RUNNING,
                 "FINISHED::SUCCESS" => TaskStatus::FINISHED(TaskResult::SUCCESS),
                 "FINISHED::ERROR" => TaskStatus::FINISHED(TaskResult::ERROR),
@@ -220,15 +220,15 @@ pub mod db_impl {
         }
     }
 
-    impl Into<DbTask> for &Task {
-        fn into(self) -> DbTask {
+    impl From<&Task> for DbTask {
+        fn from(task: &Task) -> DbTask {
             DbTask {
-                id: self.id,
-                display_name: self.display_name.clone(),
-                status: self.status.to_string(),
-                features: self.features.join("||"),
-                flake_ref_uri: self.flake_ref.flake.clone(),
-                flake_ref_args: self.flake_ref.args.join("||"),
+                id: task.id,
+                display_name: task.display_name.clone(),
+                status: task.status.to_string(),
+                features: task.features.join("||"),
+                flake_ref_uri: task.flake_ref.flake.clone(),
+                flake_ref_args: task.flake_ref.args.join("||"),
             }
         }
     }
@@ -261,15 +261,15 @@ pub mod db_impl {
         }
     }
 
-    impl Into<Lock> for DbLock {
-        fn into(self) -> Lock {
-            match self.type_.as_str() {
-                "WRITE" => Lock::WRITE { name: self.name },
-                "READ" => Lock::READ { name: self.name },
+    impl From<DbLock> for Lock {
+        fn from(lock: DbLock) -> Lock {
+            match lock.type_.as_str() {
+                "WRITE" => Lock::WRITE { name: lock.name },
+                "READ" => Lock::READ { name: lock.name },
                 _ => panic!(
                     "Can't parse lock from database lock. Database corrupted? \
                 Expected READ or WRITE but found {} as type at key {}.",
-                    self.type_, self.id
+                    lock.type_, lock.id
                 ),
             }
         }
