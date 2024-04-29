@@ -181,6 +181,7 @@ pub mod db_impl {
     use crate::database::entities::lock::Lock;
     // these here are evil >:(
     use crate::database::schema::locks;
+    use itertools::Itertools;
     use crate::database::schema::tasks;
 
     #[derive(Insertable, Queryable)]
@@ -279,25 +280,27 @@ pub mod db_impl {
             use self::tasks::dsl::*;
             use self::locks::dsl::*;
 
-            let db_tasks = tasks
-                .load::<DbTask>(self)?;
-            let mut real_tasks: Vec<Task> = vec![];
+            let db_tasks = tasks.load::<DbTask>(self)?;
 
-            real_tasks = db_tasks.iter().map(|t| {
-                let real_locks: Vec<Lock> = match locks.filter(task_id.eq(t.id)).load::<DbLock>(self) {
-                    Ok(db_locks) => db_locks.into_iter().map(|l| l.into()).collect(),
-                    Err(_) => { warn!("could not load lock"); vec![] },
-                };
-                
+            // prefetching all locks here, so we don't run into the N+1 Query Problem and distribute them
+            let all_locks = locks.load::<DbLock>(self).unwrap_or_else(|_| vec![]);
+
+            let lock_map: HashMap<_, Vec<Lock>> = all_locks.into_iter()
+                .map(|db_lock| (db_lock.task_id, db_lock.into()))
+                .into_group_map();
+
+            let real_tasks: Vec<Task> = db_tasks.into_iter().map(|t| {
+                let real_locks = lock_map.get(&t.id).cloned().unwrap_or_default();
+
                 Task {
                     id: t.id.clone(),
                     display_name: t.display_name.clone(),
                     status: t.status.as_str().into(),
                     locks: real_locks,
-                    features: t.features.split("||").map(|s| s.to_string()).collect(),
+                    features: t.features.split("||").map(String::from).collect(),
                     flake_ref: FlakeRef {
                         flake: t.flake_ref_uri.clone(),
-                        args: t.flake_ref_args.split("||").map(|s| s.to_string()).collect(),
+                        args: t.flake_ref_args.split("||").map(String::from).collect(),
                     }
                 }
             }).collect();
