@@ -182,6 +182,7 @@ pub mod db_impl {
     use crate::database::schema::locks;
     use crate::database::schema::tasks;
     use itertools::Itertools;
+    use rocket_sync_db_pools::database;
 
     #[derive(Insertable, Queryable)]
     #[diesel(table_name = tasks)]
@@ -273,6 +274,9 @@ pub mod db_impl {
             }
         }
     }
+
+    #[database("postgres_db")]
+    pub struct Database(diesel::PgConnection);
 
     pub trait TaskDatabase {
         fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError>;
