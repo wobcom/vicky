@@ -168,11 +168,12 @@ impl TaskBuilder {
 // this was on purpose because these macro-generated entity types
 // mess up the whole namespace and HAVE to be scoped
 pub mod db_impl {
+    use std::collections::HashMap;
     use std::fmt::Display;
     use crate::database::entities::task::{Task, TaskResult, TaskStatus};
     use crate::errors::VickyError;
     use async_trait::async_trait;
-    use diesel::{Associations, ExpressionMethods, Identifiable, Insertable, Queryable, QueryDsl, RunQueryDsl, Selectable};
+    use diesel::{Connection, ExpressionMethods, Identifiable, Insertable, Queryable, QueryDsl, RunQueryDsl, Selectable};
     use diesel::associations::HasTable;
     use log::{error, warn};
     use uuid::Uuid;
@@ -206,7 +207,7 @@ pub mod db_impl {
             write!(f, "{}", str)
         }
     }
-    
+
     impl Into<TaskStatus> for &str {
         fn into(self) -> TaskStatus {
             match self {
@@ -267,7 +268,7 @@ pub mod db_impl {
     #[async_trait]
     pub trait TaskDatabase {
         async fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError>;
-        async fn get_task(&self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
+        async fn get_task(&mut self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
         async fn put_task(&mut self, task: &Task) -> Result<(), VickyError>;
     }
 
@@ -304,11 +305,31 @@ pub mod db_impl {
             Ok(real_tasks)
         }
 
-        async fn get_task(&self, task_id: Uuid) -> Result<Option<Task>, VickyError> {
+        async fn get_task(&mut self, tid: Uuid) -> Result<Option<Task>, VickyError> {
             // so evil >:O
             use self::tasks::dsl::*;
+            use self::locks::dsl::*;
 
-            todo!();
+            let db_task= tasks.filter(self::tasks::id.eq(tid)).first::<DbTask>(self);
+            let db_task = match db_task {
+                Err(diesel::result::Error::NotFound) => return Ok(None),
+                _ => db_task?
+            };
+            let db_locks: Vec<DbLock> = locks.filter(task_id.eq(task_id)).load::<DbLock>(self)?;
+
+            let task = Task {
+                id: db_task.id,
+                display_name: db_task.display_name.clone(),
+                locks: db_locks.into_iter().map(|l| l.into()).collect(),
+                features: db_task.features.split("||").map(|s| s.to_string()).collect(),
+                flake_ref: FlakeRef {
+                    flake: db_task.flake_ref_uri.clone(),
+                    args: db_task.features.split("||").map(|s| s.to_string()).collect(),
+                },
+                status: db_task.status.as_str().into(),
+            };
+            
+            Ok(Some(task))
         }
 
         async fn put_task(&mut self, task: &Task) -> Result<(), VickyError> {
