@@ -268,6 +268,7 @@ pub mod db_impl {
         async fn put_task(&mut self, task: &Task) -> Result<(), VickyError>;
     }
 
+    #[async_trait]
     impl TaskDatabase for diesel::pg::PgConnection {
         async fn get_all_tasks(mut self) -> Result<Vec<Task>, VickyError> {
             // very evil >>:(
