@@ -14,6 +14,12 @@ pub enum VickyError {
         #[from]
         source: serde_json::Error,
     },
+    
+    #[error("diesel Error {source:?}")]
+    Diesel {
+        #[from]
+        source: diesel::result::Error,
+    },
 
     #[error("Scheduling Error {source:?}")]
     Scheduler {
