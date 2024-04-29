@@ -171,7 +171,6 @@ pub mod db_impl {
     use crate::database::entities::task::{Task, TaskResult, TaskStatus};
     use crate::database::entities::FlakeRef;
     use crate::errors::VickyError;
-    use async_trait::async_trait;
     use diesel::{
         insert_into, ExpressionMethods, Identifiable, Insertable, QueryDsl, Queryable, RunQueryDsl,
         Selectable,
@@ -275,16 +274,14 @@ pub mod db_impl {
         }
     }
 
-    #[async_trait]
     pub trait TaskDatabase {
-        async fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError>;
-        async fn get_task(&mut self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
-        async fn put_task(&mut self, task: &Task) -> Result<(), VickyError>;
+        fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError>;
+        fn get_task(&mut self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
+        fn put_task(&mut self, task: &Task) -> Result<(), VickyError>;
     }
 
-    #[async_trait]
     impl TaskDatabase for diesel::pg::PgConnection {
-        async fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError> {
+        fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError> {
             // very evil >>:(
             use self::locks::dsl::*;
             use self::tasks::dsl::*;
@@ -321,7 +318,7 @@ pub mod db_impl {
             Ok(real_tasks)
         }
 
-        async fn get_task(&mut self, tid: Uuid) -> Result<Option<Task>, VickyError> {
+        fn get_task(&mut self, tid: Uuid) -> Result<Option<Task>, VickyError> {
             // so evil >:O
             use self::locks::dsl::*;
             use self::tasks::dsl::*;
@@ -356,7 +353,7 @@ pub mod db_impl {
             Ok(Some(task))
         }
 
-        async fn put_task(&mut self, task: &Task) -> Result<(), VickyError> {
+        fn put_task(&mut self, task: &Task) -> Result<(), VickyError> {
             // even more evil >;(
             use self::locks::dsl::*;
             use self::tasks::dsl::*;
