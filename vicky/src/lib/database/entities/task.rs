@@ -173,7 +173,7 @@ pub mod db_impl {
     use crate::database::entities::task::{Task, TaskResult, TaskStatus};
     use crate::errors::VickyError;
     use async_trait::async_trait;
-    use diesel::{Connection, ExpressionMethods, Identifiable, Insertable, Queryable, QueryDsl, RunQueryDsl, Selectable};
+    use diesel::{Connection, ExpressionMethods, Identifiable, insert_into, Insertable, Queryable, QueryDsl, RunQueryDsl, Selectable};
     use diesel::associations::HasTable;
     use log::{error, warn};
     use uuid::Uuid;
@@ -220,14 +220,14 @@ pub mod db_impl {
         }
     }
 
-    impl Into<DbTask> for Task {
+    impl Into<DbTask> for &Task {
         fn into(self) -> DbTask {
             DbTask {
                 id: self.id,
-                display_name: self.display_name,
+                display_name: self.display_name.clone(),
                 status: self.status.to_string(),
                 features: self.features.join("||"),
-                flake_ref_uri: self.flake_ref.flake,
+                flake_ref_uri: self.flake_ref.flake.clone(),
                 flake_ref_args: self.flake_ref.args.join("||"),
             }
         }
@@ -243,10 +243,10 @@ pub mod db_impl {
     }
 
     impl DbLock {
-        fn from_lock(lock: Lock, task_id: Uuid) -> Self {
+        fn from_lock(lock: &Lock, task_id: Uuid) -> Self {
             match lock {
-                Lock::WRITE { name } => DbLock { id: -1, task_id, name, type_: "WRITE".to_string() },
-                Lock::READ { name } => DbLock { id: -1, task_id, name, type_: "READ".to_string() },
+                Lock::WRITE { name } => DbLock { id: -1, task_id, name: name.clone(), type_: "WRITE".to_string() },
+                Lock::READ { name } => DbLock { id: -1, task_id, name: name.clone(), type_: "READ".to_string() },
             }
         }
     }
@@ -338,8 +338,16 @@ pub mod db_impl {
         async fn put_task(&mut self, task: &Task) -> Result<(), VickyError> {
             // even more evil >;(
             use self::tasks::dsl::*;
+            use self::locks::dsl::*;
             
-            todo!();
+            let db_locks: Vec<DbLock> = task.locks.iter().map(|l| DbLock::from_lock(l, task.id)).collect();
+            let db_task: DbTask = task.into();
+            
+            insert_into(tasks).values(db_task).execute(self)?;
+            for db_lock in db_locks {
+                insert_into(locks).values(db_lock).execute(self)?;
+            }
+            Ok(())
         }
     }
 }
