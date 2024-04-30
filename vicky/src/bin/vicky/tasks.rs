@@ -190,7 +190,7 @@ pub async fn tasks_claim(
                 .ok_or(AppError::HttpError(Status::NotFound))?;
             task.status = TaskStatus::RUNNING;
             let task2 = task.clone();
-            db.run(move |conn| conn.put_task(&task2)).await?;
+            db.run(move |conn| conn.update_task(&task2)).await?;
             global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
             Ok(Json(Some(task)))
         }
@@ -217,7 +217,7 @@ pub async fn tasks_finish(
 
     task.status = TaskStatus::FINISHED(finish.result.clone());
     let task2 = task.clone();
-    db.run(move |conn| conn.put_task(&task2)).await?;
+    db.run(move |conn| conn.update_task(&task2)).await?;
     global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
 
     Ok(Json(task))

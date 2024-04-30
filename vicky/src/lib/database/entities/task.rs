@@ -172,8 +172,8 @@ pub mod db_impl {
     use crate::database::entities::FlakeRef;
     use crate::errors::VickyError;
     use diesel::{
-        insert_into, ExpressionMethods, Identifiable, Insertable, QueryDsl, Queryable, RunQueryDsl,
-        Selectable,
+        insert_into, AsChangeset, ExpressionMethods, Identifiable, Insertable, QueryDsl, Queryable,
+        RunQueryDsl, Selectable,
     };
     use std::collections::HashMap;
     use std::fmt::Display;
@@ -184,7 +184,7 @@ pub mod db_impl {
     use itertools::Itertools;
     use rocket_sync_db_pools::database;
 
-    #[derive(Insertable, Queryable)]
+    #[derive(Insertable, Queryable, AsChangeset, Debug)]
     #[diesel(table_name = tasks)]
     struct DbTask {
         pub id: Uuid,
@@ -233,7 +233,7 @@ pub mod db_impl {
         }
     }
 
-    #[derive(Selectable, Identifiable, Queryable)]
+    #[derive(Selectable, Identifiable, Queryable, Debug)]
     #[diesel(table_name = locks)]
     struct DbLock {
         id: i32,
@@ -242,20 +242,20 @@ pub mod db_impl {
         type_: String,
     }
 
-    #[derive(Insertable)]
+    #[derive(Insertable, Debug)]
     #[diesel(table_name = locks)]
     struct NewDbLock {
         task_id: Uuid,
         name: String,
         type_: String,
     }
-    
+
     impl From<DbLock> for NewDbLock {
         fn from(value: DbLock) -> Self {
             NewDbLock {
                 task_id: value.task_id,
                 name: value.name,
-                type_: value.type_
+                type_: value.type_,
             }
         }
     }
@@ -300,6 +300,7 @@ pub mod db_impl {
         fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError>;
         fn get_task(&mut self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
         fn put_task(&mut self, task: &Task) -> Result<(), VickyError>;
+        fn update_task(&mut self, task: &Task) -> Result<(), VickyError>;
     }
 
     impl TaskDatabase for diesel::pg::PgConnection {
@@ -392,6 +393,22 @@ pub mod db_impl {
                 let new_db_lock: NewDbLock = db_lock.into();
                 insert_into(locks).values(new_db_lock).execute(self)?;
             }
+            Ok(())
+        }
+
+        fn update_task(&mut self, task: &Task) -> Result<(), VickyError> {
+            // even more evil >;(
+            use self::tasks::dsl::*;
+
+            let db_task: DbTask = task.into();
+
+            insert_into(tasks)
+                .values(&db_task)
+                .on_conflict(id)
+                .do_update()
+                .set(&db_task)
+                .execute(self)?;
+
             Ok(())
         }
     }
