@@ -5,8 +5,9 @@ use serde::{Deserialize, Serialize};
 use std::time;
 use tokio::sync::broadcast::{self, error::TryRecvError};
 use uuid::Uuid;
-use vickylib::database::entities::db_impl::{Database, TaskDatabase};
-use vickylib::database::entities::{FlakeRef, Lock, Task, TaskResult, TaskStatus};
+use vickylib::database::entities::task::db_impl::TaskDatabase;
+use vickylib::database::entities::task::{FlakeRef, TaskResult, TaskStatus};
+use vickylib::database::entities::{Database, Lock, Task};
 use vickylib::{
     errors::VickyError, logs::LogDrain, s3::client::S3Client, vicky::scheduler::Scheduler,
 };

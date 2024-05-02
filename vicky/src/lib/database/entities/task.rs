@@ -168,18 +168,21 @@ impl TaskBuilder {
 // mess up the whole namespace and HAVE to be scoped
 pub mod db_impl {
     use crate::database::entities::lock::Lock;
+    use crate::database::entities::task::FlakeRef;
     use crate::database::entities::task::{Task, TaskResult, TaskStatus};
-    use crate::database::entities::FlakeRef;
     use crate::errors::VickyError;
-    use diesel::{insert_into, AsChangeset, ExpressionMethods, Identifiable, Insertable, QueryDsl, Queryable, RunQueryDsl, Selectable, update};
+    use diesel::{
+        insert_into, update, AsChangeset, ExpressionMethods, Insertable, QueryDsl, Queryable,
+        RunQueryDsl,
+    };
     use std::collections::HashMap;
     use std::fmt::Display;
     use uuid::Uuid;
     // these here are evil >:(
+    use crate::database::entities::lock::db_impl::{DbLock, NewDbLock};
     use crate::database::schema::locks;
     use crate::database::schema::tasks;
     use itertools::Itertools;
-    use rocket_sync_db_pools::database;
 
     #[derive(Insertable, Queryable, AsChangeset, Debug)]
     #[diesel(table_name = tasks)]
@@ -233,74 +236,6 @@ pub mod db_impl {
         }
     }
 
-    #[derive(Selectable, Identifiable, Queryable, Debug)]
-    #[diesel(table_name = locks)]
-    struct DbLock {
-        id: i32,
-        task_id: Uuid,
-        name: String,
-        type_: String,
-    }
-
-    #[derive(Insertable, Debug)]
-    #[diesel(table_name = locks)]
-    struct NewDbLock {
-        task_id: Uuid,
-        name: String,
-        type_: String,
-    }
-
-    impl From<DbLock> for NewDbLock {
-        fn from(value: DbLock) -> Self {
-            NewDbLock {
-                task_id: value.task_id,
-                name: value.name,
-                type_: value.type_,
-            }
-        }
-    }
-
-    impl DbLock {
-        fn from_lock(lock: &Lock, task_id: Uuid) -> Self {
-            // Converting a Lock to a DbLock only happens when inserting or updating the database,
-            // in which case the id column is irrelevant as it's auto generated in the database.
-            // A DbLock should not be inserted into a database anyway, as it's just a transient type
-            // for inserting a NewDbLock. Thus, id is set to -1 here. Maybe this can be improved wholly?
-            // At least it works.
-            match lock {
-                Lock::WRITE { name } => DbLock {
-                    id: -1,
-                    task_id,
-                    name: name.clone(),
-                    type_: "WRITE".to_string(),
-                },
-                Lock::READ { name } => DbLock {
-                    id: -1,
-                    task_id,
-                    name: name.clone(),
-                    type_: "READ".to_string(),
-                },
-            }
-        }
-    }
-
-    impl From<DbLock> for Lock {
-        fn from(lock: DbLock) -> Lock {
-            match lock.type_.as_str() {
-                "WRITE" => Lock::WRITE { name: lock.name },
-                "READ" => Lock::READ { name: lock.name },
-                _ => panic!(
-                    "Can't parse lock from database lock. Database corrupted? \
-                Expected READ or WRITE but found {} as type at key {}.",
-                    lock.type_, lock.id
-                ),
-            }
-        }
-    }
-
-    #[database("postgres_db")]
-    pub struct Database(diesel::PgConnection);
-
     pub trait TaskDatabase {
         fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError>;
         fn get_task(&mut self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
@@ -332,7 +267,11 @@ pub mod db_impl {
                     Task {
                         id: t.id,
                         display_name: t.display_name,
-                        status: t.status.as_str().try_into().expect("Got unexpected status value. Database is corrupted"),
+                        status: t
+                            .status
+                            .as_str()
+                            .try_into()
+                            .expect("Got unexpected status value. Database is corrupted"),
                         locks: real_locks,
                         features: t.features.into_iter().flatten().collect(),
                         flake_ref: FlakeRef {
@@ -367,7 +306,11 @@ pub mod db_impl {
                     flake: db_task.flake_ref_uri,
                     args: db_task.flake_ref_args.into_iter().flatten().collect(),
                 },
-                status: db_task.status.as_str().try_into().expect("Got unexpected status value. Database is corrupted"),
+                status: db_task
+                    .status
+                    .as_str()
+                    .try_into()
+                    .expect("Got unexpected status value. Database is corrupted"),
             };
 
             Ok(Some(task))

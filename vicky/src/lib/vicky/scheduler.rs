@@ -2,8 +2,9 @@ use std::collections::HashMap;
 
 use log::debug;
 
+use crate::database::entities::task::TaskStatus;
 use crate::{
-    database::entities::{Lock, Task, TaskStatus},
+    database::entities::{Lock, Task},
     errors::SchedulerError,
 };
 
@@ -148,7 +149,8 @@ impl Scheduler {
 
 #[cfg(test)]
 mod tests {
-    use crate::database::entities::{Task, TaskStatus};
+    use crate::database::entities::task::TaskStatus;
+    use crate::database::entities::Task;
 
     use super::Scheduler;
 
@@ -162,7 +164,7 @@ mod tests {
             Task::builder()
                 .with_display_name("Test 2")
                 .with_status(TaskStatus::RUNNING)
-                .build()
+                .build(),
         ];
 
         Scheduler::new(tasks, &[]).unwrap();
@@ -180,7 +182,7 @@ mod tests {
                 .with_display_name("Test 2")
                 .with_status(TaskStatus::RUNNING)
                 .with_read_lock("foo 1")
-                .build()
+                .build(),
         ];
 
         Scheduler::new(tasks, &[]).unwrap();
@@ -198,7 +200,7 @@ mod tests {
                 .with_display_name("Test 2")
                 .with_status(TaskStatus::RUNNING)
                 .with_write_lock("foo2")
-                .build()
+                .build(),
         ];
 
         Scheduler::new(tasks, &[]).unwrap();

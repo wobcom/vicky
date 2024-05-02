@@ -9,7 +9,7 @@ use rocket::figment::{Figment, Profile};
 use rocket::routes;
 use serde::Deserialize;
 use tokio::sync::broadcast;
-use vickylib::database::entities::db_impl::Database;
+use vickylib::database::entities::Database;
 use vickylib::logs::LogDrain;
 use vickylib::s3::client::S3Client;
 

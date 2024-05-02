@@ -17,3 +17,75 @@ impl Lock {
         }
     }
 }
+
+pub mod db_impl {
+    use crate::database::entities::Lock;
+    use crate::database::schema::locks;
+    use diesel::{Identifiable, Insertable, Queryable, Selectable};
+    use uuid::Uuid;
+
+    #[derive(Selectable, Identifiable, Queryable, Debug)]
+    #[diesel(table_name = locks)]
+    pub struct DbLock {
+        pub id: i32,
+        pub task_id: Uuid,
+        pub name: String,
+        pub type_: String,
+    }
+
+    #[derive(Insertable, Debug)]
+    #[diesel(table_name = locks)]
+    pub struct NewDbLock {
+        pub task_id: Uuid,
+        pub name: String,
+        pub type_: String,
+    }
+
+    impl From<DbLock> for NewDbLock {
+        fn from(value: DbLock) -> Self {
+            NewDbLock {
+                task_id: value.task_id,
+                name: value.name,
+                type_: value.type_,
+            }
+        }
+    }
+
+    impl DbLock {
+        pub fn from_lock(lock: &Lock, task_id: Uuid) -> Self {
+            // Converting a Lock to a DbLock only happens when inserting or updating the database,
+            // in which case the id column is irrelevant as it's auto generated in the database.
+            // A DbLock should not be inserted into a database anyway, as it's just a transient type
+            // for inserting a NewDbLock. Thus, id is set to -1 here. Maybe this can be improved wholly?
+            // At least it works.
+            match lock {
+                Lock::WRITE { name } => DbLock {
+                    id: -1,
+                    task_id,
+                    name: name.clone(),
+                    type_: "WRITE".to_string(),
+                },
+                Lock::READ { name } => DbLock {
+                    id: -1,
+                    task_id,
+                    name: name.clone(),
+                    type_: "READ".to_string(),
+                },
+            }
+        }
+    }
+
+    impl From<DbLock> for Lock {
+        fn from(lock: DbLock) -> Lock {
+            match lock.type_.as_str() {
+                "WRITE" => Lock::WRITE { name: lock.name },
+                "READ" => Lock::READ { name: lock.name },
+                _ => panic!(
+                    "Can't parse lock from database lock. Database corrupted? \
+                Expected READ or WRITE but found {} as type at key {}.",
+                    lock.type_, lock.id
+                ),
+            }
+        }
+    }
+}
