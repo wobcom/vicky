@@ -259,6 +259,11 @@ pub mod db_impl {
 
     impl DbLock {
         fn from_lock(lock: &Lock, task_id: Uuid) -> Self {
+            // Converting a Lock to a DbLock only happens when inserting or updating the database,
+            // in which case the id column is irrelevant as it's auto generated in the database.
+            // A DbLock should not be inserted into a database anyway, as it's just a transient type
+            // for inserting a NewDbLock. Thus, id is set to -1 here. Maybe this can be improved wholly?
+            // At least it works.
             match lock {
                 Lock::WRITE { name } => DbLock {
                     id: -1,
