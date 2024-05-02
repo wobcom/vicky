@@ -190,9 +190,9 @@ pub mod db_impl {
         pub id: Uuid,
         pub display_name: String,
         pub status: String,
-        pub features: String,
+        pub features: Vec<Option<String>>,
         pub flake_ref_uri: String,
-        pub flake_ref_args: String,
+        pub flake_ref_args: Vec<Option<String>>,
     }
 
     impl Display for TaskStatus {
@@ -226,9 +226,9 @@ pub mod db_impl {
                 id: task.id,
                 display_name: task.display_name.clone(),
                 status: task.status.to_string(),
-                features: task.features.join("||"),
+                features: task.features.clone().iter().cloned().map(Some).collect(),
                 flake_ref_uri: task.flake_ref.flake.clone(),
-                flake_ref_args: task.flake_ref.args.join("||"),
+                flake_ref_args: task.flake_ref.args.iter().cloned().map(Some).collect(),
             }
         }
     }
@@ -326,13 +326,13 @@ pub mod db_impl {
 
                     Task {
                         id: t.id,
-                        display_name: t.display_name.clone(),
+                        display_name: t.display_name,
                         status: t.status.as_str().into(),
                         locks: real_locks,
-                        features: t.features.split("||").map(String::from).collect(),
+                        features: t.features.into_iter().flatten().collect(),
                         flake_ref: FlakeRef {
-                            flake: t.flake_ref_uri.clone(),
-                            args: t.flake_ref_args.split("||").map(String::from).collect(),
+                            flake: t.flake_ref_uri,
+                            args: t.flake_ref_args.into_iter().flatten().collect(),
                         },
                     }
                 })
@@ -355,20 +355,12 @@ pub mod db_impl {
 
             let task = Task {
                 id: db_task.id,
-                display_name: db_task.display_name.clone(),
+                display_name: db_task.display_name,
                 locks: db_locks.into_iter().map(|l| l.into()).collect(),
-                features: db_task
-                    .features
-                    .split("||")
-                    .map(|s| s.to_string())
-                    .collect(),
+                features: db_task.features.into_iter().flatten().collect(),
                 flake_ref: FlakeRef {
-                    flake: db_task.flake_ref_uri.clone(),
-                    args: db_task
-                        .features
-                        .split("||")
-                        .map(|s| s.to_string())
-                        .collect(),
+                    flake: db_task.flake_ref_uri,
+                    args: db_task.flake_ref_args.into_iter().flatten().collect(),
                 },
                 status: db_task.status.as_str().into(),
             };

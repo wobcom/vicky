@@ -15,9 +15,9 @@ diesel::table! {
         id -> Uuid,
         display_name -> Varchar,
         status -> Varchar,
-        features -> Varchar,
+        features -> Array<Nullable<Text>>,
         flake_ref_uri -> Varchar,
-        flake_ref_args -> Varchar,
+        flake_ref_args -> Array<Nullable<Text>>,
     }
 }
 
