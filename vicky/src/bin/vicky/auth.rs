@@ -13,6 +13,7 @@ pub enum Role {
     Admin,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct User {
     pub full_name: String,
