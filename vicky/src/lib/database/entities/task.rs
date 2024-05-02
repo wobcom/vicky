@@ -171,10 +171,7 @@ pub mod db_impl {
     use crate::database::entities::task::{Task, TaskResult, TaskStatus};
     use crate::database::entities::FlakeRef;
     use crate::errors::VickyError;
-    use diesel::{
-        insert_into, AsChangeset, ExpressionMethods, Identifiable, Insertable, QueryDsl, Queryable,
-        RunQueryDsl, Selectable,
-    };
+    use diesel::{insert_into, AsChangeset, ExpressionMethods, Identifiable, Insertable, QueryDsl, Queryable, RunQueryDsl, Selectable, update};
     use std::collections::HashMap;
     use std::fmt::Display;
     use uuid::Uuid;
@@ -392,13 +389,8 @@ pub mod db_impl {
             // even more evil >;(
             use self::tasks::dsl::*;
 
-            let db_task: DbTask = task.into();
-
-            insert_into(tasks)
-                .values(&db_task)
-                .on_conflict(id)
-                .do_update()
-                .set(&db_task)
+            update(tasks.filter(id.eq(task.id)))
+                .set(status.eq(task.status.clone().to_string()))
                 .execute(self)?;
 
             Ok(())
