@@ -206,13 +206,16 @@ pub mod db_impl {
         }
     }
 
-    impl From<&str> for TaskStatus {
-        fn from(str: &str) -> TaskStatus {
+    impl TryFrom<&str> for TaskStatus {
+        type Error = ();
+
+        fn try_from(str: &str) -> Result<Self, Self::Error> {
             match str {
-                "RUNNING" => TaskStatus::RUNNING,
-                "FINISHED::SUCCESS" => TaskStatus::FINISHED(TaskResult::SUCCESS),
-                "FINISHED::ERROR" => TaskStatus::FINISHED(TaskResult::ERROR),
-                _ => TaskStatus::NEW,
+                "NEW" => Ok(TaskStatus::NEW),
+                "RUNNING" => Ok(TaskStatus::RUNNING),
+                "FINISHED::SUCCESS" => Ok(TaskStatus::FINISHED(TaskResult::SUCCESS)),
+                "FINISHED::ERROR" => Ok(TaskStatus::FINISHED(TaskResult::ERROR)),
+                _ => Err(()),
             }
         }
     }
@@ -329,7 +332,7 @@ pub mod db_impl {
                     Task {
                         id: t.id,
                         display_name: t.display_name,
-                        status: t.status.as_str().into(),
+                        status: t.status.as_str().try_into().expect("Got unexpected status value. Database is corrupted"),
                         locks: real_locks,
                         features: t.features.into_iter().flatten().collect(),
                         flake_ref: FlakeRef {
@@ -364,7 +367,7 @@ pub mod db_impl {
                     flake: db_task.flake_ref_uri,
                     args: db_task.flake_ref_args.into_iter().flatten().collect(),
                 },
-                status: db_task.status.as_str().into(),
+                status: db_task.status.as_str().try_into().expect("Got unexpected status value. Database is corrupted"),
             };
 
             Ok(Some(task))
