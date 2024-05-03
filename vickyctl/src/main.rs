@@ -9,7 +9,7 @@ struct AppContext {
     vicky_url: String,
 
     #[clap(env)]
-    token: String,
+    vicky_token: String,
 }
 
 #[derive(Parser, Debug, Clone)]
