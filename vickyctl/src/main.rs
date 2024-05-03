@@ -1,4 +1,6 @@
 mod tasks;
+mod http_client;
+mod humanize;
 
 use clap::{Args, Parser, Subcommand};
 use uuid::Uuid;
@@ -10,6 +12,9 @@ struct AppContext {
 
     #[clap(env)]
     vicky_token: String,
+    
+    #[clap(long)]
+    humanize: bool,
 }
 
 #[derive(Parser, Debug, Clone)]
