@@ -14,7 +14,7 @@ pub fn handle_user_response(ctx: &AppContext, json: &str) -> Result<(), Box<dyn 
     }
     Ok(())
 }
-pub fn humanize<'a>(text: &'a str) -> Result<(), Box<dyn Error>> {
+pub fn humanize(text: &str) -> Result<(), Box<dyn Error>> {
     debug!("spawning `jless` as a child process for human data view");
     let mut child = Command::new("jless")
         .stdin(Stdio::piped())
