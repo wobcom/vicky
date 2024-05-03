@@ -4,7 +4,7 @@ use clap::{Args, Parser, Subcommand};
 use uuid::Uuid;
 
 #[derive(Parser, Debug, Clone)]
-struct EnvContext {
+struct AppContext {
     #[clap(env)]
     vicky_url: String,
 
@@ -43,14 +43,14 @@ struct TaskArgs {
     commands: TaskCommands,
 
     #[command(flatten)]
-    env: EnvContext,
+    ctx: AppContext,
 }
 
 #[derive(Args, Debug)]
 #[command(version, about = "Show all tasks vicky is managing", long_about = None)]
 struct TasksArgs {
     #[command(flatten)]
-    env: EnvContext,
+    ctx: AppContext,
 }
 
 #[derive(Parser, Debug)]
