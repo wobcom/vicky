@@ -3,6 +3,7 @@ mod http_client;
 mod humanize;
 
 use clap::{Args, Parser, Subcommand};
+use log::error;
 use uuid::Uuid;
 
 #[derive(Parser, Debug, Clone)]
@@ -65,6 +66,10 @@ enum Cli {
 }
 
 fn main() {
+    env_logger::builder()
+        .format_timestamp(None)
+        .format_target(false)
+        .init();
     let cli = Cli::parse();
 
     let error: Result<_, _> = match cli {
