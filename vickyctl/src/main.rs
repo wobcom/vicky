@@ -62,7 +62,7 @@ enum Cli {
 fn main() {
     let cli = Cli::parse();
 
-    match cli {
+    let error: Result<_, _> = match cli {
         Cli::Task(task_args) => {
             match task_args.commands {
                 TaskCommands::Create(task_data) => { todo!() }
@@ -74,5 +74,10 @@ fn main() {
         Cli::Tasks(tasks_args) => {
             tasks::show_tasks(&tasks_args)
         }
+    };
+
+    match error {
+        Ok(()) => {},
+        Err(e) => error!("{e}"),
     }
 }
