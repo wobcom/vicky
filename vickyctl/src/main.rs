@@ -72,7 +72,7 @@ fn main() {
             }
         }
         Cli::Tasks(tasks_args) => {
-            tasks::show_tasks(&tasks_args.env.vicky_url, &tasks_args.env.token);
+            tasks::show_tasks(&tasks_args)
         }
     }
 }
