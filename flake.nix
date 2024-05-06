@@ -56,7 +56,7 @@
   in {
     packages = {
       inherit (pkgs) vicky vicky-dashboard;
-      default = self.vicky;
+      default = pkgs.vicky;
     };
     legacyPackages = pkgs;
 
