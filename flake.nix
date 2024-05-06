@@ -57,7 +57,9 @@
     };
   in {
     packages = {
-      githubActions = nix-github-actions.lib.mkGithubMatrix { checks = self.packages; };
+      githubActions = nix-github-actions.lib.mkGithubMatrix { 
+          checks = nixpkgs.lib.getAttrs [ "x86_64-linux" ] self.checks;
+      };
       inherit (pkgs) vicky vicky-dashboard;
     };
     legacyPackages = pkgs;
