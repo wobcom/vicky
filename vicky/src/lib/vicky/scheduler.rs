@@ -245,6 +245,49 @@ mod tests {
         assert_eq!(res.get_next_task(), None)
     }
 
+
+    #[test]
+    fn scheduler_no_new_task_with_feature() {
+        let tasks = vec![
+            Task::builder()
+                .with_display_name("Test 1")
+                .with_status(TaskStatus::NEW)
+                .requires_feature("huge_cpu")
+                .build(),
+            Task::builder()
+                .with_display_name("Test 2")
+                .with_status(TaskStatus::NEW)
+                .requires_feature("huge_cpu")
+                .build(),
+        ];
+
+        let res = Scheduler::new(tasks, &[]).unwrap();
+        // Test 1 and Test 2 have required features, which our runner does not have.
+        assert_eq!(res.get_next_task(), None)
+    }
+
+    #[test]
+    fn scheduler_new_task_with_specific_feature() {
+        let tasks = vec![
+            Task::builder()
+                .with_display_name("Test 1")
+                .with_status(TaskStatus::NEW)
+                .requires_feature("huge_cpu")
+                .build(),
+            Task::builder()
+                .with_display_name("Test 2")
+                .with_status(TaskStatus::NEW)
+                .requires_feature("huge_cpu")
+                .build(),
+        ];
+
+        let res = Scheduler::new(tasks, &["huge_cpu".to_string()]).unwrap();
+        // Test 1 and Test 2 have required features, which our runner matches.
+        assert_eq!(res.get_next_task().unwrap().display_name, "Test 1")
+    }
+
+
+
     #[test]
     fn scheduler_new_task() {
         let tasks = vec![
