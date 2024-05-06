@@ -56,10 +56,10 @@
       overlays = [ self.overlays.default ];
     };
   in {
+    githubActions = nix-github-actions.lib.mkGithubMatrix { 
+      checks = nixpkgs.lib.getAttrs [ "x86_64-linux" ] self.packages;
+    };
     packages = {
-      githubActions = nix-github-actions.lib.mkGithubMatrix { 
-          checks = nixpkgs.lib.getAttrs [ "x86_64-linux" ] self.packages;
-      };
       inherit (pkgs) vicky vicky-dashboard;
     };
     legacyPackages = pkgs;
