@@ -1,13 +1,15 @@
 {
   description = "vicky";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/master";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   inputs.flake-utils.url = "github:numtide/flake-utils";
+  inputs.nix-github-actions.url = "github:nix-community/nix-github-actions";
+  inputs.nix-github-actions.inputs.nixpkgs.follows = "nixpkgs";
 
-  outputs = { self, nixpkgs, flake-utils }: {
+  outputs = { self, nixpkgs, flake-utils, nix-github-actions }: {
     overlays.default = final: prev: {
       vicky = final.callPackage (
-        { lib, stdenv, rustPlatform, pkg-config, openssl, protobuf }:
+        { lib, stdenv, rustPlatform, pkg-config, openssl, protobuf, postgresql }:
 
         rustPlatform.buildRustPackage {
           pname = "vicky";
@@ -22,7 +24,7 @@
           };
 
           nativeBuildInputs = [ pkg-config protobuf ];
-          buildInputs = [ openssl ];
+          buildInputs = [ openssl postgresql ];
         }
       ) { };
       vicky-dashboard = final.callPackage (
@@ -35,7 +37,7 @@
 
           src = ./dashboard;
 
-          npmDepsHash = "sha256-z1Uv629N8qUEPmC/ec7cCj6regp/dp//Gwiq5Wa25ZI=";
+          npmDepsHash = "sha256-n+dgMhdPZ8LgpDhOdnybDDYHWKZoFopVUb7acK15cd0=";
 
           installPhase = ''
             runHook preInstall
@@ -53,20 +55,10 @@
       inherit system;
       overlays = [ self.overlays.default ];
     };
-  in rec {
+  in {
     packages = {
+      githubActions = nix-github-actions.lib.mkGithubMatrix { checks = self.packages; };
       inherit (pkgs) vicky vicky-dashboard;
-      default = packages.vicky;
-
-
-      generate-certs = pkgs.writeShellScriptBin "generate-certs" ''
-        rm -rf certs || true
-        ${pkgs.certstrap}/bin/certstrap --depot-path certs init --common-name "Vicky CA" --passphrase="" 
-        ${pkgs.certstrap}/bin/certstrap --depot-path certs request-cert --common-name "Vicky" --passphrase="" --domain "localhost" --ip "127.0.0.1"
-        ${pkgs.certstrap}/bin/certstrap --depot-path certs request-cert --common-name "etcd" --passphrase="" --domain "localhost" --ip "127.0.0.1"
-        ${pkgs.certstrap}/bin/certstrap --depot-path=certs sign "Vicky" --CA="Vicky CA" --passphrase=""
-        ${pkgs.certstrap}/bin/certstrap --depot-path=certs sign "etcd" --CA="Vicky CA" --passphrase=""
-      '';
     };
     legacyPackages = pkgs;
 
@@ -74,7 +66,7 @@
       name = "vicky-shell";
       RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
       nativeBuildInputs = with pkgs; [ rustc clippy cargo rustfmt pkg-config protobuf ];
-      buildInputs = with pkgs; [ openssl ];
+      buildInputs = with pkgs; [ openssl postgresql ];
     };
 
   });
