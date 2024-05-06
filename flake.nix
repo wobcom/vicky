@@ -61,6 +61,7 @@
     };
     packages = {
       inherit (pkgs) vicky vicky-dashboard;
+      default = self.vicky;
     };
     legacyPackages = pkgs;
 
