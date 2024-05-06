@@ -21,7 +21,11 @@ pub(crate) struct AppConfig {
 }
 
 fn main() -> anyhow::Result<()> {
-    env_logger::builder().filter_level(log::LevelFilter::Debug).init();
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Debug)
+        .init();
+
+    log::info!("vicky worker starting up.");
 
     // Took from rocket source code and added .split("__") to be able to add keys in nested structures.
     let rocket_config_figment = Figment::from(rocket::Config::default())
@@ -101,16 +105,29 @@ fn log_sink(
     task_id: Uuid,
 ) -> impl Sink<Vec<String>, Error = anyhow::Error> + Send {
     futures_util::sink::unfold((), move |_, lines: Vec<String>| {
-        println!("{}", lines.len());
         let cfg = cfg.clone();
         async move {
-            api::<_, ()>(
+            let response = api::<_, ()>(
                 &cfg,
                 Method::POST,
                 &format!("api/v1/tasks/{}/logs", task_id),
                 &serde_json::json!({ "lines": lines }),
             )
-            .await
+            .await;
+
+            match response {
+                Ok(_) => {
+                    log::info!("logged {} line(s) from task", lines.len());
+                    Ok(())
+                }
+                Err(e) => {
+                    log::error!(
+                        "could not log from task. {} lines were dropped",
+                        lines.len()
+                    );
+                    Err(e)
+                }
+            }
         }
     })
 }
@@ -190,7 +207,8 @@ async fn try_claim(cfg: Arc<AppConfig>) -> anyhow::Result<()> {
 
 #[tokio::main(flavor = "current_thread")]
 async fn run(cfg: AppConfig) -> anyhow::Result<()> {
-    println!("Hello, world!");
+    log::info!("config valid, starting communication with vicky");
+    log::info!("waiting for tasks...");
 
     let cfg = Arc::new(cfg);
     loop {
