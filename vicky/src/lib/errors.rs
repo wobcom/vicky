@@ -14,16 +14,11 @@ pub enum VickyError {
         #[from]
         source: serde_json::Error,
     },
-
-    #[error("serde_yaml Error {source:?}")]
-    SerdeYaml {
+    
+    #[error("diesel Error {source:?}")]
+    Diesel {
         #[from]
-        source: serde_yaml::Error,
-    },
-    #[error("etcd Error {source:?}")]
-    EtcdClient {
-        #[from]
-        source: etcd_client::Error,
+        source: diesel::result::Error,
     },
 
     #[error("Scheduling Error {source:?}")]

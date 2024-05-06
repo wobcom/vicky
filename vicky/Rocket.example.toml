@@ -4,12 +4,8 @@ machines = [
     "abc1234"
 ]
 
-[default.etcd_config]
-endpoints = [ "https://localhost:2379" ]
-[default.etcd_config.tls_options]
-ca_file = "../certs/Vicky_CA.crt"
-certificate_file = "../certs/Vicky.crt"
-key_file = "../certs/Vicky.key"
+[default.databases]
+postgres_db = { url = "postgres://vicky:vicky@localhost/vicky" }
 
 [default.s3_config]
 endpoint = "http://localhost:9000"
