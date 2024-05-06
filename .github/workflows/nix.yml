@@ -1,0 +1,24 @@
+name: Nix actions
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - main
+
+jobs:
+  nix-build:
+    strategy:
+      matrix:
+        packages:
+          - vicky
+          - vicky-dashboard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      # Note: this would only work if Cargo is included in the Nix shell
+      - name: Build Package
+        run: nix build .#${{ matrix.packages }}
