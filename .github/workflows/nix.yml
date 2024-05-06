@@ -16,13 +16,9 @@ jobs:
           - vicky-dashboard
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Install Nix
-        uses: cachix/install-nix-action@v17
-        with:
-          # Mostly to avoid GitHub rate limiting
-          extra_nix_config: |
-            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
       # Note: this would only work if Cargo is included in the Nix shell
       - name: Build Package
         run: nix build .#${{ matrix.packages }}
