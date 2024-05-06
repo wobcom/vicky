@@ -60,6 +60,7 @@ struct TasksArgs {
 }
 
 #[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
 enum Cli {
     Task(TaskArgs),
     Tasks(TasksArgs),
