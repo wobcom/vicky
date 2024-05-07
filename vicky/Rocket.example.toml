@@ -17,3 +17,6 @@ log_bucket = "vicky-logs"
 [default.oidc_config]
 jwks_url = ""
 
+[default.web_config]
+authority = ""
+client_id = "vicky-dev"
