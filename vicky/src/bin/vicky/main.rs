@@ -7,7 +7,7 @@ use rocket::fairing::AdHoc;
 use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
 use rocket::routes;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use vickylib::database::entities::Database;
 use vickylib::logs::LogDrain;
@@ -20,12 +20,14 @@ use crate::tasks::{
 };
 
 use crate::user::get_user;
+use crate::webconfig::get_web_config;
 
 mod auth;
 mod errors;
 mod events;
 mod tasks;
 mod user;
+mod webconfig;
 
 #[derive(Deserialize)]
 pub struct S3Config {
@@ -42,6 +44,13 @@ pub struct OIDCConfig {
     jwks_url: String,
 }
 
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct WebConfig {
+    authority: String,
+    client_id: String,
+}
+
 #[derive(Deserialize)]
 pub struct Config {
     machines: Vec<String>,
@@ -49,6 +58,8 @@ pub struct Config {
     s3_config: S3Config,
 
     oidc_config: OIDCConfig,
+
+    web_config: WebConfig,
 }
 
 #[tokio::main]
@@ -109,8 +120,10 @@ async fn main() -> anyhow::Result<()> {
         .manage(log_drain)
         .manage(jwks_verifier)
         .manage(tx_global_events)
+        .manage(app_config.web_config)
         .attach(Database::fairing())
         .attach(AdHoc::config::<Config>())
+        .mount("/api/v1/web-config", routes![get_web_config])
         .mount("/api/v1/user", routes![get_user])
         .mount("/api/v1/events", routes![get_global_events])
         .mount(
