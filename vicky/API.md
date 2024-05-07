@@ -100,7 +100,11 @@ This API is an JSON API, therefore you need to set `Content-Type` header accordi
 ```
 ### Claim A Task
 
-`POST /api/v1/tasks/claim` claims the next new task available.
+`POST /api/v1/tasks/claim` claims the next new task available that is supported by the featureset of the worker.
+
+```json
+{ "features": [ "feat1", "feat2" ] }
+```
 
 #### Response
 
@@ -129,7 +133,7 @@ If there is a new task available, the API will return the following:
 
 ### Log Output To A Task
 
-`POST /api/v1/tasks/<UUID>/logs` claims the next new task available.
+`POST /api/v1/tasks/<UUID>/logs` saves `lines` from the json input into an S3 compatible bucket.
 
 ```json
 {
