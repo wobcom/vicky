@@ -42,3 +42,79 @@ impl TaskData {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::TaskData;
+    use serde_json::json;
+
+    #[test]
+    fn test_empty_task_data_to_json() {
+        let data = TaskData {
+            name: "".to_string(),
+            lock_name: vec![],
+            lock_type: vec![],
+            flake_url: "".to_string(),
+            flake_arg: vec![],
+            features: vec![],
+        };
+
+        let should_be = json!({
+            "display_name": "",
+            "locks": [],
+            "flake_ref": {
+                "flake": "",
+                "args": []
+            },
+            "features": []
+        });
+
+        assert_eq!(data.to_json(), should_be);
+    }
+
+    #[test]
+    fn test_full_task_data_to_json() {
+        let data = TaskData {
+            name: "deployment 5".to_string(),
+            lock_name: vec![
+                "first".to_string(),
+                "second".to_string(),
+                "third".to_string(),
+            ],
+            lock_type: vec!["WRITE".to_string(), "WRITE".to_string(), "READ".to_string()],
+            flake_url: "github:wobcom/vicky".to_string(),
+            flake_arg: vec!["flaked".to_string(), "really!".to_string()],
+            features: vec![
+                "feat1".to_string(),
+                "big_cpu".to_string(),
+                "huge_cpu".to_string(),
+                "gigantonormous_gpu".to_string(),
+            ],
+        };
+
+        let should_be = json!({
+            "display_name": "deployment 5",
+            "locks": [
+                {
+                    "name": "first",
+                    "type": "WRITE",
+                },
+                {
+                    "name": "second",
+                    "type": "WRITE",
+                },
+                {
+                    "name": "third",
+                    "type": "READ",
+                }
+            ],
+            "flake_ref": {
+                "flake": "github:wobcom/vicky",
+                "args": [ "flaked", "really!" ]
+            },
+            "features": [ "feat1", "big_cpu", "huge_cpu", "gigantonormous_gpu" ]
+        });
+
+        assert_eq!(data.to_json(), should_be);
+    }
+}
