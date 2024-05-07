@@ -20,9 +20,15 @@ type IUser = {
     role: "admin",
 }
 
+type IWebConfig = {
+    authority: string,
+    client_id: string,
+}
+
+const BASE_URL = "/api"
+
 const useAPI = () => {
 
-    const BASE_URL = "/api"
 
     const auth = useAuth();
 
@@ -58,18 +64,37 @@ const useAPI = () => {
     const getUser = (): Promise<IUser> => {
         return fetchJSON(`${BASE_URL}/user`);
     }
-
+    
+    
     return {
         getTasks,
         getTask,
         getTaskLogs,
-        getUser
+        getUser,
     }
 
 }
 
+const useUnauthenticatedAPI = () => {
+    const fetchJSON = async (url: string) => {
+        return fetch(
+            url, 
+        ).then(x => x.json());
+    }
+
+    const getWebConfig = (): Promise<IWebConfig> => {
+        return fetchJSON(`${BASE_URL}/web-config`);
+    }
+
+    return {
+        getWebConfig,
+    }
+}
+
 export {
     useAPI,
+    useUnauthenticatedAPI,
     ITask,
     IUser,
+    IWebConfig,
 }

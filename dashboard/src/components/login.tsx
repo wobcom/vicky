@@ -11,11 +11,11 @@ const Login = () => {
 
     return (
         <FlexboxGrid
-            align="middl;e"
+            align="middle"
             justify="center"
         >
             <Col xs={8}>
-                <Panel shaded bordered bodyFil>
+                <Panel shaded bordered>
                 <Stack spacing={16} direction="column">
                     <h2>Login via GitHub</h2>
                     <p className={s.ExplanationText}>
