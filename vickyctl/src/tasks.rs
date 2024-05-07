@@ -77,6 +77,7 @@ pub fn create_task(task_data: &TaskData, ctx: &AppContext) -> Result<(), Box<dyn
             status.bold().yellow()
         };
         println!("[ {status_colored} ] Task couldn't be scheduled.");
+        return Ok(());
     }
     let text = response.text()?;
     let pretty_json: RoTaskCreate = serde_json::de::from_str(&text)?;
