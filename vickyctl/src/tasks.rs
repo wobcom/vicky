@@ -1,8 +1,11 @@
-use crate::TasksArgs;
-use log::debug;
-use std::error::Error;
 use crate::http_client::prepare_client;
 use crate::humanize::handle_user_response;
+use crate::{AppContext, TaskData, TasksArgs};
+use log::debug;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use std::error::Error;
+use yansi::Paint;
 
 #[allow(dead_code)]
 pub fn show_tasks(tasks_args: &TasksArgs) -> Result<(), Box<dyn Error>> {
@@ -41,6 +44,53 @@ impl TaskData {
             "features": self.features
         })
     }
+}
+
+#[derive(Deserialize, Serialize)]
+struct RoTaskStatus {
+    state: String,
+}
+
+#[derive(Deserialize, Serialize)]
+struct RoTaskCreate {
+    id: String,
+    status: RoTaskStatus,
+}
+
+#[allow(dead_code)]
+pub fn create_task(task_data: &TaskData, ctx: &AppContext) -> Result<(), Box<dyn Error>> {
+    let client = prepare_client(ctx)?;
+    let request = client
+        .post(format!("{}/{}", ctx.vicky_url, "api/v1/tasks"))
+        .body(task_data.to_json().to_string())
+        .build()?;
+
+    let response = client.execute(request)?;
+
+    let status = response.status();
+    
+    if !status.is_success() {
+        let is_error = status.is_client_error() || status.is_server_error();
+        let status_colored = if is_error {
+            status.bold().bright_red()
+        } else {
+            status.bold().yellow()
+        };
+        println!("[ {status_colored} ] Task couldn't be scheduled.");
+    }
+    let text = response.text()?;
+    let pretty_json: RoTaskCreate = serde_json::de::from_str(&text)?;
+    if ctx.humanize {
+        println!(
+            "[ {} ] Task was scheduled under id {}. State: {}",
+            status.bold().bright_green(),
+            pretty_json.id.bright_blue(),
+            pretty_json.status.state.bright_yellow()
+        );
+    } else {
+        println!("{}", serde_json::ser::to_string(&pretty_json)?);
+    }
+    Ok(())
 }
 
 #[cfg(test)]

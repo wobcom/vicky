@@ -78,7 +78,7 @@ fn main() {
     let error: Result<_, _> = match cli {
         Cli::Task(task_args) => {
             match task_args.commands {
-                TaskCommands::Create(task_data) => { todo!() }
+                TaskCommands::Create(task_data) => { create_task(&task_data, &task_args.ctx)}
                 TaskCommands::Logs => { todo!() }
                 TaskCommands::Claim { id } => { todo!() }
                 TaskCommands::Finish { id, status } => { todo!() }
