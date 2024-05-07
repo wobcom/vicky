@@ -42,7 +42,8 @@ This API is an JSON API, therefore you need to set `Content-Type` header accordi
     "flake_ref": {
         "flake": "gitlab:wobcom/example",
         "args": []
-    }
+    },
+    "features": []
 }
 ```
 
@@ -71,10 +72,11 @@ This API is an JSON API, therefore you need to set `Content-Type` header accordi
   "flake_ref": {
     "flake": "gitlab:wobcom/example",
     "args": []
-  }
+  },
+  "features": []
 }
 ```
-
+#### and required machine features
 ```json
 {
   "display_name": "Deployment 3",
@@ -95,7 +97,8 @@ This API is an JSON API, therefore you need to set `Content-Type` header accordi
   "flake_ref": {
     "flake": "gitlab:wobcom/example",
     "args": []
-  }
+  },
+  "features": [ "testfeature1", "anotherfeature" ]
 }
 ```
 ### Claim A Task
