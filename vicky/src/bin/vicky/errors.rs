@@ -28,6 +28,9 @@ pub enum AppError {
         #[from]
         source: uuid::Error,
     },
+
+    #[error("Migration Error {0:?}")]
+    MigrationError(String),
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for AppError {

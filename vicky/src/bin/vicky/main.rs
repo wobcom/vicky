@@ -1,17 +1,19 @@
 use std::time::Duration;
 
 use aws_sdk_s3::config::{Credentials, Region};
+use errors::AppError;
 use jwtk::jwk::RemoteJwksVerifier;
 
 use rocket::fairing::AdHoc;
 use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
-use rocket::routes;
+use rocket::{routes, Rocket, Build};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use vickylib::database::entities::Database;
 use vickylib::logs::LogDrain;
 use vickylib::s3::client::S3Client;
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
 use crate::events::{get_global_events, GlobalEvent};
 use crate::tasks::{
@@ -60,6 +62,29 @@ pub struct Config {
     oidc_config: OIDCConfig,
 
     web_config: WebConfig,
+}
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
+
+fn run_migrations(connection: &mut impl MigrationHarness<diesel::pg::Pg>) -> Result<(), AppError> {
+    match connection.run_pending_migrations(MIGRATIONS) {
+        Ok(_) => {
+            log::info!("Migrations successfully completed");
+            Ok(())
+        },
+        Err(e) => {
+            log::error!("Error running migrations {e}");
+            Err(AppError::MigrationError(e.to_string()))
+        }
+    }
+}
+
+async fn run_rocket_migrations(rocket: Rocket<Build>) -> Result<Rocket<Build>,Rocket<Build>> {
+    let db: Database = Database::get_one(&rocket).await.unwrap();
+    match db.run(run_migrations).await {
+        Ok(_) => Ok(rocket),
+        Err(_) => Err(rocket)
+    }
 }
 
 #[tokio::main]
@@ -123,6 +148,7 @@ async fn main() -> anyhow::Result<()> {
         .manage(app_config.web_config)
         .attach(Database::fairing())
         .attach(AdHoc::config::<Config>())
+        .attach(AdHoc::try_on_ignite("run migrations", run_rocket_migrations))
         .mount("/api/v1/web-config", routes![get_web_config])
         .mount("/api/v1/user", routes![get_user])
         .mount("/api/v1/events", routes![get_global_events])
