@@ -30,6 +30,8 @@ struct TaskData {
     flake_url: String,
     #[clap(long)]
     flake_arg: Vec<String>,
+    #[clap(long)]
+    features: Vec<String>,
 }
 
 #[derive(Subcommand, Debug)]
