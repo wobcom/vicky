@@ -3,8 +3,9 @@ mod http_client;
 mod humanize;
 
 use clap::{Args, Parser, Subcommand};
-use log::error;
 use uuid::Uuid;
+use yansi::Paint;
+use crate::tasks::create_task;
 
 #[derive(Parser, Debug, Clone)]
 struct AppContext {
@@ -69,10 +70,6 @@ enum Cli {
 }
 
 fn main() {
-    env_logger::builder()
-        .format_timestamp(None)
-        .format_target(false)
-        .init();
     let cli = Cli::parse();
 
     let error: Result<_, _> = match cli {
@@ -91,6 +88,6 @@ fn main() {
 
     match error {
         Ok(()) => {},
-        Err(e) => error!("{e}"),
+        Err(e) => println!("{} {}", "Error:".bright_red(), e.bright_red()),
     }
 }
