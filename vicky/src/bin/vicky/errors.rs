@@ -31,6 +31,21 @@ pub enum AppError {
 
     #[error("Migration Error {0:?}")]
     MigrationError(String),
+
+    #[error("JWKS Error {source:?}")]
+    JWKSError {
+        #[from]
+        source: jwtk::Error,
+    },
+
+    #[error("JWTFormatError {0:?}")]
+    JWTFormatError(String),
+
+    #[error("ReqwestError {source:?}")]
+    ReqwestError {
+        #[from]
+        source: reqwest::Error,
+    }
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for AppError {

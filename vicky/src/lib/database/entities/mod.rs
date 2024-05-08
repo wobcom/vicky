@@ -1,5 +1,6 @@
 pub mod lock;
 pub mod task;
+pub mod user;
 
 pub use lock::Lock;
 use rocket_sync_db_pools::database;
