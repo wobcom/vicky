@@ -1,8 +1,7 @@
 use std::str::FromStr;
 
-use anyhow::anyhow;
 use jwtk::jwk::RemoteJwksVerifier;
-use log::{debug, warn};
+use log::{warn};
 use rocket::http::Status;
 use rocket::{request, State};
 use serde::Deserialize;
@@ -11,7 +10,6 @@ use uuid::Uuid;
 use vickylib::database::entities::Database;
 
 use vickylib::database::entities::user::db_impl::{UserDatabase, DbUser};
-use vickylib::errors::VickyError;
 
 use crate::{Config, OIDCConfigResolved};
 use crate::errors::AppError;
@@ -44,7 +42,7 @@ async fn extract_user_from_token(jwks_verifier: &State<RemoteJwksVerifier>, db: 
 
     match user {
         Some(user) => {
-            return Ok(user)
+            Ok(user)
         }
         None => {
             let oidc_client = reqwest::Client::new();
@@ -89,7 +87,7 @@ impl<'r> request::FromRequest<'r> for User {
             .expect("request Database");
 
         
-        let oidc_config_resolved: &OIDCConfigResolved = &request
+        let oidc_config_resolved: &OIDCConfigResolved = request
             .guard::<&State<OIDCConfigResolved>>()
             .await
             .expect("request OIDCConfigResolved");
