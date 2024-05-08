@@ -17,14 +17,13 @@ const Login = () => {
             <Col xs={8}>
                 <Panel shaded bordered>
                 <Stack spacing={16} direction="column">
-                    <h2>Login via GitHub</h2>
+                    <h4>Anmeldung</h4>
                     <p className={s.ExplanationText}>
-                            Ein Login ist momentan nur über GitHub möglich. Zusätzlich muss der GitHub-Account für Vicky freigeschaltet sein.
-                            Wenn der Account nicht freigeschaltet ist, ist ein Einloggen nicht möglich.
+                        Es gibt verschiedene Möglichkeiten zum Einloggen. Bitte wählen Sie eine der unten genannten Möglichkeiten aus und 
+                        authentifizieren sie sich gegenüber Vicky.
                     </p>
-
-                    <Button onClick={() => auth.signinRedirect()} color="violet" appearance="primary" startIcon={<GitHubIcon />}>
-                        Login
+                    <Button onClick={() => auth.signinRedirect()} color="violet" appearance="primary">
+                        Login via OIDC
                     </Button>
                 </Stack>
                 </Panel>
