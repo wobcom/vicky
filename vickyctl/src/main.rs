@@ -39,9 +39,7 @@ struct TaskData {
 enum TaskCommands {
     Create(TaskData),
     Logs,
-    Claim {
-        id: Uuid
-    },
+    Claim,
     Finish { id: Uuid, status: String },
 }
 
@@ -77,7 +75,7 @@ fn main() {
             match task_args.commands {
                 TaskCommands::Create(task_data) => { create_task(&task_data, &task_args.ctx)}
                 TaskCommands::Logs => { todo!() }
-                TaskCommands::Claim { id } => { todo!() }
+                TaskCommands::Claim => { todo!() }
                 TaskCommands::Finish { id, status } => { todo!() }
             }
         }
