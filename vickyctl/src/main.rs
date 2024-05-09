@@ -5,7 +5,7 @@ mod humanize;
 use clap::{Args, Parser, Subcommand};
 use uuid::Uuid;
 use yansi::Paint;
-use crate::tasks::create_task;
+use crate::tasks::{claim_task, create_task};
 
 #[derive(Parser, Debug, Clone)]
 struct AppContext {
@@ -75,7 +75,7 @@ fn main() {
             match task_args.commands {
                 TaskCommands::Create(task_data) => { create_task(&task_data, &task_args.ctx)}
                 TaskCommands::Logs => { todo!() }
-                TaskCommands::Claim => { todo!() }
+                TaskCommands::Claim => { claim_task(&task_args.ctx) }
                 TaskCommands::Finish { id, status } => { todo!() }
             }
         }
