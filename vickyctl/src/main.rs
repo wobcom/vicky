@@ -76,7 +76,7 @@ fn main() {
                 TaskCommands::Create(task_data) => { create_task(&task_data, &task_args.ctx)}
                 TaskCommands::Logs => { todo!() }
                 TaskCommands::Claim => { claim_task(&task_args.ctx) }
-                TaskCommands::Finish { id, status } => { todo!() }
+                TaskCommands::Finish { id, status } => { finish_task(&id, &status, &task_args.ctx) }
             }
         }
         Cli::Tasks(tasks_args) => {
