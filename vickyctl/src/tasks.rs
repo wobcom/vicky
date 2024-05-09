@@ -96,10 +96,14 @@ pub fn create_task(task_data: &TaskData, ctx: &AppContext) -> Result<(), Box<dyn
 }
 
 #[allow(dead_code)]
-pub fn claim_task(ctx: &AppContext) -> Result<(), Box<dyn Error>> {
+pub fn claim_task(features: &[String], ctx: &AppContext) -> Result<(), Box<dyn Error>> {
     let client = prepare_client(ctx)?;
+    let data: serde_json::Value = json!({
+        "features": features
+    });
     let request = client
         .post(format!("{}/{}", ctx.vicky_url, "api/v1/tasks/claim"))
+        .body(data.to_string())
         .build()?;
 
     let response = client.execute(request)?;

@@ -5,7 +5,7 @@ mod humanize;
 use clap::{Args, Parser, Subcommand};
 use uuid::Uuid;
 use yansi::Paint;
-use crate::tasks::{claim_task, create_task};
+use crate::tasks::{claim_task, create_task, finish_task};
 
 #[derive(Parser, Debug, Clone)]
 struct AppContext {
@@ -39,7 +39,7 @@ struct TaskData {
 enum TaskCommands {
     Create(TaskData),
     Logs,
-    Claim,
+    Claim { features: Vec<String> },
     Finish { id: Uuid, status: String },
 }
 
@@ -75,7 +75,7 @@ fn main() {
             match task_args.commands {
                 TaskCommands::Create(task_data) => { create_task(&task_data, &task_args.ctx)}
                 TaskCommands::Logs => { todo!() }
-                TaskCommands::Claim => { claim_task(&task_args.ctx) }
+                TaskCommands::Claim { features } => { claim_task(&features, &task_args.ctx) }
                 TaskCommands::Finish { id, status } => { finish_task(&id, &status, &task_args.ctx) }
             }
         }
