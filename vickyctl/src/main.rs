@@ -1,11 +1,11 @@
-mod tasks;
 mod http_client;
 mod humanize;
+mod tasks;
 
+use crate::tasks::{claim_task, create_task, finish_task};
 use clap::{Args, Parser, Subcommand};
 use uuid::Uuid;
 use yansi::Paint;
-use crate::tasks::{claim_task, create_task, finish_task};
 
 #[derive(Parser, Debug, Clone)]
 struct AppContext {
@@ -14,7 +14,7 @@ struct AppContext {
 
     #[clap(env)]
     vicky_token: String,
-    
+
     #[clap(long)]
     humanize: bool,
 }
@@ -71,21 +71,19 @@ fn main() {
     let cli = Cli::parse();
 
     let error: Result<_, _> = match cli {
-        Cli::Task(task_args) => {
-            match task_args.commands {
-                TaskCommands::Create(task_data) => { create_task(&task_data, &task_args.ctx)}
-                TaskCommands::Logs => { todo!() }
-                TaskCommands::Claim { features } => { claim_task(&features, &task_args.ctx) }
-                TaskCommands::Finish { id, status } => { finish_task(&id, &status, &task_args.ctx) }
+        Cli::Task(task_args) => match task_args.commands {
+            TaskCommands::Create(task_data) => create_task(&task_data, &task_args.ctx),
+            TaskCommands::Logs => {
+                todo!()
             }
-        }
-        Cli::Tasks(tasks_args) => {
-            tasks::show_tasks(&tasks_args)
-        }
+            TaskCommands::Claim { features } => claim_task(&features, &task_args.ctx),
+            TaskCommands::Finish { id, status } => finish_task(&id, &status, &task_args.ctx),
+        },
+        Cli::Tasks(tasks_args) => tasks::show_tasks(&tasks_args),
     };
 
     match error {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(e) => println!("{} {}", "Error:".bright_red(), e.bright_red()),
     }
 }

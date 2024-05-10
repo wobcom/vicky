@@ -69,7 +69,7 @@ pub fn create_task(task_data: &TaskData, ctx: &AppContext) -> Result<(), Box<dyn
     let response = client.execute(request)?;
 
     let status = response.status();
-    
+
     if !status.is_success() {
         let is_error = status.is_client_error() || status.is_server_error();
         let status_colored = if is_error {
@@ -141,7 +141,10 @@ pub fn finish_task(id: &Uuid, status: &String, ctx: &AppContext) -> Result<(), B
         "result": status
     });
     let request = client
-        .post(format!("{}/{}/{}/{}", ctx.vicky_url, "api/v1/tasks", id, "finish"))
+        .post(format!(
+            "{}/{}/{}/{}",
+            ctx.vicky_url, "api/v1/tasks", id, "finish"
+        ))
         .body(data.to_string())
         .build()?;
 
