@@ -5,12 +5,19 @@ use yansi::Paint;
 pub enum Error {
     Dependency(String, String),
     Reqwest(reqwest::Error),
+    Io(std::io::Error),
     Custom(String),
 }
 
 impl From<reqwest::Error> for Error {
     fn from(e: reqwest::Error) -> Self {
         Error::Reqwest(e)
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(e: std::io::Error) -> Self {
+        Error::Io(e)
     }
 }
 
@@ -29,6 +36,7 @@ impl Display for Error {
                 )
             }
             Error::Reqwest(e) => write!(f, "HTTP Error: {}", e),
+            Error::Io(e) => write!(f, "Filesystem Error: {}", e),
             Error::Custom(ref str) => write!(f, "Custom Error: {}", str),
         }
     }

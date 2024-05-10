@@ -1,6 +1,6 @@
+use crate::error::Error;
 use crate::AppContext;
 use log::debug;
-use std::error::Error;
 use std::io::{ErrorKind, Write};
 use std::process::{Command, Stdio};
 
@@ -14,7 +14,7 @@ pub fn handle_user_response(ctx: &AppContext, json: &str) -> Result<(), Box<dyn 
     }
     Ok(())
 }
-pub fn humanize(text: &str) -> Result<(), Box<dyn Error>> {
+pub fn humanize(text: &str) -> Result<(), Error> {
     debug!("spawning `jless` as a child process for human data view");
     let mut child = Command::new("jless")
         .stdin(Stdio::piped())
@@ -25,10 +25,10 @@ pub fn humanize(text: &str) -> Result<(), Box<dyn Error>> {
         .stdin
         .as_ref()
         .ok_or_else(|| {
-            Box::new(std::io::Error::new(
+            std::io::Error::new(
                 ErrorKind::BrokenPipe,
                 "Could not take stdin pipe from jless",
-            ))
+            )
         })?
         .write_all(text.as_bytes())?;
     child.wait()?;
