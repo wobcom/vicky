@@ -9,7 +9,7 @@ use uuid::Uuid;
 use yansi::Paint;
 
 #[allow(dead_code)]
-pub fn show_tasks(tasks_args: &TasksArgs) -> Result<(), Box<dyn Error>> {
+pub fn show_tasks(tasks_args: &TasksArgs) -> Result<(), Box<dyn std::error::Error>> {
     let client = prepare_client(&tasks_args.ctx)?;
     let request = client
         .get(format!("{}/{}", tasks_args.ctx.vicky_url, "api/v1/tasks"))
@@ -59,7 +59,7 @@ struct RoTaskCreate {
 }
 
 #[allow(dead_code)]
-pub fn create_task(task_data: &TaskData, ctx: &AppContext) -> Result<(), Box<dyn Error>> {
+pub fn create_task(task_data: &TaskData, ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
     let client = prepare_client(ctx)?;
     let request = client
         .post(format!("{}/{}", ctx.vicky_url, "api/v1/tasks"))
@@ -96,7 +96,7 @@ pub fn create_task(task_data: &TaskData, ctx: &AppContext) -> Result<(), Box<dyn
 }
 
 #[allow(dead_code)]
-pub fn claim_task(features: &[String], ctx: &AppContext) -> Result<(), Box<dyn Error>> {
+pub fn claim_task(features: &[String], ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
     let client = prepare_client(ctx)?;
     let data: serde_json::Value = json!({
         "features": features
@@ -135,7 +135,7 @@ pub fn claim_task(features: &[String], ctx: &AppContext) -> Result<(), Box<dyn E
     Ok(())
 }
 
-pub fn finish_task(id: &Uuid, status: &String, ctx: &AppContext) -> Result<(), Box<dyn Error>> {
+pub fn finish_task(id: &Uuid, status: &String, ctx: &AppContext) -> Result<(), Box<dyn std::error::Error>> {
     let client = prepare_client(ctx)?;
     let data = json!({
         "result": status

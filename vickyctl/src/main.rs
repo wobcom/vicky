@@ -1,6 +1,7 @@
 mod http_client;
 mod humanize;
 mod tasks;
+mod error;
 
 use crate::tasks::{claim_task, create_task, finish_task};
 use clap::{Args, Parser, Subcommand};
