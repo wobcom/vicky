@@ -6,6 +6,7 @@ pub enum Error {
     Dependency(String, String),
     Reqwest(reqwest::Error),
     Io(std::io::Error),
+    Json(serde_json::Error),
     Custom(String),
 }
 
@@ -18,6 +19,12 @@ impl From<reqwest::Error> for Error {
 impl From<std::io::Error> for Error {
     fn from(e: std::io::Error) -> Self {
         Error::Io(e)
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(e: serde_json::Error) -> Self {
+        Error::Json(e)
     }
 }
 
@@ -37,6 +44,7 @@ impl Display for Error {
             }
             Error::Reqwest(e) => write!(f, "HTTP Error: {}", e),
             Error::Io(e) => write!(f, "Filesystem Error: {}", e),
+            Error::Json(e) => write!(f, "Parser Error: {}", e),
             Error::Custom(ref str) => write!(f, "Custom Error: {}", str),
         }
     }
