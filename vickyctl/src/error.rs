@@ -4,7 +4,14 @@ use yansi::Paint;
 #[derive(Debug)]
 pub enum Error {
     Dependency(String, String),
+    Reqwest(reqwest::Error),
     Custom(String),
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(e: reqwest::Error) -> Self {
+        Error::Reqwest(e)
+    }
 }
 
 impl Display for Error {
@@ -21,6 +28,7 @@ impl Display for Error {
                     dependent.bright_red()
                 )
             }
+            Error::Reqwest(e) => write!(f, "HTTP Error: {}", e),
             Error::Custom(ref str) => write!(f, "Custom Error: {}", str),
         }
     }
