@@ -1,15 +1,23 @@
+use crate::error::Error;
 use crate::http_client::prepare_client;
 use crate::humanize::handle_user_response;
 use crate::{AppContext, TaskData, TasksArgs};
 use log::debug;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::error::Error;
 use uuid::Uuid;
+use which::which;
 use yansi::Paint;
 
 #[allow(dead_code)]
 pub fn show_tasks(tasks_args: &TasksArgs) -> Result<(), Box<dyn std::error::Error>> {
+    if tasks_args.ctx.humanize && which("jless").is_err() {
+        return Err(Box::new(Error::DependencyError(
+            "jless".to_string(),
+            "the --humanize flag to work with `tasks`".to_string(),
+        )));
+    }
+
     let client = prepare_client(&tasks_args.ctx)?;
     let request = client
         .get(format!("{}/{}", tasks_args.ctx.vicky_url, "api/v1/tasks"))
