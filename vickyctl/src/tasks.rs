@@ -12,7 +12,7 @@ use yansi::Paint;
 #[allow(dead_code)]
 pub fn show_tasks(tasks_args: &TasksArgs) -> Result<(), Box<dyn std::error::Error>> {
     if tasks_args.ctx.humanize && which("jless").is_err() {
-        return Err(Box::new(Error::DependencyError(
+        return Err(Box::new(Error::Dependency(
             "jless".to_string(),
             "the --humanize flag to work with `tasks`".to_string(),
         )));
