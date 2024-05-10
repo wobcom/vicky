@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Display, Formatter};
 use yansi::Paint;
 
+#[warn(dead_code)]
 #[derive(Debug)]
 pub enum Error {
     Dependency(String, String),
