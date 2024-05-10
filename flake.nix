@@ -22,7 +22,7 @@
           };
 
           nativeBuildInputs = [ pkg-config protobuf ];
-          buildInputs = [ openssl postgresql ];
+          buildInputs = [ openssl postgresql jless ];
         }
       ) { };
       vicky-dashboard = final.callPackage (
