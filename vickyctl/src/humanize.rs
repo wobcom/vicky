@@ -4,7 +4,7 @@ use log::debug;
 use std::io::{ErrorKind, Write};
 use std::process::{Command, Stdio};
 
-pub fn handle_user_response(ctx: &AppContext, json: &str) -> Result<(), Box<dyn Error>> {
+pub fn handle_user_response(ctx: &AppContext, json: &str) -> Result<(), Error> {
     let data: serde_json::Value = serde_json::from_str(json)?;
     let pretty_json = serde_json::to_string_pretty(&data)?;
     if ctx.humanize {
