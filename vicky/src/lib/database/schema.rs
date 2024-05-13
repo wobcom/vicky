@@ -21,6 +21,14 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    users (sub) {
+        sub -> Uuid,
+        name -> Varchar,
+        role -> Varchar,
+    }
+}
+
 diesel::joinable!(locks -> tasks (task_id));
 
 diesel::allow_tables_to_appear_in_same_query!(

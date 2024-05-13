@@ -43,9 +43,14 @@ pub struct S3Config {
 
 #[derive(Deserialize)]
 pub struct OIDCConfig {
-    jwks_url: String,
+    well_known_uri: String,
 }
 
+#[derive(Deserialize)]
+pub struct OIDCConfigResolved {
+    userinfo_endpoint: String,
+    jwks_uri: String,
+}
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct WebConfig {
@@ -111,8 +116,15 @@ async fn main() -> anyhow::Result<()> {
 
     let app_config = build_rocket.figment().extract::<Config>()?;
 
+    let oidc_config_resolved: OIDCConfigResolved = reqwest::get(app_config.oidc_config.well_known_uri)
+        .await?
+        .json()
+        .await?;
+
+    log::info!("Fetched OIDC configuration, found jwks_uri={}", oidc_config_resolved.jwks_uri);
+
     let jwks_verifier = RemoteJwksVerifier::new(
-        app_config.oidc_config.jwks_url,
+        oidc_config_resolved.jwks_uri.clone(),
         None,
         Duration::from_secs(300),
     );
@@ -146,6 +158,7 @@ async fn main() -> anyhow::Result<()> {
         .manage(jwks_verifier)
         .manage(tx_global_events)
         .manage(app_config.web_config)
+        .manage(oidc_config_resolved)
         .attach(Database::fairing())
         .attach(AdHoc::config::<Config>())
         .attach(AdHoc::try_on_ignite("run migrations", run_rocket_migrations))

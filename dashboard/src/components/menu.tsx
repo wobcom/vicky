@@ -38,13 +38,6 @@ const Menu = () => {
                         {user.full_name}
                     </Nav.Item>
                 ) : null}
-                
-                { !user ? (
-                    <Nav.Item onClick={() => auth.signinRedirect()}>
-                    Login With GitHub
-                </Nav.Item>
-                ): null}
-                
             </Nav>
         </Navbar>
     )
