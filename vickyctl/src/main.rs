@@ -39,7 +39,7 @@ struct TaskData {
 #[derive(Subcommand, Debug)]
 enum TaskCommands {
     Create(TaskData),
-    Logs,
+    // Logs, // TODO: could add this later
     Claim { features: Vec<String> },
     Finish { id: Uuid, status: String },
 }
@@ -74,9 +74,6 @@ fn main() {
     let error: Result<_, _> = match cli {
         Cli::Task(task_args) => match task_args.commands {
             TaskCommands::Create(task_data) => create_task(&task_data, &task_args.ctx),
-            TaskCommands::Logs => {
-                todo!()
-            }
             TaskCommands::Claim { features } => claim_task(&features, &task_args.ctx),
             TaskCommands::Finish { id, status } => finish_task(&id, &status, &task_args.ctx),
         },
