@@ -1,13 +1,13 @@
 use std::fmt::{Debug, Display, Formatter};
 use yansi::Paint;
 
-#[warn(dead_code)]
 #[derive(Debug)]
 pub enum Error {
     Dependency(String, String),
     Reqwest(reqwest::Error),
     Io(std::io::Error),
     Json(serde_json::Error),
+    #[allow(dead_code)]
     Custom(String),
 }
 
