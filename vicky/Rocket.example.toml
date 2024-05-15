@@ -15,7 +15,7 @@ region = "us-east-1"
 log_bucket = "vicky-logs"
 
 [default.oidc_config]
-jwks_url = ""
+well_known_uri = ""
 
 [default.web_config]
 authority = ""
