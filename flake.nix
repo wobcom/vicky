@@ -7,7 +7,7 @@
   outputs = { self, nixpkgs, flake-utils }: {
     overlays.default = final: prev: {
       vicky = final.callPackage (
-        { lib, stdenv, rustPlatform, pkg-config, openssl, protobuf, postgresql }:
+        { lib, stdenv, rustPlatform, pkg-config, openssl, protobuf, postgresql, jless }:
 
         rustPlatform.buildRustPackage {
           pname = "vicky";
@@ -22,7 +22,7 @@
           };
 
           nativeBuildInputs = [ pkg-config protobuf ];
-          buildInputs = [ openssl postgresql ];
+          buildInputs = [ openssl postgresql jless ];
         }
       ) { };
       vicky-dashboard = final.callPackage (
