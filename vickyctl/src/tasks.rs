@@ -66,7 +66,6 @@ struct RoTaskCreate {
     status: RoTaskStatus,
 }
 
-#[allow(dead_code)]
 pub fn create_task(task_data: &TaskData, ctx: &AppContext) -> Result<(), Error> {
     let client = prepare_client(ctx)?;
     let request = client
@@ -103,7 +102,6 @@ pub fn create_task(task_data: &TaskData, ctx: &AppContext) -> Result<(), Error> 
     Ok(())
 }
 
-#[allow(dead_code)]
 pub fn claim_task(features: &[String], ctx: &AppContext) -> Result<(), Error> {
     let client = prepare_client(ctx)?;
     let data: serde_json::Value = json!({
