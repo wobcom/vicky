@@ -9,7 +9,7 @@ pub fn prepare_client(ctx: &AppContext) -> Result<Client, Error> {
     let client = Client::builder()
         .default_headers(default_headers)
         // TODO?: .https_only(true)
-        .user_agent(format!("VickyCTL/{}", env!("CARGO_PKG_VERSION")))
+        .user_agent(format!("vickyctl/{}", env!("CARGO_PKG_VERSION")))
         .build()?;
     Ok(client)
 }
