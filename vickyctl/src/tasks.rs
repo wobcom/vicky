@@ -9,7 +9,6 @@ use uuid::Uuid;
 use which::which;
 use yansi::Paint;
 
-#[allow(dead_code)]
 pub fn show_tasks(tasks_args: &TasksArgs) -> Result<(), Error> {
     if tasks_args.ctx.humanize && which("jless").is_err() {
         return Err(Error::Dependency(
