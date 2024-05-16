@@ -2,7 +2,7 @@
 
 diesel::table! {
     locks (id) {
-        id -> Int4,
+        id -> Nullable<Int4>,
         task_id -> Uuid,
         name -> Varchar,
         #[sql_name = "type"]
