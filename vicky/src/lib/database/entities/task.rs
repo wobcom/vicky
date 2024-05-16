@@ -179,7 +179,7 @@ pub mod db_impl {
     use std::fmt::Display;
     use uuid::Uuid;
     // these here are evil >:(
-    use crate::database::entities::lock::db_impl::{DbLock, NewDbLock};
+    use crate::database::entities::lock::db_impl::DbLock;
     use crate::database::schema::locks;
     use crate::database::schema::tasks;
     use itertools::Itertools;
@@ -329,9 +329,9 @@ pub mod db_impl {
             let db_task: DbTask = task.into();
 
             insert_into(tasks).values(db_task).execute(self)?;
-            for db_lock in db_locks {
-                let new_db_lock: NewDbLock = db_lock.into();
-                insert_into(locks).values(new_db_lock).execute(self)?;
+            for mut db_lock in db_locks {
+                db_lock.id = None;
+                insert_into(locks).values(db_lock).execute(self)?;
             }
             Ok(())
         }

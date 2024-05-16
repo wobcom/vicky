@@ -24,31 +24,13 @@ pub mod db_impl {
     use diesel::{Identifiable, Insertable, Queryable, Selectable};
     use uuid::Uuid;
 
-    #[derive(Selectable, Identifiable, Queryable, Debug)]
+    #[derive(Insertable, Selectable, Identifiable, Queryable, Debug)]
     #[diesel(table_name = locks)]
     pub struct DbLock {
-        pub id: i32,
+        pub id: Option<i32>,
         pub task_id: Uuid,
         pub name: String,
         pub type_: String,
-    }
-
-    #[derive(Insertable, Debug)]
-    #[diesel(table_name = locks)]
-    pub struct NewDbLock {
-        pub task_id: Uuid,
-        pub name: String,
-        pub type_: String,
-    }
-
-    impl From<DbLock> for NewDbLock {
-        fn from(value: DbLock) -> Self {
-            NewDbLock {
-                task_id: value.task_id,
-                name: value.name,
-                type_: value.type_,
-            }
-        }
     }
 
     impl DbLock {
@@ -60,13 +42,13 @@ pub mod db_impl {
             // At least it works.
             match lock {
                 Lock::WRITE { name } => DbLock {
-                    id: -1,
+                    id: None,
                     task_id,
                     name: name.clone(),
                     type_: "WRITE".to_string(),
                 },
                 Lock::READ { name } => DbLock {
-                    id: -1,
+                    id: None,
                     task_id,
                     name: name.clone(),
                     type_: "READ".to_string(),
@@ -83,7 +65,7 @@ pub mod db_impl {
                 _ => panic!(
                     "Can't parse lock from database lock. Database corrupted? \
                 Expected READ or WRITE but found {} as type at key {}.",
-                    lock.type_, lock.id
+                    lock.type_, lock.id.unwrap_or(-1)
                 ),
             }
         }
