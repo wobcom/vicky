@@ -1,6 +1,6 @@
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Write};
 use std::io;
+use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Write};
 
 fn main() {
     if let Err(e) = ensure_locks_id_nullable() {
@@ -34,10 +34,10 @@ fn ensure_locks_id_nullable() -> io::Result<()> {
                     ErrorKind::InvalidData,
                     "The line following the table header should've contained the id primary key",
                 ));
-            } else if line.contains("id -> Nullable<Int4>,") {
+            } else if line.contains("id -> Nullable<Uuid>,") {
                 return Ok(()); // already corrected
             }
-            new_schema.push_str(&line.replace(" Int4,", " Nullable<Int4>,"));
+            new_schema.push_str(&line.replace(" Uuid,", " Nullable<Uuid>,"));
             only_copy = true;
         }
         new_schema.push('\n');

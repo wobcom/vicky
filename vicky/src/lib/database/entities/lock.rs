@@ -27,7 +27,7 @@ pub mod db_impl {
     #[derive(Insertable, Selectable, Identifiable, Queryable, Debug)]
     #[diesel(table_name = locks)]
     pub struct DbLock {
-        pub id: Option<i32>,
+        pub id: Option<Uuid>,
         pub task_id: Uuid,
         pub name: String,
         pub type_: String,
@@ -65,7 +65,7 @@ pub mod db_impl {
                 _ => panic!(
                     "Can't parse lock from database lock. Database corrupted? \
                 Expected READ or WRITE but found {} as type at key {}.",
-                    lock.type_, lock.id.unwrap_or(-1)
+                    lock.type_, lock.id.unwrap_or_default()
                 ),
             }
         }

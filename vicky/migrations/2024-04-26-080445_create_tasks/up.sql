@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE TABLE tasks
 (
     id             uuid    PRIMARY KEY,
@@ -10,7 +12,7 @@ CREATE TABLE tasks
 
 CREATE TABLE locks
 (
-    id      SERIAL  PRIMARY KEY,
+    id      uuid  DEFAULT uuid_generate_v4() PRIMARY KEY,
     task_id uuid    NOT NULL,
     name    VARCHAR NOT NULL,
     type    VARCHAR NOT NULL,

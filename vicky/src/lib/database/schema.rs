@@ -2,7 +2,7 @@
 
 diesel::table! {
     locks (id) {
-        id -> Nullable<Int4>,
+        id -> Nullable<Uuid>,
         task_id -> Uuid,
         name -> Varchar,
         #[sql_name = "type"]
@@ -34,4 +34,5 @@ diesel::joinable!(locks -> tasks (task_id));
 diesel::allow_tables_to_appear_in_same_query!(
     locks,
     tasks,
+    users,
 );
