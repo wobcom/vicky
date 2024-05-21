@@ -19,10 +19,11 @@ impl Lock {
 }
 
 pub mod db_impl {
-    use crate::database::entities::Lock;
-    use crate::database::schema::locks;
     use diesel::{Identifiable, Insertable, Queryable, Selectable};
     use uuid::Uuid;
+
+    use crate::database::entities::Lock;
+    use crate::database::schema::locks;
 
     #[derive(Insertable, Selectable, Identifiable, Queryable, Debug)]
     #[diesel(table_name = locks)]
@@ -65,7 +66,8 @@ pub mod db_impl {
                 _ => panic!(
                     "Can't parse lock from database lock. Database corrupted? \
                 Expected READ or WRITE but found {} as type at key {}.",
-                    lock.type_, lock.id.unwrap_or_default()
+                    lock.type_,
+                    lock.id.unwrap_or_default()
                 ),
             }
         }
