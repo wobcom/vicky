@@ -45,12 +45,12 @@ fn main() -> anyhow::Result<()> {
     run(app_config)
 }
 
-async fn api<Q: Serialize, R: DeserializeOwned>(
+async fn api<BODY: Serialize, RESPONSE: DeserializeOwned>(
     cfg: &AppConfig,
     method: Method,
     endpoint: &str,
-    q: &Q,
-) -> anyhow::Result<R> {
+    q: &BODY,
+) -> anyhow::Result<RESPONSE> {
     let client = Client::new();
     let req_data = serde_json::to_vec(q)?;
 
