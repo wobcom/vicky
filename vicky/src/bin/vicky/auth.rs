@@ -99,24 +99,22 @@ impl<'r> request::FromRequest<'r> for User {
 
             let token = auth_header.trim_start_matches("Bearer ");
 
-            match extract_user_from_token(jwks_verifier, db, oidc_config_resolved, token).await {
+            return match extract_user_from_token(jwks_verifier, db, oidc_config_resolved, token).await {
                 Ok(user) => {
-
                     let user = User {
                         id: user.sub,
                         full_name: user.name,
                         role: Role::Admin
                     };
 
-                    return request::Outcome::Success(user)
+                    request::Outcome::Success(user)
                 }
 
                 Err(x) => {
                     warn!("Login failed: {:?}", x);
-                    return request::Outcome::Error((Status::Forbidden, ()))
+                    request::Outcome::Error((Status::Forbidden, ()))
                 }
             }
-            
         }
 
         request::Outcome::Forward(Status::Forbidden)
