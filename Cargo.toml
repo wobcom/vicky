@@ -4,6 +4,6 @@ resolver = "2"
 
 members = [
   "vicky",
-  "vicky-worker",
+  "fairy",
   "vickyctl",
 ]

@@ -1064,6 +1064,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "fairy"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "env_logger",
+ "futures-util",
+ "hyper 0.14.28",
+ "log",
+ "rocket",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tokio",
+ "tokio-util",
+ "uuid",
+]
+
+[[package]]
 name = "fastrand"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3700,24 +3718,6 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
- "uuid",
-]
-
-[[package]]
-name = "vicky-worker"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "env_logger",
- "futures-util",
- "hyper 0.14.28",
- "log",
- "rocket",
- "serde",
- "serde_json",
- "serde_yaml",
- "tokio",
- "tokio-util",
  "uuid",
 ]
 

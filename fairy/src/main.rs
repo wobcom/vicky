@@ -25,7 +25,7 @@ fn main() -> anyhow::Result<()> {
         .filter_level(log::LevelFilter::Debug)
         .init();
 
-    log::info!("vicky worker starting up.");
+    log::info!("Fairy starting up.");
 
     // Took from rocket source code and added .split("__") to be able to add keys in nested structures.
     let rocket_config_figment = Figment::from(rocket::Config::default())

@@ -9,8 +9,8 @@ Vicky consists out of multiple components to make a spreaded deployment possible
 
 + vicky
     + Main Task Scheduler
-+ vicky-worker
-    + Task Worker, can run multiple times.
++ fairy
+    + Fairy, can run multiple times.
 + dashboard
     + Web-UI
 + vicky-cli
@@ -48,19 +48,19 @@ TODO @yu-re-ka: Add Information
     + `Rocket.example.toml` contains the correct configuration to run with the provided development environment.
 + Edit `vicky/Rocket.toml`
     + Add own machine token to configuration
-        + This is needed for `vicky-worker` later.
+        + This is needed for `fairy` later.
     + Add OIDC authentication provider to configuration
 + Enter `vicky`
 + Run `cargo run --bin vicky`
 
 
-### Vicky Worker
+### Fairy
 
-+ Copy `vicky-worker/Rocket.example.toml` to `vicky-worker/Rocket.toml`
-+ Edit `vicky-worker/Rocket.toml`
++ Copy `fairy/Rocket.example.toml` to `fairy/Rocket.toml`
++ Edit `fairy/Rocket.toml`
     + Add `machine_token` from last step into this configuration.
-+ Enter `vicky-worker`
-+ Run `cargo run --bin vicky-worker`
++ Enter `fairy`
++ Run `cargo run --bin fairy`
 
 ### Dashboard
 
