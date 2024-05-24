@@ -1,2 +1,4 @@
 DROP TABLE locks;
 DROP TABLE tasks;
+
+DROP EXTENSION IF EXISTS "uuid-ossp";

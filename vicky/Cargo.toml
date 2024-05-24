@@ -36,3 +36,5 @@ path = "src/bin/vicky/main.rs"
 name = "vickylib"
 path = "src/lib/lib.rs"
 
+[build-dependencies]
+regex = "1.10.4"
