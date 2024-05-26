@@ -1,5 +1,5 @@
 [package]
-name = "vicky-worker"
+name = "fairy"
 version = "0.1.0"
 edition = "2021"
 

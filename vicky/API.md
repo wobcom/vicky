@@ -103,7 +103,7 @@ This API is an JSON API, therefore you need to set `Content-Type` header accordi
 ```
 ### Claim A Task
 
-`POST /api/v1/tasks/claim` claims the next new task available that is supported by the featureset of the worker.
+`POST /api/v1/tasks/claim` claims the next new task available that is supported by the featureset of the fairy.
 
 ```json
 { "features": [ "feat1", "feat2" ] }
