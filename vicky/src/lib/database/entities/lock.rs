@@ -32,6 +32,7 @@ pub mod db_impl {
         pub task_id: Uuid,
         pub name: String,
         pub type_: String,
+        pub poisoned_by_task: Option<Uuid>,
     }
 
     impl DbLock {
@@ -47,12 +48,14 @@ pub mod db_impl {
                     task_id,
                     name: name.clone(),
                     type_: "WRITE".to_string(),
+                    poisoned_by_task: None,
                 },
                 Lock::READ { name } => DbLock {
                     id: None,
                     task_id,
                     name: name.clone(),
                     type_: "READ".to_string(),
+                    poisoned_by_task: None,
                 },
             }
         }
