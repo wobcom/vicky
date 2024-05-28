@@ -241,7 +241,6 @@ pub mod db_impl {
         fn get_task(&mut self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
         fn put_task(&mut self, task: &Task) -> Result<(), VickyError>;
         fn update_task(&mut self, task: &Task) -> Result<(), VickyError>;
-        fn get_poisoned_locks(&mut self) -> Result<Vec<Lock>, VickyError>;
     }
 
     impl TaskDatabase for diesel::pg::PgConnection {
@@ -346,16 +345,6 @@ pub mod db_impl {
                 .execute(self)?;
 
             Ok(())
-        }
-
-        fn get_poisoned_locks(&mut self) -> Result<Vec<Lock>, VickyError> {
-            use self::locks::dsl::*;
-
-            let poisoned_db_locks: Vec<DbLock> =
-                locks.filter(poisoned_by_task.is_not_null()).load(self)?;
-            let poisoned_locks: Vec<Lock> = poisoned_db_locks.into_iter().map(Lock::from).collect();
-
-            Ok(poisoned_locks)
         }
     }
 }
