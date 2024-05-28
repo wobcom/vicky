@@ -1,8 +1,22 @@
-use crate::error::Error;
-use crate::AppContext;
-use log::debug;
 use std::io::{ErrorKind, Write};
 use std::process::{Command, Stdio};
+
+use log::debug;
+use which::which;
+
+use crate::AppContext;
+use crate::error::Error;
+
+pub fn ensure_jless(needed_for: &str) -> Result<(), Error> {
+    which("jless")
+        .map_err(|_| {
+            Error::Dependency(
+                "jless".to_string(),
+                format!("the --humanize flag to work with `{needed_for}`"),
+            )
+        })
+        .map(|_| ())
+}
 
 pub fn handle_user_response(ctx: &AppContext, json: &str) -> Result<(), Error> {
     let data: serde_json::Value = serde_json::from_str(json)?;

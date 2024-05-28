@@ -1,20 +1,16 @@
-use crate::error::Error;
-use crate::http_client::prepare_client;
-use crate::humanize::handle_user_response;
-use crate::{AppContext, TaskData, TasksArgs};
 use log::debug;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
-use which::which;
 use yansi::Paint;
 
+use crate::{AppContext, humanize, TaskData, TasksArgs};
+use crate::error::Error;
+use crate::http_client::prepare_client;
+
 pub fn show_tasks(tasks_args: &TasksArgs) -> Result<(), Error> {
-    if tasks_args.ctx.humanize && which("jless").is_err() {
-        return Err(Error::Dependency(
-            "jless".to_string(),
-            "the --humanize flag to work with `tasks`".to_string(),
-        ));
+    if tasks_args.ctx.humanize {
+        humanize::ensure_jless("tasks")?;
     }
 
     let client = prepare_client(&tasks_args.ctx)?;
@@ -25,7 +21,7 @@ pub fn show_tasks(tasks_args: &TasksArgs) -> Result<(), Error> {
 
     let text = response.text()?;
     debug!("got response from server, presenting output");
-    handle_user_response(&tasks_args.ctx, &text)?;
+    humanize::handle_user_response(&tasks_args.ctx, &text)?;
     Ok(())
 }
 
@@ -184,8 +180,9 @@ pub fn finish_task(id: &Uuid, status: &String, ctx: &AppContext) -> Result<(), E
 
 #[cfg(test)]
 mod tests {
-    use crate::TaskData;
     use serde_json::json;
+
+    use crate::TaskData;
 
     #[test]
     fn test_empty_task_data_to_json() {
