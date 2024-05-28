@@ -11,6 +11,7 @@ use vickylib::database::entities::{Database, Lock, Task};
 use vickylib::{
     errors::VickyError, logs::LogDrain, s3::client::S3Client, vicky::scheduler::Scheduler,
 };
+use vickylib::database::entities::lock::db_impl::LockDatabase;
 
 use crate::{
     auth::{Machine, User},
@@ -179,7 +180,8 @@ pub async fn tasks_claim(
     _machine: Machine,
 ) -> Result<Json<Option<Task>>, AppError> {
     let tasks = db.run(|conn| conn.get_all_tasks()).await?;
-    let scheduler = Scheduler::new(tasks, &features.features)
+    let poisoned_locks = db.run(|conn| conn.get_poisoned_locks()).await?;
+    let scheduler = Scheduler::new(tasks, poisoned_locks.as_slice(), &features.features)
         .map_err(|x| VickyError::Scheduler { source: x })?;
     let next_task = scheduler.get_next_task();
 
