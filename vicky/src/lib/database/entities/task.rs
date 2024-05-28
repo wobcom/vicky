@@ -171,10 +171,7 @@ pub mod db_impl {
     use crate::database::entities::task::FlakeRef;
     use crate::database::entities::task::{Task, TaskResult, TaskStatus};
     use crate::errors::VickyError;
-    use diesel::{
-        insert_into, update, AsChangeset, ExpressionMethods, Insertable, QueryDsl, Queryable,
-        RunQueryDsl,
-    };
+    use diesel::{insert_into, update, AsChangeset, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl, Connection};
     use std::collections::HashMap;
     use std::fmt::Display;
     use uuid::Uuid;
@@ -321,19 +318,21 @@ pub mod db_impl {
             use self::locks::dsl::*;
             use self::tasks::dsl::*;
 
-            let db_locks: Vec<DbLock> = task
-                .locks
-                .iter()
-                .map(|l| DbLock::from_lock(l, task.id))
-                .collect();
-            let db_task: DbTask = task.into();
-
-            insert_into(tasks).values(db_task).execute(self)?;
-            for mut db_lock in db_locks {
-                db_lock.id = None;
-                insert_into(locks).values(db_lock).execute(self)?;
-            }
-            Ok(())
+            self.transaction(|conn| {
+                let db_locks: Vec<DbLock> = task
+                    .locks
+                    .iter()
+                    .map(|l| DbLock::from_lock(l, task.id))
+                    .collect();
+                let db_task: DbTask = task.into();
+                
+                insert_into(tasks).values(db_task).execute(conn)?;
+                for mut db_lock in db_locks {
+                    db_lock.id = None;
+                    insert_into(locks).values(db_lock).execute(conn)?;
+                }
+                Ok(())
+            })
         }
 
         fn update_task(&mut self, task: &Task) -> Result<(), VickyError> {
