@@ -125,7 +125,8 @@ impl<'a> Scheduler<'a> {
         task.locks.iter().all(|lock| {
             self.constraints
                 .get_lock_sum(lock)
-                .map_or(true, |ls| ls.can_add_lock(lock))
+                .map_or(true, |ls| ls.can_add_lock(lock)) &&
+                !self.poisoned_locks.iter().any(|plock| lock.is_conflicting(plock))
         })
     }
 
