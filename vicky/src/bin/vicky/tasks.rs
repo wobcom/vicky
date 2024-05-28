@@ -217,6 +217,12 @@ pub async fn tasks_finish(
     log_drain.finish_logs(&id).await?;
 
     task.status = TaskStatus::FINISHED(finish.result.clone());
+    
+    if finish.result == TaskResult::ERROR {
+        task.locks.iter_mut().for_each(|lock| lock.poison(&task.id));
+    }
+    
+    // TODO: this clone is weird and can be saved I think
     let task2 = task.clone();
     db.run(move |conn| conn.update_task(&task2)).await?;
     global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
