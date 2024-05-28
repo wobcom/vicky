@@ -307,7 +307,7 @@ mod tests {
                 .build(),
         ];
 
-        let res = Scheduler::new(tasks, &[]).unwrap();
+        let res = Scheduler::new(tasks, &[], &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 2")
     }
