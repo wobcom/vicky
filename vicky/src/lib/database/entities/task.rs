@@ -89,12 +89,12 @@ impl TaskBuilder {
     }
 
     pub fn with_read_lock<S: Into<String>>(mut self, name: S) -> Self {
-        self.locks.push(Lock::READ { name: name.into() });
+        self.locks.push(Lock::READ { name: name.into(), poisoned: None });
         self
     }
 
     pub fn with_write_lock<S: Into<String>>(mut self, name: S) -> Self {
-        self.locks.push(Lock::WRITE { name: name.into() });
+        self.locks.push(Lock::WRITE { name: name.into(), poisoned: None });
         self
     }
 

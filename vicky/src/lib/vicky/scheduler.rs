@@ -20,8 +20,8 @@ trait ConstraintMgmt {
 impl ConstraintMgmt for Constraints {
     fn get_map_key(lock: &Lock) -> &String {
         match lock {
-            Lock::WRITE { name: object } => object,
-            Lock::READ { name: object } => object,
+            Lock::WRITE { name: object, .. } => object,
+            Lock::READ { name: object, .. } => object,
         }
     }
 
@@ -67,10 +67,10 @@ impl LockSum {
 
     pub fn can_add_lock(&self, lock: &Lock) -> bool {
         match (&self.lock, lock) {
-            (Lock::WRITE { name: _ }, Lock::WRITE { name: _ }) => false,
-            (Lock::WRITE { name: _ }, Lock::READ { name: _ }) => false,
-            (Lock::READ { name: _ }, Lock::WRITE { name: _ }) => false,
-            (Lock::READ { name: object }, Lock::READ { name: object2 }) => object == object2,
+            (Lock::WRITE { .. }, Lock::WRITE { .. }) => false,
+            (Lock::WRITE { .. }, Lock::READ { .. }) => false,
+            (Lock::READ { .. }, Lock::WRITE { .. }) => false,
+            (Lock::READ { name: object, .. }, Lock::READ { name: object2, .. }) => object == object2,
         }
     }
 
@@ -81,7 +81,7 @@ impl LockSum {
         }
 
         match lock {
-            Lock::READ { name: _ } => {
+            Lock::READ { .. } => {
                 self.count += 1;
                 Ok(())
             }
