@@ -63,15 +63,19 @@ pub async fn tasks_get_machine(
     Ok(Json(tasks))
 }
 
+async fn tasks_specific_get(id: &str, db: &Database) -> Result<Json<Option<Task>>, VickyError> {
+    let task_uuid = Uuid::parse_str(id).unwrap();
+    let tasks: Option<Task> = db.run(move |conn| conn.get_task(task_uuid)).await?;
+    Ok(Json(tasks))
+}
+
 #[get("/<id>")]
 pub async fn tasks_specific_get_user(
     id: String,
     db: Database,
     _user: User,
 ) -> Result<Json<Option<Task>>, VickyError> {
-    let task_uuid = Uuid::parse_str(&id).unwrap();
-    let tasks: Option<Task> = db.run(move |conn| conn.get_task(task_uuid)).await?;
-    Ok(Json(tasks))
+    tasks_specific_get(&id, &db).await
 }
 
 #[get("/<id>", rank = 2)]
@@ -80,9 +84,7 @@ pub async fn tasks_specific_get_machine(
     db: Database,
     _machine: Machine,
 ) -> Result<Json<Option<Task>>, VickyError> {
-    let task_uuid = Uuid::parse_str(&id).unwrap();
-    let tasks: Option<Task> = db.run(move |conn| conn.get_task(task_uuid)).await?;
-    Ok(Json(tasks))
+    tasks_specific_get(&id, &db).await
 }
 
 #[get("/<id>/logs")]
