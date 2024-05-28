@@ -90,14 +90,15 @@ impl LockSum {
     }
 }
 
-pub struct Scheduler {
+pub struct Scheduler<'a> {
     constraints: Constraints,
     tasks: Vec<Task>,
-    machine_features: Vec<String>,
+    poisoned_locks: &'a [Lock],
+    machine_features: &'a [String],
 }
 
-impl Scheduler {
-    pub fn new(tasks: Vec<Task>, machine_features: &[String]) -> Result<Self, SchedulerError> {
+impl<'a> Scheduler<'a> {
+    pub fn new(tasks: Vec<Task>, poisoned_locks: &'a [Lock], machine_features: &'a [String]) -> Result<Self, SchedulerError> {
         let mut constraints: Constraints = HashMap::new();
 
         for task in &tasks {
@@ -113,7 +114,8 @@ impl Scheduler {
         let s = Scheduler {
             constraints,
             tasks,
-            machine_features: machine_features.to_vec(),
+            poisoned_locks,
+            machine_features,
         };
 
         Ok(s)
@@ -167,7 +169,7 @@ mod tests {
                 .build(),
         ];
 
-        Scheduler::new(tasks, &[]).unwrap();
+        Scheduler::new(tasks, &[], &[]).unwrap();
     }
 
     #[test]
@@ -185,7 +187,7 @@ mod tests {
                 .build(),
         ];
 
-        Scheduler::new(tasks, &[]).unwrap();
+        Scheduler::new(tasks, &[], &[]).unwrap();
     }
 
     #[test]
@@ -203,7 +205,7 @@ mod tests {
                 .build(),
         ];
 
-        Scheduler::new(tasks, &[]).unwrap();
+        Scheduler::new(tasks, &[], &[]).unwrap();
     }
 
     #[test]
@@ -221,7 +223,7 @@ mod tests {
                 .build(),
         ];
 
-        let res = Scheduler::new(tasks, &[]);
+        let res = Scheduler::new(tasks, &[], &[]);
         assert!(res.is_err());
     }
 
@@ -240,7 +242,7 @@ mod tests {
                 .build(),
         ];
 
-        let res = Scheduler::new(tasks, &[]).unwrap();
+        let res = Scheduler::new(tasks, &[], &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task(), None)
     }
@@ -261,7 +263,7 @@ mod tests {
                 .build(),
         ];
 
-        let res = Scheduler::new(tasks, &[]).unwrap();
+        let res = Scheduler::new(tasks, &[], &[]).unwrap();
         // Test 1 and Test 2 have required features, which our runner does not have.
         assert_eq!(res.get_next_task(), None)
     }
@@ -281,7 +283,8 @@ mod tests {
                 .build(),
         ];
 
-        let res = Scheduler::new(tasks, &["huge_cpu".to_string()]).unwrap();
+        let features = &["huge_cpu".to_string()];
+        let res = Scheduler::new(tasks, &[], features).unwrap();
         // Test 1 and Test 2 have required features, which our runner matches.
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 1")
     }
@@ -323,7 +326,7 @@ mod tests {
                 .build(),
         ];
 
-        let res = Scheduler::new(tasks, &[]).unwrap();
+        let res = Scheduler::new(tasks, &[], &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 2")
     }
@@ -343,7 +346,7 @@ mod tests {
                 .build(),
         ];
 
-        let res = Scheduler::new(tasks, &[]).unwrap();
+        let res = Scheduler::new(tasks, &[], &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task(), None)
     }
