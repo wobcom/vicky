@@ -37,13 +37,16 @@ impl Lock {
 }
 
 pub mod db_impl {
-    use diesel::{Identifiable, Insertable, Queryable, Selectable};
+    use diesel::prelude::*;
+    use serde::Serialize;
     use uuid::Uuid;
 
     use crate::database::entities::Lock;
-    use crate::database::schema::locks;
+    use crate::database::entities::task::TaskStatus;
+    use crate::database::schema::{locks, tasks};
+    use crate::errors::VickyError;
 
-    #[derive(Insertable, Selectable, Identifiable, Queryable, Debug)]
+    #[derive(Insertable, Selectable, Identifiable, Queryable, Debug, Serialize)]
     #[diesel(table_name = locks)]
     pub struct DbLock {
         pub id: Option<Uuid>,
@@ -116,6 +119,23 @@ pub mod db_impl {
             };
 
             Ok(poisoned_locks)
+        }
+
+        fn get_active_locks(&mut self) -> Result<Vec<Lock>, VickyError> {
+            let locks = {
+                let db_locks: Vec<DbLock> = locks::table
+                    .select(locks::all_columns)
+                    .left_join(tasks::table.on(locks::task_id.eq(tasks::id)))
+                    .filter(
+                        locks::poisoned_by_task
+                            .is_not_null()
+                            .or(tasks::status.eq(TaskStatus::RUNNING.to_string())),
+                    )
+                    .load(self)?;
+                db_locks.into_iter().map(Lock::from).collect()
+            };
+
+            Ok(locks)
         }
     }
 }
