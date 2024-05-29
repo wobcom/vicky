@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use log::debug;
 
-use crate::database::entities::task::TaskStatus;
 use crate::{
     database::entities::{Lock, Task},
     errors::SchedulerError,
 };
+use crate::database::entities::task::TaskStatus;
 
 type Constraints = HashMap<String, LockSum>;
 
@@ -70,7 +70,9 @@ impl LockSum {
             (Lock::WRITE { .. }, Lock::WRITE { .. }) => false,
             (Lock::WRITE { .. }, Lock::READ { .. }) => false,
             (Lock::READ { .. }, Lock::WRITE { .. }) => false,
-            (Lock::READ { name: object, .. }, Lock::READ { name: object2, .. }) => object == object2,
+            (Lock::READ { name: object, .. }, Lock::READ { name: object2, .. }) => {
+                object == object2
+            }
         }
     }
 
@@ -98,7 +100,11 @@ pub struct Scheduler<'a> {
 }
 
 impl<'a> Scheduler<'a> {
-    pub fn new(tasks: Vec<Task>, poisoned_locks: &'a [Lock], machine_features: &'a [String]) -> Result<Self, SchedulerError> {
+    pub fn new(
+        tasks: Vec<Task>,
+        poisoned_locks: &'a [Lock],
+        machine_features: &'a [String],
+    ) -> Result<Self, SchedulerError> {
         let mut constraints: Constraints = HashMap::new();
 
         for task in &tasks {
@@ -125,8 +131,11 @@ impl<'a> Scheduler<'a> {
         task.locks.iter().all(|lock| {
             self.constraints
                 .get_lock_sum(lock)
-                .map_or(true, |ls| ls.can_add_lock(lock)) &&
-                !self.poisoned_locks.iter().any(|plock| lock.is_conflicting(plock))
+                .map_or(true, |ls| ls.can_add_lock(lock))
+                && !self
+                    .poisoned_locks
+                    .iter()
+                    .any(|plock| lock.is_conflicting(plock))
         })
     }
 
@@ -152,8 +161,10 @@ impl<'a> Scheduler<'a> {
 
 #[cfg(test)]
 mod tests {
+    use uuid::Uuid;
+
+    use crate::database::entities::{Lock, Task};
     use crate::database::entities::task::TaskStatus;
-    use crate::database::entities::Task;
 
     use super::Scheduler;
 
@@ -248,7 +259,6 @@ mod tests {
         assert_eq!(res.get_next_task(), None)
     }
 
-
     #[test]
     fn scheduler_no_new_task_with_feature() {
         let tasks = vec![
@@ -289,8 +299,6 @@ mod tests {
         // Test 1 and Test 2 have required features, which our runner matches.
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 1")
     }
-
-
 
     #[test]
     fn scheduler_new_task() {
@@ -350,5 +358,62 @@ mod tests {
         let res = Scheduler::new(tasks, &[], &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task(), None)
+    }
+
+    #[test]
+    fn schedule_with_poisoned_lock() {
+        let tasks = vec![Task::builder()
+            .with_display_name("I need to do something")
+            .with_write_lock("Entire Prod Cluster")
+            .build()];
+        let poisoned_locks = vec![Lock::WRITE {
+            name: "Entire Prod Cluster".to_string(),
+            poisoned: Some(Uuid::new_v4()),
+        }];
+
+        let res = Scheduler::new(tasks, &poisoned_locks, &[]).unwrap();
+
+        assert_eq!(res.get_next_task(), None);
+    }
+
+    #[test]
+    fn schedule_different_tasks_with_poisoned_lock() {
+        let tasks = vec![
+            Task::builder()
+                .with_display_name("I need to do something")
+                .with_write_lock("Entire Prod Cluster")
+                .build(),
+            Task::builder()
+                .with_display_name("I need to test something")
+                .with_write_lock("Entire Staging Cluster")
+                .build(),
+        ];
+        let poisoned_locks = vec![Lock::WRITE {
+            name: "Entire Prod Cluster".to_string(),
+            poisoned: Some(Uuid::new_v4()),
+        }];
+
+        let res = Scheduler::new(tasks, &poisoned_locks, &[]).unwrap();
+
+        assert_eq!(
+            res.get_next_task().unwrap().display_name,
+            "I need to test something"
+        );
+    }
+
+    #[test]
+    fn schedule_different_tasks_with_poisoned_lock_ro() {
+        let tasks = vec![Task::builder()
+            .with_display_name("I need to do something")
+            .with_read_lock("Entire Prod Cluster")
+            .build()];
+        let poisoned_locks = vec![Lock::READ {
+            name: "Entire Prod Cluster".to_string(),
+            poisoned: Some(Uuid::new_v4()),
+        }];
+
+        let res = Scheduler::new(tasks, &poisoned_locks, &[]).unwrap();
+
+        assert_eq!(res.get_next_task(), None);
     }
 }
