@@ -243,14 +243,10 @@ pub mod db_impl {
 
     impl TaskDatabase for diesel::pg::PgConnection {
         fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError> {
-            // very evil >>:(
-            use self::locks::dsl::*;
-            use self::tasks::dsl::*;
-
-            let db_tasks = tasks.load::<DbTask>(self)?;
+            let db_tasks = tasks::table.load::<DbTask>(self)?;
 
             // prefetching all locks here, so we don't run into the N+1 Query Problem and distribute them
-            let all_locks = locks.load::<DbLock>(self).unwrap_or_else(|_| vec![]);
+            let all_locks = locks::table.load::<DbLock>(self).unwrap_or_else(|_| vec![]);
 
             let lock_map: HashMap<_, Vec<Lock>> = all_locks
                 .into_iter()
@@ -284,16 +280,12 @@ pub mod db_impl {
         }
 
         fn get_task(&mut self, tid: Uuid) -> Result<Option<Task>, VickyError> {
-            // so evil >:O
-            use self::locks::dsl::*;
-            use self::tasks::dsl::*;
-
-            let db_task = tasks.filter(self::tasks::id.eq(tid)).first::<DbTask>(self);
+            let db_task = tasks::table.filter(tasks::id.eq(tid)).first::<DbTask>(self);
             let db_task = match db_task {
                 Err(diesel::result::Error::NotFound) => return Ok(None),
                 _ => db_task?,
             };
-            let db_locks: Vec<DbLock> = locks.filter(task_id.eq(task_id)).load::<DbLock>(self)?;
+            let db_locks: Vec<DbLock> = locks::table.filter(task_id.eq(task_id)).load::<DbLock>(self)?;
 
             let task = Task {
                 id: db_task.id,
@@ -315,10 +307,6 @@ pub mod db_impl {
         }
 
         fn put_task(&mut self, task: &Task) -> Result<(), VickyError> {
-            // even more evil >;(
-            use self::locks::dsl::*;
-            use self::tasks::dsl::*;
-
             self.transaction(|conn| {
                 let db_locks: Vec<DbLock> = task
                     .locks
@@ -327,21 +315,18 @@ pub mod db_impl {
                     .collect();
                 let db_task: DbTask = task.into();
                 
-                insert_into(tasks).values(db_task).execute(conn)?;
+                insert_into(tasks::table).values(db_task).execute(conn)?;
                 for mut db_lock in db_locks {
                     db_lock.id = None;
-                    insert_into(locks).values(db_lock).execute(conn)?;
+                    insert_into(locks::table).values(db_lock).execute(conn)?;
                 }
                 Ok(())
             })
         }
 
         fn update_task(&mut self, task: &Task) -> Result<(), VickyError> {
-            // even more evil >;(
-            use self::tasks::dsl::*;
-
-            update(tasks.filter(id.eq(task.id)))
-                .set(status.eq(task.status.clone().to_string()))
+            update(tasks::table.filter(tasks::id.eq(task.id)))
+                .set(tasks::status.eq(task.status.clone().to_string()))
                 .execute(self)?;
 
             // FIXME: Conversion from DbLock to Lock drops id. No way to update locks here.

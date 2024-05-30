@@ -24,16 +24,14 @@ pub mod db_impl {
     impl UserDatabase for diesel::pg::PgConnection {
 
         fn get_user(&mut self, sub_: Uuid) -> Result<Option<DbUser>, VickyError> {
-            use self::users::dsl::*;
-            let db_task: Option<DbUser> = users.filter(self::users::sub.eq(sub_)).first(self).optional()?;
+            let db_task: Option<DbUser> = users::table.filter(users::sub.eq(sub_)).first(self).optional()?;
             Ok(db_task)
         }
 
         fn upsert_user(&mut self, user: DbUser) -> Result<(), VickyError> {
-            use self::users::dsl::*;
-            let _ = diesel::insert_into(users)
+            let _ = diesel::insert_into(users::table)
                 .values(&user)
-                .on_conflict(sub)
+                .on_conflict(users::sub)
                 .do_update()
                 .set(&user)
                 .execute(self);

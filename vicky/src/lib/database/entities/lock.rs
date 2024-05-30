@@ -137,11 +137,9 @@ pub mod db_impl {
 
     impl LockDatabase for PgConnection {
         fn get_poisoned_locks(&mut self) -> Result<Vec<Lock>, VickyError> {
-            use self::locks::dsl::*;
-
             let poisoned_locks = {
                 let poisoned_db_locks: Vec<DbLock> =
-                    locks.filter(poisoned_by_task.is_not_null()).load(self)?;
+                    locks::table.filter(locks::poisoned_by_task.is_not_null()).load(self)?;
                 poisoned_db_locks.into_iter().map(Lock::from).collect()
             };
 
