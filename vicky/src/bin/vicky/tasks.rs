@@ -183,7 +183,7 @@ pub async fn tasks_claim(
 ) -> Result<Json<Option<Task>>, AppError> {
     let tasks = db.run(|conn| conn.get_all_tasks()).await?;
     let poisoned_locks = db.run(|conn| conn.get_poisoned_locks()).await?;
-    let scheduler = Scheduler::new(tasks, poisoned_locks.as_slice(), &features.features)
+    let scheduler = Scheduler::new(&tasks, &poisoned_locks, &features.features)
         .map_err(|x| VickyError::Scheduler { source: x })?;
     let next_task = scheduler.get_next_task();
 

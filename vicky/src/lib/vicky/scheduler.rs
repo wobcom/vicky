@@ -1,142 +1,83 @@
 use std::collections::HashMap;
 
-use log::debug;
-
+use crate::database::entities::task::TaskStatus;
 use crate::{
     database::entities::{Lock, Task},
     errors::SchedulerError,
 };
-use crate::database::entities::task::TaskStatus;
 
-type Constraints = HashMap<String, LockSum>;
+type Constraints<'a> = HashMap<&'a str, &'a Lock>;
 
-trait ConstraintMgmt {
-    fn get_map_key(lock: &Lock) -> &String;
-    fn get_mut_lock_sum(&mut self, lock: &Lock) -> Option<&mut LockSum>;
-    fn get_lock_sum(&self, lock: &Lock) -> Option<&LockSum>;
-    fn insert_lock(&mut self, lock: &Lock) -> Result<(), SchedulerError>;
+trait ConstraintMgmt<'a> {
+    fn insert_lock(&mut self, lock: &'a Lock) -> Result<(), SchedulerError>;
+    fn can_get_lock(&self, lock: &Lock) -> bool;
 }
 
-impl ConstraintMgmt for Constraints {
-    fn get_map_key(lock: &Lock) -> &String {
-        match lock {
-            Lock::WRITE { name: object, .. } => object,
-            Lock::READ { name: object, .. } => object,
+impl<'a> ConstraintMgmt<'a> for Constraints<'a> {
+    fn insert_lock(&mut self, lock: &'a Lock) -> Result<(), SchedulerError> {
+        if !self.can_get_lock(lock) {
+            return Err(SchedulerError::LockAlreadyOwnedError);
         }
-    }
-
-    fn get_mut_lock_sum(&mut self, lock: &Lock) -> Option<&mut LockSum> {
-        let object = Constraints::get_map_key(lock);
-        self.get_mut(object)
-    }
-
-    fn get_lock_sum(&self, lock: &Lock) -> Option<&LockSum> {
-        let object = Constraints::get_map_key(lock);
-        self.get(object)
-    }
-
-    fn insert_lock(&mut self, lock: &Lock) -> Result<(), SchedulerError> {
-        match self.get_mut_lock_sum(lock) {
-            Some(c) => {
-                debug!("Found existing LockSum {:?}", lock);
-                c.add_lock(lock)?;
-            }
-            None => {
-                debug!("Found no LockSum");
-                let object = Constraints::get_map_key(lock);
-                self.insert(object.clone(), LockSum::from_lock(lock));
-            }
-        }
+        self.insert(lock.name(), lock);
 
         Ok(())
     }
-}
 
-struct LockSum {
-    lock: Lock,
-    count: i32,
-}
-
-impl LockSum {
-    pub fn from_lock(lock: &Lock) -> LockSum {
-        LockSum {
-            lock: lock.clone(),
-            count: 1,
+    fn can_get_lock(&self, lock: &Lock) -> bool {
+        if !self.contains_key(lock.name()) {
+            return true; // lock wasn't used yet
         }
-    }
+        let lock = self.get(lock.name()).expect("Lock must be in list");
 
-    pub fn can_add_lock(&self, lock: &Lock) -> bool {
-        match (&self.lock, lock) {
-            (Lock::WRITE { .. }, Lock::WRITE { .. }) => false,
-            (Lock::WRITE { .. }, Lock::READ { .. }) => false,
-            (Lock::READ { .. }, Lock::WRITE { .. }) => false,
-            (Lock::READ { name: object, .. }, Lock::READ { name: object2, .. }) => {
-                object == object2
-            }
-        }
-    }
-
-    pub fn add_lock(&mut self, lock: &Lock) -> Result<(), SchedulerError> {
-        let can_add_lock = self.can_add_lock(lock);
-        if !can_add_lock {
-            return Err(SchedulerError::GeneralSchedulingError);
-        }
-
-        match lock {
-            Lock::READ { .. } => {
-                self.count += 1;
-                Ok(())
-            }
-            _ => unreachable!(),
-        }
+        !lock.is_conflicting(lock)
     }
 }
 
 pub struct Scheduler<'a> {
-    constraints: Constraints,
-    tasks: Vec<Task>,
+    constraints: Constraints<'a>,
+    tasks: &'a Vec<Task>,
     poisoned_locks: &'a [Lock],
     machine_features: &'a [String],
 }
 
 impl<'a> Scheduler<'a> {
     pub fn new(
-        tasks: Vec<Task>,
+        tasks: &'a Vec<Task>,
         poisoned_locks: &'a [Lock],
         machine_features: &'a [String],
     ) -> Result<Self, SchedulerError> {
-        let mut constraints: Constraints = HashMap::new();
+        let constraints: Constraints = Constraints::new();
 
-        for task in &tasks {
-            if task.status != TaskStatus::RUNNING {
-                continue;
-            }
-
-            for lock in &task.locks {
-                constraints.insert_lock(lock)?;
-            }
-        }
-
-        let s = Scheduler {
+        let mut s = Scheduler {
             constraints,
             tasks,
             poisoned_locks,
             machine_features,
         };
 
+        for task in s.tasks {
+            if task.status != TaskStatus::RUNNING {
+                continue;
+            }
+
+            for lock in &task.locks {
+                s.constraints.insert_lock(lock)?;
+            }
+        }
+
         Ok(s)
     }
 
+    fn is_poisoned(&self, lock: &Lock) -> bool {
+        self.poisoned_locks
+            .iter()
+            .any(|plock| lock.is_conflicting(plock))
+    }
+
     fn is_unconstrained(&self, task: &Task) -> bool {
-        task.locks.iter().all(|lock| {
-            self.constraints
-                .get_lock_sum(lock)
-                .map_or(true, |ls| ls.can_add_lock(lock))
-                && !self
-                    .poisoned_locks
-                    .iter()
-                    .any(|plock| lock.is_conflicting(plock))
-        })
+        task.locks
+            .iter()
+            .all(|lock| self.constraints.can_get_lock(lock) && !self.is_poisoned(lock))
     }
 
     fn supports_all_features(&self, task: &Task) -> bool {
@@ -151,11 +92,11 @@ impl<'a> Scheduler<'a> {
             && self.is_unconstrained(task)
     }
 
-    pub fn get_next_task(mut self) -> Option<Task> {
+    pub fn get_next_task(self) -> Option<Task> {
         self.tasks
             .iter()
-            .position(|task| self.should_pick_task(task))
-            .map(|idx| self.tasks.remove(idx))
+            .find(|task| self.should_pick_task(task))
+            .cloned()
     }
 }
 
@@ -163,8 +104,8 @@ impl<'a> Scheduler<'a> {
 mod tests {
     use uuid::Uuid;
 
-    use crate::database::entities::{Lock, Task};
     use crate::database::entities::task::TaskStatus;
+    use crate::database::entities::{Lock, Task};
 
     use super::Scheduler;
 
@@ -181,7 +122,7 @@ mod tests {
                 .build(),
         ];
 
-        Scheduler::new(tasks, &[], &[]).unwrap();
+        Scheduler::new(&tasks, &[], &[]).unwrap();
     }
 
     #[test]
@@ -199,7 +140,7 @@ mod tests {
                 .build(),
         ];
 
-        Scheduler::new(tasks, &[], &[]).unwrap();
+        Scheduler::new(&tasks, &[], &[]).unwrap();
     }
 
     #[test]
@@ -217,7 +158,7 @@ mod tests {
                 .build(),
         ];
 
-        Scheduler::new(tasks, &[], &[]).unwrap();
+        Scheduler::new(&tasks, &[], &[]).unwrap();
     }
 
     #[test]
@@ -235,7 +176,7 @@ mod tests {
                 .build(),
         ];
 
-        let res = Scheduler::new(tasks, &[], &[]);
+        let res = Scheduler::new(&tasks, &[], &[]);
         assert!(res.is_err());
     }
 
@@ -254,7 +195,7 @@ mod tests {
                 .build(),
         ];
 
-        let res = Scheduler::new(tasks, &[], &[]).unwrap();
+        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task(), None)
     }
@@ -274,7 +215,7 @@ mod tests {
                 .build(),
         ];
 
-        let res = Scheduler::new(tasks, &[], &[]).unwrap();
+        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
         // Test 1 and Test 2 have required features, which our runner does not have.
         assert_eq!(res.get_next_task(), None)
     }
@@ -295,7 +236,7 @@ mod tests {
         ];
 
         let features = &["huge_cpu".to_string()];
-        let res = Scheduler::new(tasks, &[], features).unwrap();
+        let res = Scheduler::new(&tasks, &[], features).unwrap();
         // Test 1 and Test 2 have required features, which our runner matches.
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 1")
     }
@@ -315,7 +256,7 @@ mod tests {
                 .build(),
         ];
 
-        let res = Scheduler::new(tasks, &[], &[]).unwrap();
+        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 2")
     }
@@ -335,7 +276,7 @@ mod tests {
                 .build(),
         ];
 
-        let res = Scheduler::new(tasks, &[], &[]).unwrap();
+        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 2")
     }
@@ -355,7 +296,7 @@ mod tests {
                 .build(),
         ];
 
-        let res = Scheduler::new(tasks, &[], &[]).unwrap();
+        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task(), None)
     }
@@ -371,7 +312,7 @@ mod tests {
             poisoned: Some(Uuid::new_v4()),
         }];
 
-        let res = Scheduler::new(tasks, &poisoned_locks, &[]).unwrap();
+        let res = Scheduler::new(&tasks, &poisoned_locks, &[]).unwrap();
 
         assert_eq!(res.get_next_task(), None);
     }
@@ -393,7 +334,7 @@ mod tests {
             poisoned: Some(Uuid::new_v4()),
         }];
 
-        let res = Scheduler::new(tasks, &poisoned_locks, &[]).unwrap();
+        let res = Scheduler::new(&tasks, &poisoned_locks, &[]).unwrap();
 
         assert_eq!(
             res.get_next_task().unwrap().display_name,
@@ -412,7 +353,7 @@ mod tests {
             poisoned: Some(Uuid::new_v4()),
         }];
 
-        let res = Scheduler::new(tasks, &poisoned_locks, &[]).unwrap();
+        let res = Scheduler::new(&tasks, &poisoned_locks, &[]).unwrap();
 
         assert_eq!(res.get_next_task(), None);
     }

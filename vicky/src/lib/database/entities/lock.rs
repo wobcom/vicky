@@ -16,23 +16,46 @@ pub enum Lock {
 
 impl Lock {
     pub fn is_conflicting(&self, other: &Lock) -> bool {
-        match (self, other) {
-            (Lock::WRITE { name: name1, .. }, Lock::WRITE { name: name2, .. })
-            | (Lock::READ { name: name1, .. }, Lock::WRITE { name: name2, .. })
-            | (Lock::WRITE { name: name1, .. }, Lock::READ { name: name2, .. }) => name1 == name2,
-            _ => false,
+        if self.name() != other.name() {
+            return false;
         }
+
+        matches!(
+            (self, other),
+            (Lock::WRITE { .. }, Lock::WRITE { .. })
+                | (Lock::READ { .. }, Lock::WRITE { .. })
+                | (Lock::WRITE { .. }, Lock::READ { .. })
+        )
     }
 
     pub fn poison(&mut self, by_task: &Uuid) {
         match self {
-            Lock::WRITE { ref mut poisoned, .. } => {
+            Lock::WRITE {
+                ref mut poisoned, ..
+            } => {
                 *poisoned = Some(*by_task);
             }
-            Lock::READ { ref mut poisoned, ..} => {
+            Lock::READ {
+                ref mut poisoned, ..
+            } => {
                 *poisoned = Some(*by_task);
             }
         };
+    }
+
+    pub fn name(&self) -> &str {
+        match self {
+            Lock::WRITE { name, .. } => name,
+            Lock::READ { name, .. } => name,
+        }
+    }
+
+    pub fn is_poisoned(&self) -> bool {
+        match self {
+            Lock::WRITE { poisoned, .. } => poisoned,
+            Lock::READ { poisoned, .. } => poisoned,
+        }
+        .is_some()
     }
 }
 
@@ -41,8 +64,8 @@ pub mod db_impl {
     use serde::Serialize;
     use uuid::Uuid;
 
-    use crate::database::entities::Lock;
     use crate::database::entities::task::TaskStatus;
+    use crate::database::entities::Lock;
     use crate::database::schema::{locks, tasks};
     use crate::errors::VickyError;
 

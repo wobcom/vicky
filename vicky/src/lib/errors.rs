@@ -14,7 +14,7 @@ pub enum VickyError {
         #[from]
         source: serde_json::Error,
     },
-    
+
     #[error("diesel Error {source:?}")]
     Diesel {
         #[from]
@@ -44,6 +44,8 @@ pub enum VickyError {
 pub enum SchedulerError {
     #[error("Invalid Scheduling")]
     GeneralSchedulingError,
+    #[error("Lock Already Owned")]
+    LockAlreadyOwnedError,
 }
 
 #[derive(Error, Debug)]
