@@ -20,6 +20,10 @@ impl Lock {
             return false;
         }
 
+        if self.is_poisoned() || other.is_poisoned() {
+            return true;
+        }
+
         matches!(
             (self, other),
             (Lock::WRITE { .. }, Lock::WRITE { .. })
