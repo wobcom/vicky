@@ -1,6 +1,6 @@
 # Vicky
 
-Vicky, which is the babysitter of Timmy, Cosmo and Wanda, is a CD tool for environments with many constraints and dependencies that usually cannot be represented.
+Vicky, which is the babysitter of Timmy in *The Fairly OddParents*, is a CD tool for environments with many constraints and dependencies that usually cannot be represented.
 
 
 ## Components
@@ -8,24 +8,21 @@ Vicky, which is the babysitter of Timmy, Cosmo and Wanda, is a CD tool for envir
 Vicky consists out of multiple components to make a spreaded deployment possible.
 
 + vicky
-    + Main Task Scheduler
+    + Main Task Scheduler | *Commands fairies to work on tasks*
 + fairy
-    + Fairy, can run multiple times.
+    + Fairy, can run multiple times. | *Asks for tasks from vicky and runs them locally*
 + dashboard
     + Web-UI
-+ vicky-cli
-    + CLI
++ vickyctl
+    + CLI application to manage vicky
 
-Each component can be developed and deployed individually.
-
-## Concepts
-
-We use an etcd cluster to sync state between multiple instances of Vicky. Vicky will do leader election, so at each time only one instance is active. We try to make Vicky as resilient to network and other failues as possible but it is not our main goal, yet.
-All data in the etcd is stored under `vicky.wobcom.de/` in YAML format. 
+Each component can be developed and deployed individually. 
 
 ## Development Setup
 
-We need to start at least a `vicky` instance, S3 storage and etcd to run anything.
+We need to start an instance of `vicky`, S3 storage (here, `minio`) and `postgres` to run anything.
+
+These are provided to you in the `deployment` folder as a docker compose file.
 
 ### Storage & Database & Certificates
 
@@ -36,7 +33,7 @@ We need to start at least a `vicky` instance, S3 storage and etcd to run anythin
     + Certificates are located at `certs`
 + Enter `deployment`
 + Start docker-compose collection
-    + `docker-compose up -d` 
+    + `docker-compose up -d`
 
 #### devenv
 
@@ -62,6 +59,7 @@ TODO @yu-re-ka: Add Information
 + Enter `fairy`
 + Run `cargo run --bin fairy`
 
+
 ### Dashboard
 
 + Enter `dashboard`
@@ -69,9 +67,25 @@ TODO @yu-re-ka: Add Information
     + `npm ci` in `dashboard` Folder
 + Run `npm run start`
 
+
 ### CLI
 
-TODO: Add Content for CLI configuration and development.
++ Enter vickyctl
++ Run `cargo run` for help
++ Provide `VICKY_URL` and `VICKY_TOKEN` as env variables to the program so that it can connect to vicky.
+    + Example: `VICKY_URL=http://127.0.0.1:8000 VICKY_TOKEN=abc1234 cargo run task create --name "Deployment 1" --flake-url github:wobcom/example-vicky --lock-name "Cool Lock" --lock-type WRITE`
+  
+```
+Usage: vickyctl <COMMAND>
 
+Commands:
+  task   Manage tasks on the vicky delegation server
+  tasks  Show all tasks vicky is managing
+  locks  Show all poisoned locks vicky is managing
+  help   Print this message or the help of the given subcommand(s)
 
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
+```
 
