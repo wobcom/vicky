@@ -180,11 +180,12 @@ pub mod db_impl {
     use crate::database::schema::locks;
     use crate::database::schema::tasks;
     use itertools::Itertools;
+    use serde::Serialize;
     use crate::database::schema::locks::task_id;
 
-    #[derive(Insertable, Queryable, AsChangeset, Debug)]
+    #[derive(Insertable, Queryable, AsChangeset, Debug, Serialize)]
     #[diesel(table_name = tasks)]
-    struct DbTask {
+    pub struct DbTask {
         pub id: Uuid,
         pub display_name: String,
         pub status: String,
