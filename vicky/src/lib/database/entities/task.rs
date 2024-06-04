@@ -7,16 +7,16 @@ use crate::database::entities::task::db_impl::DbTask;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "result")]
 pub enum TaskResult {
-    SUCCESS,
-    ERROR,
+    Success,
+    Error,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "state")]
 pub enum TaskStatus {
-    NEW,
-    RUNNING,
-    FINISHED(TaskResult),
+    New,
+    Running,
+    Finished(TaskResult),
 }
 
 type FlakeURI = String;
@@ -63,7 +63,7 @@ impl Default for TaskBuilder {
         TaskBuilder {
             id: None,
             display_name: None,
-            status: TaskStatus::NEW,
+            status: TaskStatus::New,
             locks: Vec::new(),
             flake_ref: FlakeRef {
                 flake: "".to_string(),
@@ -214,11 +214,11 @@ pub mod db_impl {
     impl Display for TaskStatus {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             let str = match self {
-                TaskStatus::NEW => "NEW",
-                TaskStatus::RUNNING => "RUNNING",
-                TaskStatus::FINISHED(r) => match r {
-                    TaskResult::SUCCESS => "FINISHED::SUCCESS",
-                    TaskResult::ERROR => "FINISHED::ERROR",
+                TaskStatus::New => "NEW",
+                TaskStatus::Running => "RUNNING",
+                TaskStatus::Finished(r) => match r {
+                    TaskResult::Success => "FINISHED::SUCCESS",
+                    TaskResult::Error => "FINISHED::ERROR",
                 },
             };
             write!(f, "{}", str)
@@ -230,10 +230,10 @@ pub mod db_impl {
 
         fn try_from(str: &str) -> Result<Self, Self::Error> {
             match str {
-                "NEW" => Ok(TaskStatus::NEW),
-                "RUNNING" => Ok(TaskStatus::RUNNING),
-                "FINISHED::SUCCESS" => Ok(TaskStatus::FINISHED(TaskResult::SUCCESS)),
-                "FINISHED::ERROR" => Ok(TaskStatus::FINISHED(TaskResult::ERROR)),
+                "NEW" => Ok(TaskStatus::New),
+                "RUNNING" => Ok(TaskStatus::Running),
+                "FINISHED::SUCCESS" => Ok(TaskStatus::Finished(TaskResult::Success)),
+                "FINISHED::ERROR" => Ok(TaskStatus::Finished(TaskResult::Error)),
                 _ => Err("Could not deserialize to TaskStatus"),
             }
         }
@@ -322,7 +322,7 @@ pub mod db_impl {
             // FIXME: Conversion from DbLock to Lock drops id. No way to update locks here.
             //        this is just a workaround for now. Should behave fine though 
             //        and is more performant.
-            if task.status == TaskStatus::FINISHED(TaskResult::ERROR) {
+            if task.status == TaskStatus::Finished(TaskResult::Error) {
                 update(locks::table.filter(task_id.eq(task.id)))
                     .set(locks::poisoned_by_task.eq(task.id))
                     .execute(self)?;
