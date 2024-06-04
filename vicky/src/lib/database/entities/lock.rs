@@ -133,6 +133,7 @@ pub mod db_impl {
     pub trait LockDatabase {
         fn get_poisoned_locks(&mut self) -> Result<Vec<Lock>, VickyError>;
         fn get_active_locks(&mut self) -> Result<Vec<Lock>, VickyError>;
+        fn unlock_lock(&mut self, lock_uuid: &Uuid) -> Result<(), VickyError>;
     }
 
     impl LockDatabase for PgConnection {
@@ -161,6 +162,13 @@ pub mod db_impl {
             };
 
             Ok(locks)
+        }
+
+        fn unlock_lock(&mut self, lock_uuid: &Uuid) -> Result<(), VickyError> {
+            update(locks::table.filter(locks::id.eq(lock_uuid)))
+                .set(locks::poisoned_by_task.eq(None::<Uuid>))
+                .execute(self)?;
+            Ok(())
         }
     }
 }

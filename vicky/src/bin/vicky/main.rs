@@ -187,6 +187,7 @@ async fn main() -> anyhow::Result<()> {
                 locks_get_poisoned_machine,
                 locks_get_active_user,
                 locks_get_active_machine,
+                locks_unlock
             ],
         )
         .launch()

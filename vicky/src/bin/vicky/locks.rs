@@ -47,3 +47,15 @@ pub async fn locks_get_active_machine(
 ) -> Result<Json<Vec<Lock>>, AppError> {
     locks_get_active(&db).await
 }
+
+#[patch("/unlock/<lock_id>")]
+pub async fn locks_unlock(
+    db: Database,
+    _user: Machine, // TODO: Should actually be user-only, but we don't have that yet
+    lock_id: String,
+) -> Result<(), AppError> {
+    let lock_uuid = Uuid::try_parse(&lock_id)?;
+    
+    db.run(move |conn| conn.unlock_lock(&lock_uuid)).await?;
+    Ok(())
+}
