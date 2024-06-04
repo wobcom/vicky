@@ -1,6 +1,8 @@
 use crate::database::entities::lock::Lock;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use crate::database::entities::lock::db_impl::DbLock;
+use crate::database::entities::task::db_impl::DbTask;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "result")]
@@ -89,12 +91,12 @@ impl TaskBuilder {
     }
 
     pub fn with_read_lock<S: Into<String>>(mut self, name: S) -> Self {
-        self.locks.push(Lock::READ { name: name.into(), poisoned: None });
+        self.locks.push(Lock::Read { name: name.into(), poisoned: None });
         self
     }
 
     pub fn with_write_lock<S: Into<String>>(mut self, name: S) -> Self {
-        self.locks.push(Lock::WRITE { name: name.into(), poisoned: None });
+        self.locks.push(Lock::Write { name: name.into(), poisoned: None });
         self
     }
 
@@ -164,11 +166,26 @@ impl TaskBuilder {
     }
 }
 
+impl From<(DbTask, Vec<DbLock>)> for Task {
+    fn from(value: (DbTask, Vec<DbLock>)) -> Self {
+        let (task, locks) = value;
+        Task {
+            id: task.id,
+            display_name: task.display_name,
+            status: task.status.as_str().try_into().expect("Database corrupted"),
+            locks: locks.into_iter().map(Lock::from).collect(),
+            flake_ref: FlakeRef {
+                flake: task.flake_ref_uri,
+                args: task.flake_ref_args,
+            },
+            features: task.features,
+        }
+    }
+}
+
 // this was on purpose because these macro-generated entity types
 // mess up the whole namespace and HAVE to be scoped
 pub mod db_impl {
-    use crate::database::entities::lock::Lock;
-    use crate::database::entities::task::FlakeRef;
     use crate::database::entities::task::{Task, TaskResult, TaskStatus};
     use crate::errors::VickyError;
     use diesel::{insert_into, update, AsChangeset, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl, Connection};
@@ -189,9 +206,9 @@ pub mod db_impl {
         pub id: Uuid,
         pub display_name: String,
         pub status: String,
-        pub features: Vec<Option<String>>,
+        pub features: Vec<String>,
         pub flake_ref_uri: String,
-        pub flake_ref_args: Vec<Option<String>>,
+        pub flake_ref_args: Vec<String>,
     }
 
     impl Display for TaskStatus {
@@ -209,7 +226,7 @@ pub mod db_impl {
     }
 
     impl TryFrom<&str> for TaskStatus {
-        type Error = ();
+        type Error = &'static str;
 
         fn try_from(str: &str) -> Result<Self, Self::Error> {
             match str {
@@ -217,20 +234,20 @@ pub mod db_impl {
                 "RUNNING" => Ok(TaskStatus::RUNNING),
                 "FINISHED::SUCCESS" => Ok(TaskStatus::FINISHED(TaskResult::SUCCESS)),
                 "FINISHED::ERROR" => Ok(TaskStatus::FINISHED(TaskResult::ERROR)),
-                _ => Err(()),
+                _ => Err("Could not deserialize to TaskStatus"),
             }
         }
     }
 
-    impl From<&Task> for DbTask {
-        fn from(task: &Task) -> DbTask {
+    impl From<Task> for DbTask {
+        fn from(task: Task) -> DbTask {
             DbTask {
                 id: task.id,
-                display_name: task.display_name.clone(),
+                display_name: task.display_name,
                 status: task.status.to_string(),
-                features: task.features.clone().iter().cloned().map(Some).collect(),
-                flake_ref_uri: task.flake_ref.flake.clone(),
-                flake_ref_args: task.flake_ref.args.iter().cloned().map(Some).collect(),
+                features: task.features,
+                flake_ref_uri: task.flake_ref.flake,
+                flake_ref_args: task.flake_ref.args,
             }
         }
     }
@@ -238,7 +255,7 @@ pub mod db_impl {
     pub trait TaskDatabase {
         fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError>;
         fn get_task(&mut self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
-        fn put_task(&mut self, task: &Task) -> Result<(), VickyError>;
+        fn put_task(&mut self, task: Task) -> Result<(), VickyError>;
         fn update_task(&mut self, task: &Task) -> Result<(), VickyError>;
     }
 
@@ -249,31 +266,17 @@ pub mod db_impl {
             // prefetching all locks here, so we don't run into the N+1 Query Problem and distribute them
             let all_locks = locks::table.load::<DbLock>(self).unwrap_or_else(|_| vec![]);
 
-            let lock_map: HashMap<_, Vec<Lock>> = all_locks
+            let mut lock_map: HashMap<_, Vec<DbLock>> = all_locks
                 .into_iter()
-                .map(|db_lock| (db_lock.task_id, db_lock.into()))
+                .map(|db_lock| (db_lock.task_id, db_lock))
                 .into_group_map();
 
             let real_tasks: Vec<Task> = db_tasks
                 .into_iter()
                 .map(|t| {
-                    let real_locks = lock_map.get(&t.id).cloned().unwrap_or_default();
+                    let real_locks = lock_map.remove(&t.id).unwrap_or_default();
 
-                    Task {
-                        id: t.id,
-                        display_name: t.display_name,
-                        status: t
-                            .status
-                            .as_str()
-                            .try_into()
-                            .expect("Got unexpected status value. Database is corrupted"),
-                        locks: real_locks,
-                        features: t.features.into_iter().flatten().collect(),
-                        flake_ref: FlakeRef {
-                            flake: t.flake_ref_uri,
-                            args: t.flake_ref_args.into_iter().flatten().collect(),
-                        },
-                    }
+                    (t, real_locks).into()
                 })
                 .collect();
 
@@ -288,26 +291,12 @@ pub mod db_impl {
             };
             let db_locks: Vec<DbLock> = locks::table.filter(task_id.eq(task_id)).load::<DbLock>(self)?;
 
-            let task = Task {
-                id: db_task.id,
-                display_name: db_task.display_name,
-                locks: db_locks.into_iter().map(|l| l.into()).collect(),
-                features: db_task.features.into_iter().flatten().collect(),
-                flake_ref: FlakeRef {
-                    flake: db_task.flake_ref_uri,
-                    args: db_task.flake_ref_args.into_iter().flatten().collect(),
-                },
-                status: db_task
-                    .status
-                    .as_str()
-                    .try_into()
-                    .expect("Got unexpected status value. Database is corrupted"),
-            };
+            let task = (db_task, db_locks).into();
 
             Ok(Some(task))
         }
 
-        fn put_task(&mut self, task: &Task) -> Result<(), VickyError> {
+        fn put_task(&mut self, task: Task) -> Result<(), VickyError> {
             self.transaction(|conn| {
                 let db_locks: Vec<DbLock> = task
                     .locks
