@@ -9,6 +9,7 @@ use clap::{Args, Parser, Subcommand};
 use uuid::Uuid;
 use yansi::Paint;
 
+// TODO: Add abouts to arguments
 #[derive(Parser, Debug, Clone)]
 struct AppContext {
     #[clap(env)]
@@ -78,7 +79,7 @@ struct LocksArgs {
 enum Cli {
     Task(TaskArgs),
     Tasks(TasksArgs),
-    Locks(LocksArgs)
+    Locks(LocksArgs),
 }
 
 fn main() {
