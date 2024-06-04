@@ -237,6 +237,7 @@ fn handle_events(
     Ok(false)
 }
 
+#[allow(dead_code)]
 fn get_longest_len<'a, T>(str_iter: T) -> u16
 where
     T: Iterator<Item = &'a str>,
@@ -285,12 +286,12 @@ fn draw_task_picker(
     f.render_stateful_widget(table, f.size(), state);
 }
 
-fn draw_confirm_clear(f: &mut Frame, locks: &[PoisonedLock], selected: usize) {
+fn draw_confirm_clear(_f: &mut Frame, locks: &[PoisonedLock], selected: usize) {
     let lock = locks.get(selected);
     if lock.is_none() {
         return;
     }
-    let lock = lock.unwrap();
+    let _lock = lock.unwrap();
     todo!()
 }
 
