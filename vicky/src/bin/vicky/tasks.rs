@@ -253,7 +253,7 @@ pub async fn tasks_add(
 ) -> Result<Json<RoTask>, AppError> {
     let task_uuid = Uuid::new_v4();
 
-    let task_manifest = Task::builder()
+    let task = Task::builder()
         .with_id(task_uuid)
         .with_display_name(&task.display_name)
         .with_flake(&task.flake_ref.flake)
@@ -262,11 +262,11 @@ pub async fn tasks_add(
         .requires_features(task.features.clone())
         .build();
 
-    if check_lock_conflict(&task_manifest) {
+    if check_lock_conflict(&task) {
         return Err(AppError::HttpError(Status::Conflict));
     }
 
-    db.run(move |conn| conn.put_task(&task_manifest)).await?;
+    db.run(move |conn| conn.put_task(task)).await?;
     global_events.send(GlobalEvent::TaskAdd)?;
 
     let ro_task = RoTask {
