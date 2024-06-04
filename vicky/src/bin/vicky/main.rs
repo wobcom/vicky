@@ -16,7 +16,11 @@ use vickylib::logs::LogDrain;
 use vickylib::s3::client::S3Client;
 
 use crate::events::{get_global_events, GlobalEvent};
-use crate::locks::{locks_get_active_machine, locks_get_active_user, locks_get_poisoned_machine, locks_get_poisoned_user};
+use crate::locks::{
+    locks_get_active_machine, locks_get_active_user, locks_get_detailed_poisoned_machine,
+    locks_get_detailed_poisoned_user, locks_get_poisoned_machine, locks_get_poisoned_user,
+    locks_unlock,
+};
 use crate::tasks::{
     tasks_add, tasks_claim, tasks_finish, tasks_get_logs, tasks_get_machine, tasks_get_user,
     tasks_put_logs, tasks_specific_get_machine, tasks_specific_get_user,
@@ -192,6 +196,8 @@ async fn main() -> anyhow::Result<()> {
             routes![
                 locks_get_poisoned_user,
                 locks_get_poisoned_machine,
+                locks_get_detailed_poisoned_user,
+                locks_get_detailed_poisoned_machine,
                 locks_get_active_user,
                 locks_get_active_machine,
                 locks_unlock
