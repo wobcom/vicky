@@ -19,16 +19,16 @@ use crate::http_client::prepare_client;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "result")]
 pub enum TaskResult {
-    SUCCESS,
-    ERROR,
+    Success,
+    Error,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "state")]
 pub enum TaskStatus {
-    NEW,
-    RUNNING,
-    FINISHED(TaskResult),
+    New,
+    Running,
+    Finished(TaskResult),
 }
 
 type FlakeURI = String;
@@ -53,37 +53,37 @@ pub struct Task {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum PoisonedLock {
-    WRITE { id: String, name: String, poisoned: Task },
-    READ { id: String, name: String, poisoned: Task },
+    Write { id: String, name: String, poisoned: Task },
+    Read { id: String, name: String, poisoned: Task },
 }
 
 impl PoisonedLock {
 
     pub fn id(&self) -> &str {
         match self {
-            PoisonedLock::WRITE { id, .. } => id,
-            PoisonedLock::READ { id, .. } => id,
+            PoisonedLock::Write { id, .. } => id,
+            PoisonedLock::Read { id, .. } => id,
         }
     }
     
     pub fn name(&self) -> &str {
         match self {
-            PoisonedLock::WRITE { name, .. } => name,
-            PoisonedLock::READ { name, .. } => name,
+            PoisonedLock::Write { name, .. } => name,
+            PoisonedLock::Read { name, .. } => name,
         }
     }
 
     pub fn get_poisoned_by(&self) -> &Task {
         match self {
-            PoisonedLock::WRITE { poisoned, .. } => poisoned,
-            PoisonedLock::READ { poisoned, .. } => poisoned,
+            PoisonedLock::Write { poisoned, .. } => poisoned,
+            PoisonedLock::Read { poisoned, .. } => poisoned,
         }
     }
 
     pub fn get_type(&self) -> &'static str {
         match self {
-            PoisonedLock::WRITE { .. } => "WRITE",
-            PoisonedLock::READ { .. } => "READ",
+            PoisonedLock::Write { .. } => "WRITE",
+            PoisonedLock::Read { .. } => "READ",
         }
     }
 }

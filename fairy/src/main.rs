@@ -80,16 +80,16 @@ pub struct FlakeRef {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "result")]
 pub enum TaskResult {
-    SUCCESS,
-    ERROR,
+    Success,
+    Error,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "state")]
 pub enum TaskStatus {
-    NEW,
-    RUNNING,
-    FINISHED(TaskResult),
+    New,
+    Running,
+    Finished(TaskResult),
 }
 
 #[derive(Debug, Deserialize)]
@@ -173,9 +173,9 @@ async fn run_task(cfg: Arc<AppConfig>, task: Task) {
     let result = match try_run_task(cfg.clone(), &task).await {
         Err(e) => {
             log::info!("task failed: {} {} {:?}", task.id, task.display_name, e);
-            TaskResult::ERROR
+            TaskResult::Error
         }
-        Ok(_) => TaskResult::SUCCESS,
+        Ok(_) => TaskResult::Success,
     };
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     let _ = api::<_, ()>(

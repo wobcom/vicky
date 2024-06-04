@@ -8,11 +8,11 @@ use crate::database::entities::task::db_impl::DbTask;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Lock {
-    WRITE {
+    Write {
         name: String,
         poisoned: Option<Uuid>,
     },
-    READ {
+    Read {
         name: String,
         poisoned: Option<Uuid>,
     },
@@ -30,20 +30,20 @@ impl Lock {
 
         matches!(
             (self, other),
-            (Lock::WRITE { .. }, Lock::WRITE { .. })
-                | (Lock::READ { .. }, Lock::WRITE { .. })
-                | (Lock::WRITE { .. }, Lock::READ { .. })
+            (Lock::Write { .. }, Lock::Write { .. })
+                | (Lock::Read { .. }, Lock::Write { .. })
+                | (Lock::Write { .. }, Lock::Read { .. })
         )
     }
 
     pub fn poison(&mut self, by_task: &Uuid) {
         match self {
-            Lock::WRITE {
+            Lock::Write {
                 ref mut poisoned, ..
             } => {
                 *poisoned = Some(*by_task);
             }
-            Lock::READ {
+            Lock::Read {
                 ref mut poisoned, ..
             } => {
                 *poisoned = Some(*by_task);
@@ -53,15 +53,15 @@ impl Lock {
 
     pub fn name(&self) -> &str {
         match self {
-            Lock::WRITE { name, .. } => name,
-            Lock::READ { name, .. } => name,
+            Lock::Write { name, .. } => name,
+            Lock::Read { name, .. } => name,
         }
     }
 
     pub fn is_poisoned(&self) -> bool {
         match self {
-            Lock::WRITE { poisoned, .. } => poisoned,
-            Lock::READ { poisoned, .. } => poisoned,
+            Lock::Write { poisoned, .. } => poisoned,
+            Lock::Read { poisoned, .. } => poisoned,
         }
         .is_some()
     }
@@ -69,8 +69,8 @@ impl Lock {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum PoisonedLock {
-    WRITE { id: Uuid, name: String, poisoned: Task },
-    READ { id: Uuid, name: String, poisoned: Task },
+    Write { id: Uuid, name: String, poisoned: Task },
+    Read { id: Uuid, name: String, poisoned: Task },
 }
 
 impl From<(DbLock, DbTask)> for PoisonedLock {
@@ -78,12 +78,12 @@ impl From<(DbLock, DbTask)> for PoisonedLock {
         let (lock, task) = value;
         match lock.type_.as_str() {
             // Other locks data is omitted here because of recursivity and since this is explicitly for a PoisonedLock
-            "WRITE" => PoisonedLock::WRITE {
+            "WRITE" => PoisonedLock::Write {
                 id: lock.id.unwrap_or_default(),
                 name: lock.name,
                 poisoned: Task::from((task, vec![])),
             },
-            "READ" => PoisonedLock::READ {
+            "READ" => PoisonedLock::Read {
                 id: lock.id.unwrap_or_default(),
                 name: lock.name,
                 poisoned: Task::from((task, vec![])),
@@ -133,14 +133,14 @@ pub mod db_impl {
             // for inserting a NewDbLock. Thus, id is set to -1 here. Maybe this can be improved wholly?
             // At least it works.
             match lock {
-                Lock::WRITE { name, poisoned } => DbLock {
+                Lock::Write { name, poisoned } => DbLock {
                     id: None,
                     task_id,
                     name: name.clone(),
                     type_: "WRITE".to_string(),
                     poisoned_by_task: *poisoned,
                 },
-                Lock::READ { name, poisoned } => DbLock {
+                Lock::Read { name, poisoned } => DbLock {
                     id: None,
                     task_id,
                     name: name.clone(),
@@ -154,11 +154,11 @@ pub mod db_impl {
     impl From<DbLock> for Lock {
         fn from(lock: DbLock) -> Lock {
             match lock.type_.as_str() {
-                "WRITE" => Lock::WRITE {
+                "WRITE" => Lock::Write {
                     name: lock.name,
                     poisoned: lock.poisoned_by_task,
                 },
-                "READ" => Lock::READ {
+                "READ" => Lock::Read {
                     name: lock.name,
                     poisoned: lock.poisoned_by_task,
                 },
@@ -213,7 +213,7 @@ pub mod db_impl {
                     .filter(
                         locks::poisoned_by_task
                             .is_not_null()
-                            .or(tasks::status.eq(TaskStatus::RUNNING.to_string())),
+                            .or(tasks::status.eq(TaskStatus::Running.to_string())),
                     )
                     .load(self)?;
                 db_locks.into_iter().map(Lock::from).collect()
