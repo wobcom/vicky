@@ -2,6 +2,7 @@ mod http_client;
 mod humanize;
 mod tasks;
 mod error;
+mod locks;
 
 use crate::tasks::{claim_task, create_task, finish_task};
 use clap::{Args, Parser, Subcommand};
@@ -61,11 +62,23 @@ struct TasksArgs {
     ctx: AppContext,
 }
 
+#[derive(Args, Debug)]
+#[command(version, about = "Show all poisoned locks vicky is managing", long_about = None)]
+struct LocksArgs {
+    #[command(flatten)]
+    ctx: AppContext,
+    #[clap(long)]
+    active: bool,
+    #[clap(long)]
+    poisoned: bool,
+}
+
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 enum Cli {
     Task(TaskArgs),
     Tasks(TasksArgs),
+    Locks(LocksArgs)
 }
 
 fn main() {
@@ -78,6 +91,7 @@ fn main() {
             TaskCommands::Finish { id, status } => finish_task(&id, &status, &task_args.ctx),
         },
         Cli::Tasks(tasks_args) => tasks::show_tasks(&tasks_args),
+        Cli::Locks(locks_args) => locks::show_locks(&locks_args),
     };
 
     match error {

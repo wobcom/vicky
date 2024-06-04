@@ -11,6 +11,7 @@ use vickylib::database::entities::{Database, Lock, Task};
 use vickylib::{
     errors::VickyError, logs::LogDrain, s3::client::S3Client, vicky::scheduler::Scheduler,
 };
+use vickylib::database::entities::lock::db_impl::LockDatabase;
 
 use crate::{
     auth::{Machine, User},
@@ -62,15 +63,19 @@ pub async fn tasks_get_machine(
     Ok(Json(tasks))
 }
 
+async fn tasks_specific_get(id: &str, db: &Database) -> Result<Json<Option<Task>>, VickyError> {
+    let task_uuid = Uuid::parse_str(id).unwrap();
+    let tasks: Option<Task> = db.run(move |conn| conn.get_task(task_uuid)).await?;
+    Ok(Json(tasks))
+}
+
 #[get("/<id>")]
 pub async fn tasks_specific_get_user(
     id: String,
     db: Database,
     _user: User,
 ) -> Result<Json<Option<Task>>, VickyError> {
-    let task_uuid = Uuid::parse_str(&id).unwrap();
-    let tasks: Option<Task> = db.run(move |conn| conn.get_task(task_uuid)).await?;
-    Ok(Json(tasks))
+    tasks_specific_get(&id, &db).await
 }
 
 #[get("/<id>", rank = 2)]
@@ -79,9 +84,7 @@ pub async fn tasks_specific_get_machine(
     db: Database,
     _machine: Machine,
 ) -> Result<Json<Option<Task>>, VickyError> {
-    let task_uuid = Uuid::parse_str(&id).unwrap();
-    let tasks: Option<Task> = db.run(move |conn| conn.get_task(task_uuid)).await?;
-    Ok(Json(tasks))
+    tasks_specific_get(&id, &db).await
 }
 
 #[get("/<id>/logs")]
@@ -179,7 +182,8 @@ pub async fn tasks_claim(
     _machine: Machine,
 ) -> Result<Json<Option<Task>>, AppError> {
     let tasks = db.run(|conn| conn.get_all_tasks()).await?;
-    let scheduler = Scheduler::new(tasks, &features.features)
+    let poisoned_locks = db.run(|conn| conn.get_poisoned_locks()).await?;
+    let scheduler = Scheduler::new(&tasks, &poisoned_locks, &features.features)
         .map_err(|x| VickyError::Scheduler { source: x })?;
     let next_task = scheduler.get_next_task();
 
@@ -217,6 +221,12 @@ pub async fn tasks_finish(
     log_drain.finish_logs(&id).await?;
 
     task.status = TaskStatus::FINISHED(finish.result.clone());
+    
+    if finish.result == TaskResult::ERROR {
+        task.locks.iter_mut().for_each(|lock| lock.poison(&task.id));
+    }
+    
+    // TODO: this clone is weird and can be saved I think
     let task2 = task.clone();
     db.run(move |conn| conn.update_task(&task2)).await?;
     global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;

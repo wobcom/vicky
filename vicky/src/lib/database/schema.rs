@@ -7,6 +7,7 @@ diesel::table! {
         name -> Varchar,
         #[sql_name = "type"]
         type_ -> Varchar,
+        poisoned_by_task -> Nullable<Uuid>,
     }
 }
 

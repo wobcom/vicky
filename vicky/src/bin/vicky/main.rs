@@ -1,32 +1,33 @@
 use std::time::Duration;
 
 use aws_sdk_s3::config::{Credentials, Region};
-use errors::AppError;
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use jwtk::jwk::RemoteJwksVerifier;
-
+use rocket::{Build, Rocket, routes};
 use rocket::fairing::AdHoc;
-use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
-use rocket::{routes, Rocket, Build};
+use rocket::figment::providers::{Env, Format, Toml};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
+
+use errors::AppError;
 use vickylib::database::entities::Database;
 use vickylib::logs::LogDrain;
 use vickylib::s3::client::S3Client;
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
 use crate::events::{get_global_events, GlobalEvent};
+use crate::locks::{locks_get_active_machine, locks_get_active_user, locks_get_poisoned_machine, locks_get_poisoned_user};
 use crate::tasks::{
     tasks_add, tasks_claim, tasks_finish, tasks_get_logs, tasks_get_machine, tasks_get_user,
     tasks_put_logs, tasks_specific_get_machine, tasks_specific_get_user,
 };
-
 use crate::user::get_user;
 use crate::webconfig::get_web_config;
 
 mod auth;
 mod errors;
 mod events;
+mod locks;
 mod tasks;
 mod user;
 mod webconfig;
@@ -177,6 +178,15 @@ async fn main() -> anyhow::Result<()> {
                 tasks_add,
                 tasks_get_logs,
                 tasks_put_logs
+            ],
+        )
+        .mount(
+            "/api/v1/locks",
+            routes![
+                locks_get_poisoned_user,
+                locks_get_poisoned_machine,
+                locks_get_active_user,
+                locks_get_active_machine,
             ],
         )
         .launch()

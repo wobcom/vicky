@@ -89,12 +89,12 @@ impl TaskBuilder {
     }
 
     pub fn with_read_lock<S: Into<String>>(mut self, name: S) -> Self {
-        self.locks.push(Lock::READ { name: name.into() });
+        self.locks.push(Lock::READ { name: name.into(), poisoned: None });
         self
     }
 
     pub fn with_write_lock<S: Into<String>>(mut self, name: S) -> Self {
-        self.locks.push(Lock::WRITE { name: name.into() });
+        self.locks.push(Lock::WRITE { name: name.into(), poisoned: None });
         self
     }
 
@@ -180,6 +180,7 @@ pub mod db_impl {
     use crate::database::schema::locks;
     use crate::database::schema::tasks;
     use itertools::Itertools;
+    use crate::database::schema::locks::task_id;
 
     #[derive(Insertable, Queryable, AsChangeset, Debug)]
     #[diesel(table_name = tasks)]
@@ -343,6 +344,15 @@ pub mod db_impl {
                 .set(status.eq(task.status.clone().to_string()))
                 .execute(self)?;
 
+            // FIXME: Conversion from DbLock to Lock drops id. No way to update locks here.
+            //        this is just a workaround for now. Should behave fine though 
+            //        and is more performant.
+            if task.status == TaskStatus::FINISHED(TaskResult::ERROR) {
+                update(locks::table.filter(task_id.eq(task.id)))
+                    .set(locks::poisoned_by_task.eq(task.id))
+                    .execute(self)?;
+            }
+            
             Ok(())
         }
     }

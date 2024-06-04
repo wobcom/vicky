@@ -188,6 +188,7 @@ async fn run_task(cfg: Arc<AppConfig>, task: Task) {
 }
 
 async fn try_claim(cfg: Arc<AppConfig>) -> anyhow::Result<()> {
+    log::debug!("trying to claim task...");
     if let Some(task) = api::<_, Option<Task>>(
         &cfg,
         Method::POST,
@@ -200,6 +201,8 @@ async fn try_claim(cfg: Arc<AppConfig>) -> anyhow::Result<()> {
         log::debug!("{:#?}", task);
 
         tokio::task::spawn(run_task(cfg.clone(), task));
+    } else {
+        log::debug!("no work available...");
     }
 
     Ok(())
