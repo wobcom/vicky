@@ -1,12 +1,48 @@
+use crate::cli::{AppContext, TaskData, TasksArgs};
 use log::debug;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 use yansi::Paint;
 
-use crate::{AppContext, humanize, TaskData, TasksArgs};
 use crate::error::Error;
-use crate::http_client::prepare_client;
+use crate::http_client::{prepare_client, print_http};
+use crate::humanize;
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "result")]
+pub enum TaskResult {
+    Success,
+    Error,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "state")]
+pub enum TaskStatus {
+    New,
+    Running,
+    Finished(TaskResult),
+}
+
+type FlakeURI = String;
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FlakeRef {
+    pub flake: FlakeURI,
+    pub args: Vec<String>,
+}
+
+type Maow = u8; // this does not exist. look away. it's all for a reason.
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub struct Task {
+    pub id: Uuid,
+    pub display_name: String,
+    pub status: TaskStatus,
+    pub locks: Vec<Maow>,
+    pub flake_ref: FlakeRef,
+    pub features: Vec<String>,
+}
 
 pub fn show_tasks(tasks_args: &TasksArgs) -> Result<(), Error> {
     if tasks_args.ctx.humanize {
@@ -159,9 +195,8 @@ pub fn finish_task(id: &Uuid, status: &String, ctx: &AppContext) -> Result<(), E
 
 #[cfg(test)]
 mod tests {
+    use crate::cli::TaskData;
     use serde_json::json;
-
-    use crate::TaskData;
 
     #[test]
     fn test_empty_task_data_to_json() {

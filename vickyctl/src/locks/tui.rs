@@ -1,99 +1,17 @@
-use std::io;
-
+use crate::cli::{LocksArgs, ResolveArgs};
+use crate::error::Error;
+use crate::humanize;
+use crate::locks::http::unlock_lock;
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use crossterm::{event, execute};
 use ratatui::prelude::*;
-use ratatui::widgets::*;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-
-use crate::error::Error;
-use crate::http_client::prepare_client;
-use crate::{humanize, AppContext, LocksArgs, ResolveArgs};
-
-// TODO: REFACTOR EVERYTHING
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "result")]
-pub enum TaskResult {
-    Success,
-    Error,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "state")]
-pub enum TaskStatus {
-    New,
-    Running,
-    Finished(TaskResult),
-}
-
-type FlakeURI = String;
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct FlakeRef {
-    pub flake: FlakeURI,
-    pub args: Vec<String>,
-}
-
-type Maow = u8; // this does not exist. look away. it's all for a reason.
-
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub struct Task {
-    pub id: Uuid,
-    pub display_name: String,
-    pub status: TaskStatus,
-    pub locks: Vec<Maow>,
-    pub flake_ref: FlakeRef,
-    pub features: Vec<String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum PoisonedLock {
-    Write {
-        id: String,
-        name: String,
-        poisoned: Task,
-    },
-    Read {
-        id: String,
-        name: String,
-        poisoned: Task,
-    },
-}
-
-impl PoisonedLock {
-    pub fn id(&self) -> &str {
-        match self {
-            PoisonedLock::Write { id, .. } => id,
-            PoisonedLock::Read { id, .. } => id,
-        }
-    }
-
-    pub fn name(&self) -> &str {
-        match self {
-            PoisonedLock::Write { name, .. } => name,
-            PoisonedLock::Read { name, .. } => name,
-        }
-    }
-
-    pub fn get_poisoned_by(&self) -> &Task {
-        match self {
-            PoisonedLock::Write { poisoned, .. } => poisoned,
-            PoisonedLock::Read { poisoned, .. } => poisoned,
-        }
-    }
-
-    pub fn get_type(&self) -> &'static str {
-        match self {
-            PoisonedLock::Write { .. } => "WRITE",
-            PoisonedLock::Read { .. } => "READ",
-        }
-    }
-}
+use ratatui::widgets::{Block, Borders, HighlightSpacing, Row, Table, TableState};
+use std::io;
+use crate::locks::http::{fetch_detailed_poisoned_locks, fetch_locks_raw};
+use crate::locks::types::{LockType, PoisonedLock};
 
 impl<'a> From<&'a PoisonedLock> for Row<'a> {
     fn from(value: &'a PoisonedLock) -> Self {
@@ -104,52 +22,6 @@ impl<'a> From<&'a PoisonedLock> for Row<'a> {
         let uri = poisoned_by.flake_ref.flake.as_str();
         Row::new(vec![name, ty, task_name, uri])
     }
-}
-
-enum LockType {
-    Poisoned,
-    Active,
-}
-
-impl From<&LocksArgs> for LockType {
-    fn from(value: &LocksArgs) -> Self {
-        match (value.poisoned, value.active) {
-            (true, false) | (false, false) => LockType::Poisoned,
-            (false, true) => LockType::Active,
-            (_, _) => panic!("Cannot use active and poisoned flags at the same time."),
-        }
-    }
-}
-
-fn get_locks_endpoint(lock_type: LockType, detailed: bool) -> &'static str {
-    match lock_type {
-        LockType::Poisoned => match detailed {
-            false => "api/v1/locks/poisoned",
-            true => "api/v1/locks/poisoned_detailed",
-        },
-        LockType::Active => "api/v1/locks/active",
-    }
-}
-
-fn fetch_locks_raw(ctx: &AppContext, lock_type: LockType, detailed: bool) -> Result<String, Error> {
-    let client = prepare_client(ctx)?;
-    let request = client
-        .get(format!(
-            "{}/{}",
-            ctx.vicky_url,
-            get_locks_endpoint(lock_type, detailed)
-        ))
-        .build()?;
-    let response = client.execute(request)?.error_for_status()?;
-
-    let locks = response.text()?;
-    Ok(locks)
-}
-
-fn fetch_detailed_poisoned_locks(ctx: &AppContext) -> Result<Vec<PoisonedLock>, Error> {
-    let raw_locks = fetch_locks_raw(ctx, LockType::Poisoned, true)?;
-    let locks: Vec<PoisonedLock> = serde_json::from_str(&raw_locks)?;
-    Ok(locks)
 }
 
 pub fn show_locks(locks_args: &LocksArgs) -> Result<(), Error> {
@@ -214,19 +86,6 @@ fn unlock_and_refresh(
     Ok(())
 }
 
-fn unlock_lock(ctx: &AppContext, lock_to_clear: &PoisonedLock) -> Result<(), Error> {
-    let client = prepare_client(ctx)?;
-    let request = client
-        .patch(format!(
-            "{}/api/v1/locks/unlock/{}",
-            ctx.vicky_url,
-            lock_to_clear.id()
-        ))
-        .build()?;
-    client.execute(request)?.error_for_status()?;
-    Ok(())
-}
-
 fn handle_popup(
     selected_task: &mut Option<usize>,
     selected_button: &mut bool,
@@ -257,24 +116,29 @@ fn handle_events(
     args: &ResolveArgs,
     locks: &mut Vec<PoisonedLock>,
 ) -> Result<bool, Error> {
-    if event::poll(std::time::Duration::from_millis(50))? {
-        if let Event::Key(key) = event::read()? {
-            if key.kind == event::KeyEventKind::Press {
-                if key.code == KeyCode::Char('q') || key.code == KeyCode::Esc {
-                    if selected_task.is_some() {
-                        *selected_task = None;
-                        return Ok(false);
-                    }
-                    return Ok(true);
-                }
+    if !event::poll(std::time::Duration::from_millis(50))? {
+        return Ok(false);
+    }
 
-                match selected_task {
-                    None => handle_task_list(state, lock_amount, selected_task, &key),
-                    Some(_) => handle_popup(selected_task, selected_button, &key, args, locks)?,
-                }
+    if let Event::Key(key) = event::read()? {
+        if key.kind != event::KeyEventKind::Press {
+            return Ok(false);
+        }
+
+        if key.code == KeyCode::Char('q') || key.code == KeyCode::Esc {
+            if selected_task.is_some() {
+                *selected_task = None;
+                return Ok(false);
             }
+            return Ok(true);
+        }
+
+        match selected_task {
+            None => handle_task_list(state, lock_amount, selected_task, &key),
+            Some(_) => handle_popup(selected_task, selected_button, &key, args, locks)?,
         }
     }
+
     Ok(false)
 }
 
@@ -285,19 +149,26 @@ fn handle_task_list(
     key: &KeyEvent,
 ) {
     match state.selected_mut() {
+        Some(cur) => handle_task_list_input(lock_amount, selected_task, key, cur),
         None => (),
-        Some(cur) => {
-            if (key.code == KeyCode::Up || key.code == KeyCode::Char('k')) && *cur > 0 {
-                *cur -= 1;
-            } else if (key.code == KeyCode::Down || key.code == KeyCode::Char('j'))
-                && *cur < lock_amount - 1
-            {
-                *cur += 1;
-            } else if key.code == KeyCode::Enter {
-                *selected_task = Some(*cur);
-            }
-        }
     };
+}
+
+fn handle_task_list_input(
+    lock_amount: usize,
+    selected_task: &mut Option<usize>,
+    key: &KeyEvent,
+    cur: &mut usize,
+) {
+    if (key.code == KeyCode::Up || key.code == KeyCode::Char('k')) && *cur > 0 {
+        *cur -= 1;
+    } else if (key.code == KeyCode::Down || key.code == KeyCode::Char('j'))
+        && *cur < lock_amount - 1
+    {
+        *cur += 1;
+    } else if key.code == KeyCode::Enter {
+        *selected_task = Some(*cur);
+    }
 }
 
 #[allow(dead_code)]

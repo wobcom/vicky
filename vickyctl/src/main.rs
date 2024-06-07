@@ -1,98 +1,13 @@
+mod cli;
+mod error;
 mod http_client;
 mod humanize;
-mod tasks;
-mod error;
 mod locks;
+mod tasks;
 
+use crate::cli::{Cli, TaskCommands};
 use crate::tasks::{claim_task, create_task, finish_task};
-use clap::{Args, Parser, Subcommand};
-use uuid::Uuid;
-use yansi::Paint;
-
-// TODO: Add abouts to arguments
-#[derive(Parser, Debug, Clone)]
-struct AppContext {
-    #[clap(env)]
-    vicky_url: String,
-
-    #[clap(env)]
-    vicky_token: String,
-
-    #[clap(long)]
-    humanize: bool,
-}
-
-#[derive(Parser, Debug, Clone)]
-struct TaskData {
-    #[clap(short, long)]
-    name: String,
-    #[clap(long)]
-    lock_name: Vec<String>,
-    #[clap(long)]
-    lock_type: Vec<String>,
-    #[clap(long)]
-    flake_url: String,
-    #[clap(long)]
-    flake_arg: Vec<String>,
-    #[clap(long)]
-    features: Vec<String>,
-}
-
-#[derive(Subcommand, Debug)]
-enum TaskCommands {
-    Create(TaskData),
-    // Logs, // TODO: could add this later
-    Claim { features: Vec<String> },
-    Finish { id: Uuid, status: String },
-}
-
-#[derive(Args, Debug)]
-#[command(version, about = "Manage tasks on the vicky delegation server", long_about = None)]
-struct TaskArgs {
-    #[command(subcommand)]
-    commands: TaskCommands,
-
-    #[command(flatten)]
-    ctx: AppContext,
-}
-
-#[derive(Args, Debug)]
-#[command(version, about = "Show all tasks vicky is managing", long_about = None)]
-struct TasksArgs {
-    #[command(flatten)]
-    ctx: AppContext,
-}
-
-#[derive(Args, Debug)]
-#[command(version, about = "Show all poisoned locks vicky is managing", long_about = None)]
-struct LocksArgs {
-    #[command(flatten)]
-    ctx: AppContext,
-    #[clap(long)]
-    active: bool,
-    #[clap(long)]
-    poisoned: bool,
-}
-
-#[derive(Args, Debug)]
-#[command(version, about = "Show all poisoned locks vicky is managing", long_about = None)]
-struct ResolveArgs {
-    #[command(flatten)]
-    ctx: AppContext,
-    #[clap(long)]
-    all: bool,
-    #[clap(long,short)]
-    task_id: Option<String>,
-}
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-enum Cli {
-    Task(TaskArgs),
-    Tasks(TasksArgs),
-    Locks(LocksArgs),
-    Resolve(ResolveArgs),
-}
+use clap::Parser;
 
 fn main() {
     let cli = Cli::parse();
@@ -105,11 +20,11 @@ fn main() {
         },
         Cli::Tasks(tasks_args) => tasks::show_tasks(&tasks_args),
         Cli::Locks(locks_args) => locks::show_locks(&locks_args),
-        Cli::Resolve(resolve_args) => locks::resolve_lock(&resolve_args)
+        Cli::Resolve(resolve_args) => locks::resolve_lock(&resolve_args),
     };
 
     match error {
         Ok(()) => {}
-        Err(e) => println!("{} {}", "Error:".bright_red(), e.bright_red()),
+        Err(e) => println!("{}", e),
     }
 }
