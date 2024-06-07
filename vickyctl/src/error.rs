@@ -1,10 +1,12 @@
 use std::fmt::{Debug, Display, Formatter};
 use yansi::Paint;
+use crate::http_client::{format_http_msg};
 
 #[derive(Debug)]
 pub enum Error {
     Dependency(String, String),
     Reqwest(reqwest::Error),
+    ReqwestDetailed(reqwest::Error, String),
     Io(std::io::Error),
     Json(serde_json::Error),
     #[allow(dead_code)]
@@ -14,6 +16,12 @@ pub enum Error {
 impl From<reqwest::Error> for Error {
     fn from(e: reqwest::Error) -> Self {
         Error::Reqwest(e)
+    }
+}
+
+impl From<(reqwest::Error, String)> for Error {
+    fn from(e: (reqwest::Error, String)) -> Self {
+        Error::ReqwestDetailed(e.0, e.1)
     }
 }
 
@@ -43,10 +51,13 @@ impl Display for Error {
                     dependent.bright_red()
                 )
             }
-            Error::Reqwest(e) => write!(f, "HTTP Error: {}", e),
+            Error::Reqwest(e) => write!(f, "{}", format_http_msg(e.status(), &e.to_string())),
             Error::Io(e) => write!(f, "Filesystem Error: {}", e),
             Error::Json(e) => write!(f, "Parser Error: {}", e),
             Error::Custom(ref str) => write!(f, "Custom Error: {}", str),
+            Error::ReqwestDetailed(e, ref detail) => {
+                write!(f, "{}", format_http_msg(e.status(), detail))
+            }
         }
     }
 }
