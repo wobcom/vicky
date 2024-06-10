@@ -2,6 +2,7 @@ use std::time::Duration;
 use aws_config::BehaviorVersion;
 
 use aws_sdk_s3::config::{Credentials, Region};
+use aws_sdk_s3::error::SdkError;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use jwtk::jwk::RemoteJwksVerifier;
 use rocket::{Build, Rocket, routes};
@@ -155,6 +156,43 @@ async fn main() -> anyhow::Result<()> {
         .await;
 
     let s3_client = aws_sdk_s3::Client::new(&aws_conf);
+
+    match s3_client
+        .create_bucket()
+        .bucket(aws_cfg.log_bucket.clone())
+        .send()
+        .await
+    {
+        Ok(b) => {
+            log::info!(
+                "Bucket \"{}\" was successfully created on the log drain.",
+                b.location().unwrap_or_default()
+            );
+        }
+        Err(e) => match &e {
+            SdkError::ServiceError(c) if c.err().is_bucket_already_exists() => {
+                log::info!(
+                    "Bucket \"{}\" is already present on the log drain.",
+                    &aws_cfg.log_bucket
+                );
+            }
+            SdkError::DispatchFailure(_) => {
+                log::error!(
+                    "Failed to communicate with Log Drain / S3 Bucket Connector (is the bucket running and available?): {:?}",
+                    e
+                );
+                return Err(e.into());
+            }
+            _ => {
+                log::error!(
+                    "Log Drain / S3 Bucket Connector ran into an irrecoverable error: {:?}",
+                    e
+                );
+                return Err(e.into());
+            }
+        },
+    };
+
     let s3_ext_client_drain = S3Client::new(s3_client.clone(), aws_cfg.log_bucket.clone());
     let s3_ext_client = S3Client::new(s3_client, aws_cfg.log_bucket.clone());
 
