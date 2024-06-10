@@ -3,6 +3,7 @@ mod humanize;
 mod tasks;
 mod error;
 mod locks;
+mod tui;
 
 use crate::tasks::{claim_task, create_task, finish_task};
 use clap::{Args, Parser, Subcommand};
@@ -105,7 +106,7 @@ fn main() {
         },
         Cli::Tasks(tasks_args) => tasks::show_tasks(&tasks_args),
         Cli::Locks(locks_args) => locks::show_locks(&locks_args),
-        Cli::Resolve(resolve_args) => locks::resolve_lock(&resolve_args)
+        Cli::Resolve(resolve_args) => tui::resolve_lock(&resolve_args)
     };
 
     match error {
