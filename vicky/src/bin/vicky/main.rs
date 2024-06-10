@@ -1,4 +1,5 @@
 use std::time::Duration;
+use aws_config::BehaviorVersion;
 
 use aws_sdk_s3::config::{Credentials, Region};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
@@ -140,7 +141,7 @@ async fn main() -> anyhow::Result<()> {
 
     let aws_cfg = app_config.s3_config;
 
-    let aws_conf = aws_config::from_env()
+    let aws_conf = aws_config::defaults(BehaviorVersion::v2024_03_28())
         .endpoint_url(aws_cfg.endpoint)
         .credentials_provider(Credentials::new(
             aws_cfg.access_key_id,
