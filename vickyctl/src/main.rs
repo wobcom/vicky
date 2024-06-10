@@ -4,6 +4,7 @@ mod http_client;
 mod humanize;
 mod locks;
 mod tasks;
+mod tui;
 
 use crate::cli::{Cli, TaskCommands};
 use crate::tasks::{claim_task, create_task, finish_task};
@@ -19,8 +20,8 @@ fn main() {
             TaskCommands::Finish { id, status } => finish_task(&id, &status, &task_args.ctx),
         },
         Cli::Tasks(tasks_args) => tasks::show_tasks(&tasks_args),
-        Cli::Locks(locks_args) => locks::show_locks(&locks_args),
-        Cli::Resolve(resolve_args) => locks::resolve_lock(&resolve_args),
+        Cli::Locks(locks_args) => tui::show_locks(&locks_args),
+        Cli::Resolve(resolve_args) => tui::resolve_lock(&resolve_args),
     };
 
     match error {

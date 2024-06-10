@@ -1,7 +1,6 @@
 use crate::cli::{LocksArgs, ResolveArgs};
 use crate::error::Error;
 use crate::humanize;
-use crate::locks::http::unlock_lock;
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
@@ -10,8 +9,9 @@ use crossterm::{event, execute};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, HighlightSpacing, Row, Table, TableState};
 use std::io;
-use crate::locks::http::{fetch_detailed_poisoned_locks, fetch_locks_raw};
+use crate::locks::http::{fetch_detailed_poisoned_locks, fetch_locks_raw, unlock_lock};
 use crate::locks::types::{LockType, PoisonedLock};
+use crate::tui::utils::{centered_rect, get_longest_len};
 
 impl<'a> From<&'a PoisonedLock> for Row<'a> {
     fn from(value: &'a PoisonedLock) -> Self {
@@ -171,35 +171,30 @@ fn handle_task_list_input(
     }
 }
 
-#[allow(dead_code)]
-fn get_longest_len<'a, T>(str_iter: T) -> u16
-where
-    T: Iterator<Item = &'a str>,
-{
-    str_iter
-        .map(|l| l.len())
-        .max()
-        .map_or(0, |len| u16::try_from(len).unwrap_or(u16::MAX))
+// This will not make the table equally spaced, but instead use minimal space.
+fn minimal_widths(locks: &[PoisonedLock]) -> [Constraint; 4] {
+    [
+        Constraint::Max(get_longest_len(locks.iter().map(|l| l.name()))),
+        Constraint::Max(5),
+        Constraint::Max(get_longest_len(
+            locks
+                .iter()
+                .map(|l| l.get_poisoned_by().display_name.as_str()),
+        ).max("Failed Task Name".len() as u16)),
+        Constraint::Min(get_longest_len(
+            locks
+                .iter()
+                .map(|l| l.get_poisoned_by().flake_ref.flake.as_str()),
+        ).max("Task Flake URI".len() as u16)),
+    ]
 }
 
 fn draw_task_picker(f: &mut Frame, locks: &[PoisonedLock], state: &mut TableState) {
     let rows: Vec<Row> = locks.iter().map(|l| l.into()).collect();
 
-    // let _widths: [Constraint; 4] = [
-    //     Constraint::Max(get_longest_len(locks.iter().map(|l| l.name()))),
-    //     Constraint::Max(5),
-    //     Constraint::Max(get_longest_len(
-    //         locks
-    //             .iter()
-    //             .map(|l| l.get_poisoned_by().display_name.as_str()),
-    //     ).max("Failed Task Name".len() as u16)),
-    //     Constraint::Min(get_longest_len(
-    //         locks
-    //             .iter()
-    //             .map(|l| l.get_poisoned_by().flake_ref.flake.as_str()),
-    //     ).max("Task Flake URI".len() as u16)),
-    // ]; // This will not make the table equally spaced, but instead use minimal space. Just keeping this since I don't wanna rewrite it.
-    let table = Table::new(rows, &[])
+    // let widths = minimal_widths(locks);
+    let widths = [];
+    let table = Table::new(rows, &widths)
         .block(
             Block::default()
                 .title("Manually Resolve Locks")
@@ -274,31 +269,4 @@ fn draw_centered_popup(f: &mut Frame, title: &str, button_select: &mut bool) {
     f.render_widget(container, centered_rect);
     f.render_widget(yes, left_side);
     f.render_widget(no, right_side);
-}
-
-// Source: https://github.com/fdehau/tui-rs/blob/335f5a4563342f9a4ee19e2462059e1159dcbf25/examples/popup.rs#L104C1-L128C2
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(
-            [
-                Constraint::Percentage((100 - percent_y) / 2),
-                Constraint::Percentage(percent_y),
-                Constraint::Percentage((100 - percent_y) / 2),
-            ]
-            .as_ref(),
-        )
-        .split(r);
-
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(
-            [
-                Constraint::Percentage((100 - percent_x) / 2),
-                Constraint::Percentage(percent_x),
-                Constraint::Percentage((100 - percent_x) / 2),
-            ]
-            .as_ref(),
-        )
-        .split(popup_layout[1])[1]
 }
