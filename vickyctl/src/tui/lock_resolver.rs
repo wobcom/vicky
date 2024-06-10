@@ -172,6 +172,7 @@ fn handle_task_list_input(
 }
 
 // This will not make the table equally spaced, but instead use minimal space.
+#[allow(dead_code)]
 fn minimal_widths(locks: &[PoisonedLock]) -> [Constraint; 4] {
     [
         Constraint::Max(get_longest_len(locks.iter().map(|l| l.name()))),
