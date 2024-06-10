@@ -1,12 +1,48 @@
+use crate::cli::{AppContext, TaskData, TasksArgs};
 use log::debug;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 use yansi::Paint;
 
-use crate::{AppContext, humanize, TaskData, TasksArgs};
 use crate::error::Error;
-use crate::http_client::prepare_client;
+use crate::http_client::{prepare_client, print_http};
+use crate::humanize;
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "result")]
+pub enum TaskResult {
+    Success,
+    Error,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "state")]
+pub enum TaskStatus {
+    New,
+    Running,
+    Finished(TaskResult),
+}
+
+type FlakeURI = String;
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FlakeRef {
+    pub flake: FlakeURI,
+    pub args: Vec<String>,
+}
+
+type Maow = u8; // this does not exist. look away. it's all for a reason.
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub struct Task {
+    pub id: Uuid,
+    pub display_name: String,
+    pub status: TaskStatus,
+    pub locks: Vec<Maow>,
+    pub flake_ref: FlakeRef,
+    pub features: Vec<String>,
+}
 
 pub fn show_tasks(tasks_args: &TasksArgs) -> Result<(), Error> {
     if tasks_args.ctx.humanize {
@@ -68,28 +104,22 @@ pub fn create_task(task_data: &TaskData, ctx: &AppContext) -> Result<(), Error> 
         .body(task_data.to_json().to_string())
         .build()?;
 
-    let response = client.execute(request)?;
+    let response = client
+        .execute(request)?
+        .error_for_status()
+        .map_err(|e| (e, "Task couldn't be scheduled.".to_string()))?;
 
     let status = response.status();
-
-    if !status.is_success() {
-        let is_error = status.is_client_error() || status.is_server_error();
-        let status_colored = if is_error {
-            status.bold().bright_red()
-        } else {
-            status.bold().yellow()
-        };
-        println!("[ {status_colored} ] Task couldn't be scheduled.");
-        return Ok(());
-    }
     let text = response.text()?;
     let pretty_json: RoTaskCreate = serde_json::de::from_str(&text)?;
     if ctx.humanize {
-        println!(
-            "[ {} ] Task was scheduled under id {}. State: {}",
-            status.bold().bright_green(),
-            pretty_json.id.bright_blue(),
-            pretty_json.status.state.bright_yellow()
+        print_http(
+            Some(status),
+            &format!(
+                "Task was scheduled under id {}. State: {}",
+                pretty_json.id.bright_blue(),
+                pretty_json.status.state.bright_yellow()
+            ),
         );
     } else {
         println!("{}", serde_json::ser::to_string(&pretty_json)?);
@@ -107,28 +137,19 @@ pub fn claim_task(features: &[String], ctx: &AppContext) -> Result<(), Error> {
         .body(data.to_string())
         .build()?;
 
-    let response = client.execute(request)?;
+    let response = client
+        .execute(request)?
+        .error_for_status()
+        .map_err(|e| (e, "Task couldn't be claimed".to_string()))?;
 
     let status = response.status();
-
-    if !status.is_success() {
-        let is_error = status.is_client_error() || status.is_server_error();
-        let status_colored = if is_error {
-            status.bold().bright_red()
-        } else {
-            status.bold().yellow()
-        };
-        println!("[ {status_colored} ] Task couldn't be claimed.");
-        return Ok(());
-    }
     let text = response.text()?;
     let pretty_json: serde_json::Value = serde_json::de::from_str(&text)?;
     let pretty_data = serde_json::ser::to_string(&pretty_json)?;
     if ctx.humanize {
-        println!(
-            "[ {} ] Task was claimed: {}",
-            status.bold().bright_green(),
-            pretty_data.bright_blue(),
+        print_http(
+            Some(status),
+            &format!("Task was claimed: {}", pretty_data.bright_blue()),
         );
     } else {
         println!("{}", pretty_data);
@@ -149,28 +170,22 @@ pub fn finish_task(id: &Uuid, status: &String, ctx: &AppContext) -> Result<(), E
         .body(data.to_string())
         .build()?;
 
-    let response = client.execute(request)?;
+    let response = client
+        .execute(request)?
+        .error_for_status()
+        .map_err(|e| (e, "Task couldn't be finished".to_string()))?;
 
     let status = response.status();
-
-    if !status.is_success() {
-        let is_error = status.is_client_error() || status.is_server_error();
-        let status_colored = if is_error {
-            status.bold().bright_red()
-        } else {
-            status.bold().yellow()
-        };
-        println!("[ {status_colored} ] Task couldn't be finished.");
-        return Ok(());
-    }
     let text = response.text()?;
     let pretty_json: serde_json::Value = serde_json::de::from_str(&text)?;
     let pretty_data = serde_json::ser::to_string(&pretty_json)?;
     if ctx.humanize {
-        println!(
-            "[ {} ] Task was finished. Finished Task: {}",
-            status.bold().bright_green(),
-            pretty_data.bright_blue(),
+        print_http(
+            Some(status),
+            &format!(
+                "Task was finished. Finished Task: {}",
+                pretty_data.bright_blue()
+            ),
         );
     } else {
         println!("{}", pretty_data);
@@ -180,9 +195,8 @@ pub fn finish_task(id: &Uuid, status: &String, ctx: &AppContext) -> Result<(), E
 
 #[cfg(test)]
 mod tests {
+    use crate::cli::TaskData;
     use serde_json::json;
-
-    use crate::TaskData;
 
     #[test]
     fn test_empty_task_data_to_json() {

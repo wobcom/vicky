@@ -3,8 +3,8 @@ use std::process::{Command, Stdio};
 
 use log::debug;
 use which::which;
+use crate::cli::AppContext;
 
-use crate::AppContext;
 use crate::error::Error;
 
 pub fn ensure_jless(needed_for: &str) -> Result<(), Error> {
