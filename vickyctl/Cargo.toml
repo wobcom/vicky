@@ -5,13 +5,10 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.4", features = ["derive", "env", "suggestions"] }
-uuid = { version = "1.8.0", features = ["v4", "serde"] }
+uuid = { version = "1.8.0", features = ["v4"] }
 reqwest = { version = "0.12.4", features = ["blocking"] }
 log = "0.4.21"
 serde = { version = "1.0.200", features = [ "derive" ]}
 serde_json = "1.0.116"
 yansi = "1.0.1"
 which = "6.0.1"
-ratatui = { version = "0.26.3", features = ["serde"] }
-ratatui-widgets = "0.1.6"
-crossterm = "0.27.0"

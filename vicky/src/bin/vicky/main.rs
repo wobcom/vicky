@@ -16,11 +16,7 @@ use vickylib::logs::LogDrain;
 use vickylib::s3::client::S3Client;
 
 use crate::events::{get_global_events, GlobalEvent};
-use crate::locks::{
-    locks_get_active_machine, locks_get_active_user, locks_get_detailed_poisoned_machine,
-    locks_get_detailed_poisoned_user, locks_get_poisoned_machine, locks_get_poisoned_user,
-    locks_unlock,
-};
+use crate::locks::{locks_get_active_machine, locks_get_active_user, locks_get_poisoned_machine, locks_get_poisoned_user};
 use crate::tasks::{
     tasks_add, tasks_claim, tasks_finish, tasks_get_logs, tasks_get_machine, tasks_get_user,
     tasks_put_logs, tasks_specific_get_machine, tasks_specific_get_user,
@@ -81,7 +77,7 @@ fn run_migrations(connection: &mut impl MigrationHarness<diesel::pg::Pg>) -> Res
         Ok(_) => {
             log::info!("Migrations successfully completed");
             Ok(())
-        }
+        },
         Err(e) => {
             log::error!("Error running migrations {e}");
             Err(AppError::MigrationError(e.to_string()))
@@ -89,11 +85,11 @@ fn run_migrations(connection: &mut impl MigrationHarness<diesel::pg::Pg>) -> Res
     }
 }
 
-async fn run_rocket_migrations(rocket: Rocket<Build>) -> Result<Rocket<Build>, Rocket<Build>> {
+async fn run_rocket_migrations(rocket: Rocket<Build>) -> Result<Rocket<Build>,Rocket<Build>> {
     let db: Database = Database::get_one(&rocket).await.unwrap();
     match db.run(run_migrations).await {
         Ok(_) => Ok(rocket),
-        Err(_) => Err(rocket),
+        Err(_) => Err(rocket)
     }
 }
 
@@ -121,16 +117,12 @@ async fn main() -> anyhow::Result<()> {
 
     let app_config = build_rocket.figment().extract::<Config>()?;
 
-    let oidc_config_resolved: OIDCConfigResolved =
-        reqwest::get(app_config.oidc_config.well_known_uri)
-            .await?
-            .json()
-            .await?;
+    let oidc_config_resolved: OIDCConfigResolved = reqwest::get(app_config.oidc_config.well_known_uri)
+        .await?
+        .json()
+        .await?;
 
-    log::info!(
-        "Fetched OIDC configuration, found jwks_uri={}",
-        oidc_config_resolved.jwks_uri
-    );
+    log::info!("Fetched OIDC configuration, found jwks_uri={}", oidc_config_resolved.jwks_uri);
 
     let jwks_verifier = RemoteJwksVerifier::new(
         oidc_config_resolved.jwks_uri.clone(),
@@ -170,10 +162,7 @@ async fn main() -> anyhow::Result<()> {
         .manage(oidc_config_resolved)
         .attach(Database::fairing())
         .attach(AdHoc::config::<Config>())
-        .attach(AdHoc::try_on_ignite(
-            "run migrations",
-            run_rocket_migrations,
-        ))
+        .attach(AdHoc::try_on_ignite("run migrations", run_rocket_migrations))
         .mount("/api/v1/web-config", routes![get_web_config])
         .mount("/api/v1/user", routes![get_user])
         .mount("/api/v1/events", routes![get_global_events])
@@ -196,11 +185,8 @@ async fn main() -> anyhow::Result<()> {
             routes![
                 locks_get_poisoned_user,
                 locks_get_poisoned_machine,
-                locks_get_detailed_poisoned_user,
-                locks_get_detailed_poisoned_machine,
                 locks_get_active_user,
                 locks_get_active_machine,
-                locks_unlock
             ],
         )
         .launch()

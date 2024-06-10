@@ -107,8 +107,8 @@ pub async fn tasks_get_logs<'a>(
     EventStream! {
 
         match task.status {
-            TaskStatus::New => {},
-            TaskStatus::Running => {
+            TaskStatus::NEW => {},
+            TaskStatus::RUNNING => {
                 let mut recv = log_drain.send_handle.subscribe();
                 let existing_log_messages = log_drain.get_logs(task_uuid.to_string()).await.unwrap();
 
@@ -137,7 +137,7 @@ pub async fn tasks_get_logs<'a>(
                     }
                 }
             },
-            TaskStatus::Finished(_) => {
+            TaskStatus::FINISHED(_) => {
                 let logs = s3.get_logs(&id).await.unwrap();
                 for element in logs {
                     yield Event::data(element)
@@ -166,7 +166,7 @@ pub async fn tasks_put_logs(
         .ok_or(AppError::HttpError(Status::NotFound))?;
 
     match task.status {
-        TaskStatus::Running => {
+        TaskStatus::RUNNING => {
             log_drain.push_logs(id, logs.lines.clone())?;
             Ok(Json(()))
         }
@@ -193,7 +193,7 @@ pub async fn tasks_claim(
                 .run(move |conn| conn.get_task(next_task.id))
                 .await?
                 .ok_or(AppError::HttpError(Status::NotFound))?;
-            task.status = TaskStatus::Running;
+            task.status = TaskStatus::RUNNING;
             let task2 = task.clone();
             db.run(move |conn| conn.update_task(&task2)).await?;
             global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
@@ -220,9 +220,9 @@ pub async fn tasks_finish(
 
     log_drain.finish_logs(&id).await?;
 
-    task.status = TaskStatus::Finished(finish.result.clone());
+    task.status = TaskStatus::FINISHED(finish.result.clone());
     
-    if finish.result == TaskResult::Error {
+    if finish.result == TaskResult::ERROR {
         task.locks.iter_mut().for_each(|lock| lock.poison(&task.id));
     }
     
@@ -253,7 +253,7 @@ pub async fn tasks_add(
 ) -> Result<Json<RoTask>, AppError> {
     let task_uuid = Uuid::new_v4();
 
-    let task = Task::builder()
+    let task_manifest = Task::builder()
         .with_id(task_uuid)
         .with_display_name(&task.display_name)
         .with_flake(&task.flake_ref.flake)
@@ -262,16 +262,16 @@ pub async fn tasks_add(
         .requires_features(task.features.clone())
         .build();
 
-    if check_lock_conflict(&task) {
+    if check_lock_conflict(&task_manifest) {
         return Err(AppError::HttpError(Status::Conflict));
     }
 
-    db.run(move |conn| conn.put_task(task)).await?;
+    db.run(move |conn| conn.put_task(&task_manifest)).await?;
     global_events.send(GlobalEvent::TaskAdd)?;
 
     let ro_task = RoTask {
         id: task_uuid,
-        status: TaskStatus::New,
+        status: TaskStatus::NEW,
     };
 
     Ok(Json(ro_task))

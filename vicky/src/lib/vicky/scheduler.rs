@@ -56,7 +56,7 @@ impl<'a> Scheduler<'a> {
         };
 
         for task in s.tasks {
-            if task.status != TaskStatus::Running {
+            if task.status != TaskStatus::RUNNING {
                 continue;
             }
 
@@ -87,7 +87,7 @@ impl<'a> Scheduler<'a> {
     }
 
     fn should_pick_task(&self, task: &Task) -> bool {
-        task.status == TaskStatus::New
+        task.status == TaskStatus::NEW
             && self.supports_all_features(task)
             && self.is_unconstrained(task)
     }
@@ -114,11 +114,11 @@ mod tests {
         let tasks = vec![
             Task::builder()
                 .with_display_name("Test 1")
-                .with_status(TaskStatus::Running)
+                .with_status(TaskStatus::RUNNING)
                 .build(),
             Task::builder()
                 .with_display_name("Test 2")
-                .with_status(TaskStatus::Running)
+                .with_status(TaskStatus::RUNNING)
                 .build(),
         ];
 
@@ -130,12 +130,12 @@ mod tests {
         let tasks = vec![
             Task::builder()
                 .with_display_name("Test 1")
-                .with_status(TaskStatus::Running)
+                .with_status(TaskStatus::RUNNING)
                 .with_read_lock("foo 1")
                 .build(),
             Task::builder()
                 .with_display_name("Test 2")
-                .with_status(TaskStatus::Running)
+                .with_status(TaskStatus::RUNNING)
                 .with_read_lock("foo 1")
                 .build(),
         ];
@@ -148,12 +148,12 @@ mod tests {
         let tasks = vec![
             Task::builder()
                 .with_display_name("Test 1")
-                .with_status(TaskStatus::Running)
+                .with_status(TaskStatus::RUNNING)
                 .with_write_lock("foo1")
                 .build(),
             Task::builder()
                 .with_display_name("Test 2")
-                .with_status(TaskStatus::Running)
+                .with_status(TaskStatus::RUNNING)
                 .with_write_lock("foo2")
                 .build(),
         ];
@@ -166,12 +166,12 @@ mod tests {
         let tasks = vec![
             Task::builder()
                 .with_display_name("Test 1")
-                .with_status(TaskStatus::Running)
+                .with_status(TaskStatus::RUNNING)
                 .with_write_lock("foo1")
                 .build(),
             Task::builder()
                 .with_display_name("Test 2")
-                .with_status(TaskStatus::Running)
+                .with_status(TaskStatus::RUNNING)
                 .with_write_lock("foo1")
                 .build(),
         ];
@@ -185,12 +185,12 @@ mod tests {
         let tasks = vec![
             Task::builder()
                 .with_display_name("Test 1")
-                .with_status(TaskStatus::Running)
+                .with_status(TaskStatus::RUNNING)
                 .with_write_lock("foo1")
                 .build(),
             Task::builder()
                 .with_display_name("Test 2")
-                .with_status(TaskStatus::New)
+                .with_status(TaskStatus::NEW)
                 .with_write_lock("foo1")
                 .build(),
         ];
@@ -205,12 +205,12 @@ mod tests {
         let tasks = vec![
             Task::builder()
                 .with_display_name("Test 1")
-                .with_status(TaskStatus::New)
+                .with_status(TaskStatus::NEW)
                 .requires_feature("huge_cpu")
                 .build(),
             Task::builder()
                 .with_display_name("Test 2")
-                .with_status(TaskStatus::New)
+                .with_status(TaskStatus::NEW)
                 .requires_feature("huge_cpu")
                 .build(),
         ];
@@ -225,12 +225,12 @@ mod tests {
         let tasks = vec![
             Task::builder()
                 .with_display_name("Test 1")
-                .with_status(TaskStatus::New)
+                .with_status(TaskStatus::NEW)
                 .requires_feature("huge_cpu")
                 .build(),
             Task::builder()
                 .with_display_name("Test 2")
-                .with_status(TaskStatus::New)
+                .with_status(TaskStatus::NEW)
                 .requires_feature("huge_cpu")
                 .build(),
         ];
@@ -246,12 +246,12 @@ mod tests {
         let tasks = vec![
             Task::builder()
                 .with_display_name("Test 1")
-                .with_status(TaskStatus::Running)
+                .with_status(TaskStatus::RUNNING)
                 .with_write_lock("foo1")
                 .build(),
             Task::builder()
                 .with_display_name("Test 2")
-                .with_status(TaskStatus::New)
+                .with_status(TaskStatus::NEW)
                 .with_write_lock("foo2")
                 .build(),
         ];
@@ -266,12 +266,12 @@ mod tests {
         let tasks = vec![
             Task::builder()
                 .with_display_name("Test 1")
-                .with_status(TaskStatus::Running)
+                .with_status(TaskStatus::RUNNING)
                 .with_read_lock("foo1")
                 .build(),
             Task::builder()
                 .with_display_name("Test 2")
-                .with_status(TaskStatus::New)
+                .with_status(TaskStatus::NEW)
                 .with_read_lock("foo1")
                 .build(),
         ];
@@ -286,12 +286,12 @@ mod tests {
         let tasks = vec![
             Task::builder()
                 .with_display_name("Test 1")
-                .with_status(TaskStatus::Running)
+                .with_status(TaskStatus::RUNNING)
                 .with_write_lock("foo1")
                 .build(),
             Task::builder()
                 .with_display_name("Test 2")
-                .with_status(TaskStatus::New)
+                .with_status(TaskStatus::NEW)
                 .with_read_lock("foo1")
                 .build(),
         ];
@@ -307,7 +307,7 @@ mod tests {
             .with_display_name("I need to do something")
             .with_write_lock("Entire Prod Cluster")
             .build()];
-        let poisoned_locks = vec![Lock::Write {
+        let poisoned_locks = vec![Lock::WRITE {
             name: "Entire Prod Cluster".to_string(),
             poisoned: Some(Uuid::new_v4()),
         }];
@@ -329,7 +329,7 @@ mod tests {
                 .with_write_lock("Entire Staging Cluster")
                 .build(),
         ];
-        let poisoned_locks = vec![Lock::Write {
+        let poisoned_locks = vec![Lock::WRITE {
             name: "Entire Prod Cluster".to_string(),
             poisoned: Some(Uuid::new_v4()),
         }];
@@ -348,7 +348,7 @@ mod tests {
             .with_display_name("I need to do something")
             .with_read_lock("Entire Prod Cluster")
             .build()];
-        let poisoned_locks = vec![Lock::Read {
+        let poisoned_locks = vec![Lock::READ {
             name: "Entire Prod Cluster".to_string(),
             poisoned: Some(Uuid::new_v4()),
         }];

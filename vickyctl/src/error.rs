@@ -8,7 +8,7 @@ pub enum Error {
     Io(std::io::Error),
     Json(serde_json::Error),
     #[allow(dead_code)]
-    Custom(&'static str),
+    Custom(String),
 }
 
 impl From<reqwest::Error> for Error {
