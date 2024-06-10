@@ -3,12 +3,14 @@ mod humanize;
 mod tasks;
 mod error;
 mod locks;
+mod tui;
 
 use crate::tasks::{claim_task, create_task, finish_task};
 use clap::{Args, Parser, Subcommand};
 use uuid::Uuid;
 use yansi::Paint;
 
+// TODO: Add abouts to arguments
 #[derive(Parser, Debug, Clone)]
 struct AppContext {
     #[clap(env)]
@@ -73,12 +75,24 @@ struct LocksArgs {
     poisoned: bool,
 }
 
+#[derive(Args, Debug)]
+#[command(version, about = "Show all poisoned locks vicky is managing", long_about = None)]
+struct ResolveArgs {
+    #[command(flatten)]
+    ctx: AppContext,
+    #[clap(long)]
+    all: bool,
+    #[clap(long,short)]
+    task_id: Option<String>,
+}
+
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 enum Cli {
     Task(TaskArgs),
     Tasks(TasksArgs),
-    Locks(LocksArgs)
+    Locks(LocksArgs),
+    Resolve(ResolveArgs),
 }
 
 fn main() {
@@ -92,6 +106,7 @@ fn main() {
         },
         Cli::Tasks(tasks_args) => tasks::show_tasks(&tasks_args),
         Cli::Locks(locks_args) => locks::show_locks(&locks_args),
+        Cli::Resolve(resolve_args) => tui::resolve_lock(&resolve_args)
     };
 
     match error {
