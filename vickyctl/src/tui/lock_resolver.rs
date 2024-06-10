@@ -158,24 +158,32 @@ where
         .map_or(0, |len| u16::try_from(len).unwrap_or(u16::MAX))
 }
 
+// This will not make the table equally spaced, but instead use minimal space.
+#[allow(dead_code)]
+fn minimal_widths(locks: &[PoisonedLock]) -> [Constraint; 4] {
+
+    [
+        Constraint::Max(get_longest_len(locks.iter().map(|l| l.name()))),
+        Constraint::Max(5),
+        Constraint::Max(get_longest_len(
+            locks
+                .iter()
+                .map(|l| l.get_poisoned_by().display_name.as_str()),
+        ).max("Failed Task Name".len() as u16)),
+        Constraint::Min(get_longest_len(
+            locks
+                .iter()
+                .map(|l| l.get_poisoned_by().flake_ref.flake.as_str()),
+        ).max("Task Flake URI".len() as u16)),
+    ]
+}
+
 fn draw_task_picker(f: &mut Frame, locks: &[PoisonedLock], state: &mut TableState) {
     let rows: Vec<Row> = locks.iter().map(|l| l.into()).collect();
 
-    // let _widths: [Constraint; 4] = [
-    //     Constraint::Max(get_longest_len(locks.iter().map(|l| l.name()))),
-    //     Constraint::Max(5),
-    //     Constraint::Max(get_longest_len(
-    //         locks
-    //             .iter()
-    //             .map(|l| l.get_poisoned_by().display_name.as_str()),
-    //     ).max("Failed Task Name".len() as u16)),
-    //     Constraint::Min(get_longest_len(
-    //         locks
-    //             .iter()
-    //             .map(|l| l.get_poisoned_by().flake_ref.flake.as_str()),
-    //     ).max("Task Flake URI".len() as u16)),
-    // ]; // This will not make the table equally spaced, but instead use minimal space. Just keeping this since I don't wanna rewrite it.
-    let table = Table::new(rows, &[])
+    // let widths = minimal_widths(locks);
+    let widths = &[];
+    let table = Table::new(rows, widths)
         .block(
             Block::default()
                 .title("Manually Resolve Locks")
