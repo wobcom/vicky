@@ -1,14 +1,14 @@
-use std::time::Duration;
 use aws_config::BehaviorVersion;
+use std::time::Duration;
 
 use aws_sdk_s3::config::{Credentials, Region};
 use aws_sdk_s3::error::SdkError;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use jwtk::jwk::RemoteJwksVerifier;
-use rocket::{Build, Rocket, routes};
 use rocket::fairing::AdHoc;
-use rocket::figment::{Figment, Profile};
 use rocket::figment::providers::{Env, Format, Toml};
+use rocket::figment::{Figment, Profile};
+use rocket::{routes, Build, Rocket};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 
@@ -140,26 +140,29 @@ async fn main() -> anyhow::Result<()> {
         Duration::from_secs(300),
     );
 
-    let aws_cfg = app_config.s3_config;
+    let env_aws_cfg = app_config.s3_config;
 
-    let aws_conf = aws_config::defaults(BehaviorVersion::v2024_03_28())
-        .endpoint_url(aws_cfg.endpoint)
-        .credentials_provider(Credentials::new(
-            aws_cfg.access_key_id,
-            aws_cfg.secret_access_key,
-            None,
-            None,
-            "static",
-        ))
-        .region(Region::new(aws_cfg.region))
-        .load()
-        .await;
+    let creds = Credentials::new(
+        env_aws_cfg.access_key_id,
+        env_aws_cfg.secret_access_key,
+        None,
+        None,
+        "static",
+    );
 
-    let s3_client = aws_sdk_s3::Client::new(&aws_conf);
+    let s3_conf = aws_sdk_s3::Config::builder()
+        .behavior_version(BehaviorVersion::v2024_03_28())
+        .force_path_style(true)
+        .endpoint_url(env_aws_cfg.endpoint)
+        .credentials_provider(creds)
+        .region(Region::new(env_aws_cfg.region))
+        .build();
+
+    let s3_client = aws_sdk_s3::Client::from_conf(s3_conf);
 
     match s3_client
         .create_bucket()
-        .bucket(aws_cfg.log_bucket.clone())
+        .bucket(env_aws_cfg.log_bucket.clone())
         .send()
         .await
     {
@@ -170,10 +173,13 @@ async fn main() -> anyhow::Result<()> {
             );
         }
         Err(e) => match &e {
-            SdkError::ServiceError(c) if c.err().is_bucket_already_exists() => {
+            SdkError::ServiceError(c)
+                if c.err().is_bucket_already_exists()
+                    || c.err().is_bucket_already_owned_by_you() =>
+            {
                 log::info!(
                     "Bucket \"{}\" is already present on the log drain.",
-                    &aws_cfg.log_bucket
+                    &env_aws_cfg.log_bucket
                 );
             }
             SdkError::DispatchFailure(_) => {
@@ -193,8 +199,8 @@ async fn main() -> anyhow::Result<()> {
         },
     };
 
-    let s3_ext_client_drain = S3Client::new(s3_client.clone(), aws_cfg.log_bucket.clone());
-    let s3_ext_client = S3Client::new(s3_client, aws_cfg.log_bucket.clone());
+    let s3_ext_client_drain = S3Client::new(s3_client.clone(), env_aws_cfg.log_bucket.clone());
+    let s3_ext_client = S3Client::new(s3_client, env_aws_cfg.log_bucket.clone());
 
     let log_drain = LogDrain::new(s3_ext_client_drain);
 
