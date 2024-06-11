@@ -26,27 +26,10 @@ pub async fn locks_get_poisoned_user(
     locks_get_poisoned(&db).await
 }
 
-#[get("/poisoned", rank = 2)]
-pub async fn locks_get_poisoned_machine(
-    db: Database,
-    _machine: Machine,
-) -> Result<Json<Vec<Lock>>, AppError> {
-    locks_get_poisoned(&db).await
-}
-
-
 #[get("/poisoned_detailed")]
 pub async fn locks_get_detailed_poisoned_user(
     db: Database,
     _user: User,
-) -> Result<Json<Vec<PoisonedLock>>, AppError> {
-    locks_get_detailed_poisoned(&db).await
-}
-
-#[get("/poisoned_detailed", rank = 2)]
-pub async fn locks_get_detailed_poisoned_machine(
-    db: Database,
-    _machine: Machine,
 ) -> Result<Json<Vec<PoisonedLock>>, AppError> {
     locks_get_detailed_poisoned(&db).await
 }
@@ -64,18 +47,10 @@ pub async fn locks_get_active_user(
     locks_get_active(&db).await
 }
 
-#[get("/active", rank = 2)]
-pub async fn locks_get_active_machine(
-    db: Database,
-    _machine: Machine,
-) -> Result<Json<Vec<Lock>>, AppError> {
-    locks_get_active(&db).await
-}
-
 #[patch("/unlock/<lock_id>")]
 pub async fn locks_unlock(
     db: Database,
-    _user: Machine, // TODO: Should actually be user-only, but we don't have that yet
+    _user: User, // TODO: Should actually be user-only, but we don't have that yet
     lock_id: String,
 ) -> Result<(), AppError> {
     let lock_uuid = Uuid::try_parse(&lock_id)?;

@@ -1,24 +1,35 @@
 use anyhow::anyhow;
+use api::HttpClient;
 use futures_util::{Sink, StreamExt, TryStreamExt};
-use hyper::{Body, Client, Method, Request};
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::process::Stdio;
 use std::sync::Arc;
 use tokio::process::Command;
 use tokio_util::codec::{FramedRead, LinesCodec};
 use uuid::Uuid;
+use reqwest::{self, Method};
 
 use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
 
-#[derive(Deserialize)]
+mod api;
+
+
+#[derive(Deserialize, Debug)]
+pub struct OIDCConfig {
+    issuer_url: String,
+    client_id: String,
+    client_secret: String,
+}
+
+#[derive(Deserialize, Debug)]
 pub(crate) struct AppConfig {
     pub(crate) vicky_url: String,
     pub(crate) vicky_external_url: String,
-    pub(crate) machine_token: String,
     pub(crate) features: Vec<String>,
+    pub(crate) oidc_config: OIDCConfig,
 }
+
 
 fn main() -> anyhow::Result<()> {
     env_logger::builder()
@@ -45,31 +56,7 @@ fn main() -> anyhow::Result<()> {
     run(app_config)
 }
 
-async fn api<BODY: Serialize, RESPONSE: DeserializeOwned>(
-    cfg: &AppConfig,
-    method: Method,
-    endpoint: &str,
-    q: &BODY,
-) -> anyhow::Result<RESPONSE> {
-    let client = Client::new();
-    let req_data = serde_json::to_vec(q)?;
 
-    let request = Request::builder()
-        .uri(format!("{}/{}", cfg.vicky_url, endpoint))
-        .method(method)
-        .header("content-type", "application/json")
-        .header("authorization", &cfg.machine_token)
-        .body(Body::from(req_data))?;
-
-    let response = client.request(request).await?;
-
-    if !response.status().is_success() {
-        anyhow::bail!("API error: {:?}", response);
-    }
-
-    let resp_data = hyper::body::to_bytes(response.into_body()).await?;
-    Ok(serde_json::from_slice(&resp_data)?)
-}
 
 #[derive(Debug, Deserialize)]
 pub struct FlakeRef {
@@ -104,11 +91,11 @@ fn log_sink(
     cfg: Arc<AppConfig>,
     task_id: Uuid,
 ) -> impl Sink<Vec<String>, Error = anyhow::Error> + Send {
-    futures_util::sink::unfold((), move |_, lines: Vec<String>| {
-        let cfg = cfg.clone();
+    let vicky_client_task = HttpClient::new(cfg.clone());
+
+    futures_util::sink::unfold(vicky_client_task, move |mut http_client, lines: Vec<String>| {
         async move {
-            let response = api::<_, ()>(
-                &cfg,
+            let response = http_client.do_request::<_, ()>(
                 Method::POST,
                 &format!("api/v1/tasks/{}/logs", task_id),
                 &serde_json::json!({ "lines": lines }),
@@ -118,7 +105,7 @@ fn log_sink(
             match response {
                 Ok(_) => {
                     log::info!("logged {} line(s) from task", lines.len());
-                    Ok(())
+                    Ok(http_client)
                 }
                 Err(e) => {
                     log::error!(
@@ -139,14 +126,13 @@ async fn try_run_task(cfg: Arc<AppConfig>, task: &Task) -> anyhow::Result<()> {
     let mut child = Command::new("nix")
         .args(args)
         .env("VICKY_API_URL", &cfg.vicky_external_url)
-        .env("VICKY_MACHINE_TOKEN", &cfg.machine_token)
         .kill_on_drop(true)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?;
 
-    let logger = log_sink(cfg.clone(), task.id);
+    let logger = log_sink(cfg.clone(),  task.id);
 
     let lines = futures_util::stream::select(
         FramedRead::new(child.stdout.take().unwrap(), LinesCodec::new()),
@@ -170,6 +156,9 @@ async fn try_run_task(cfg: Arc<AppConfig>, task: &Task) -> anyhow::Result<()> {
 }
 
 async fn run_task(cfg: Arc<AppConfig>, task: Task) {
+
+    let mut vicky_client_task = HttpClient::new(cfg.clone());
+
     let result = match try_run_task(cfg.clone(), &task).await {
         Err(e) => {
             log::info!("task failed: {} {} {:?}", task.id, task.display_name, e);
@@ -178,8 +167,7 @@ async fn run_task(cfg: Arc<AppConfig>, task: Task) {
         Ok(_) => TaskResult::Success,
     };
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    let _ = api::<_, ()>(
-        &cfg,
+    let _ = vicky_client_task.do_request::<_, ()>(
         Method::POST,
         &format!("api/v1/tasks/{}/finish", task.id),
         &serde_json::json!({ "result": result }),
@@ -187,10 +175,9 @@ async fn run_task(cfg: Arc<AppConfig>, task: Task) {
     .await;
 }
 
-async fn try_claim(cfg: Arc<AppConfig>) -> anyhow::Result<()> {
+async fn try_claim(cfg: Arc<AppConfig>, vicky_client: &mut HttpClient) -> anyhow::Result<()> {
     log::debug!("trying to claim task...");
-    if let Some(task) = api::<_, Option<Task>>(
-        &cfg,
+    if let Some(task) = vicky_client.do_request::<_, Option<Task>>(
         Method::POST,
         "api/v1/tasks/claim",
         &serde_json::json!({ "features": cfg.features }),
@@ -210,12 +197,14 @@ async fn try_claim(cfg: Arc<AppConfig>) -> anyhow::Result<()> {
 
 #[tokio::main(flavor = "current_thread")]
 async fn run(cfg: AppConfig) -> anyhow::Result<()> {
+    let cfg = Arc::new(cfg);
+    let mut vicky_client_mgmt = HttpClient::new(cfg.clone());
+
     log::info!("config valid, starting communication with vicky");
     log::info!("waiting for tasks...");
 
-    let cfg = Arc::new(cfg);
     loop {
-        if let Err(e) = try_claim(cfg.clone()).await {
+        if let Err(e) = try_claim(cfg.clone(), &mut vicky_client_mgmt).await {
             log::error!("{}", e);
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         }

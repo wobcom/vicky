@@ -18,3 +18,6 @@ tokio = { version = "1.32.0", features = ["rt", "macros", "process"] }
 tokio-util = { version = "0.7.9", features = ["codec"] }
 uuid = { version = "1.4.1", features = ["serde"] }
 rocket = { version="0.5.0", features = ["json", "secrets"] } 
+openidconnect = "3.5.0"
+reqwest = { version="0.12.4", features = ["json"]}
+chrono = "0.4.38"
