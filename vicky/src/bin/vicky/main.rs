@@ -1,7 +1,6 @@
-use aws_config::BehaviorVersion;
 use std::time::Duration;
 
-use aws_sdk_s3::config::{Credentials, Region};
+use aws_sdk_s3::config::{BehaviorVersion, Credentials, Region};
 use aws_sdk_s3::error::SdkError;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use jwtk::jwk::RemoteJwksVerifier;
