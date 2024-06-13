@@ -3,7 +3,7 @@ use futures_util::{Sink, StreamExt, TryStreamExt};
 use hyper::{Body, Client, Method, Request};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use std::process::Stdio;
+use std::process::{exit, Stdio};
 use std::sync::Arc;
 use tokio::process::Command;
 use tokio_util::codec::{FramedRead, LinesCodec};
@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
+use which::which;
 
 #[derive(Deserialize)]
 pub(crate) struct AppConfig {
@@ -20,10 +21,17 @@ pub(crate) struct AppConfig {
     pub(crate) features: Vec<String>,
 }
 
+const CODE_NIX_NOT_INSTALLED: i32 = 1;
+
 fn main() -> anyhow::Result<()> {
     env_logger::builder()
         .filter_level(log::LevelFilter::Debug)
         .init();
+
+    if which("nix").is_err() {
+        log::error!("\"nix\" binary not found. Please install nix or run on a nix-os host.");
+        exit(CODE_NIX_NOT_INSTALLED);
+    }
 
     log::info!("Fairy starting up.");
 
