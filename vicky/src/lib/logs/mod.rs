@@ -80,7 +80,7 @@ impl LogDrain {
                         // Technically, this should not happen, because we control all of the send handles.
                     }
                     Err(TryRecvError::Lagged(_)) => {
-                        // Immediate Retry, doing our best efford ehre.
+                        // Immediate Retry, doing our best effort here.
                     }
                     Err(TryRecvError::Empty) => {
                         tokio::time::sleep(time::Duration::from_millis(10)).await;
