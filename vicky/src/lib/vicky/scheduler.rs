@@ -9,11 +9,16 @@ use crate::{
 type Constraints<'a> = HashMap<&'a str, &'a Lock>;
 
 trait ConstraintMgmt<'a> {
+    type Type;
+    
     fn insert_lock(&mut self, lock: &'a Lock) -> Result<(), SchedulerError>;
     fn can_get_lock(&self, lock: &Lock) -> bool;
+    fn from_tasks(tasks: &'a [Task]) -> Result<Self::Type, SchedulerError>;
 }
 
 impl<'a> ConstraintMgmt<'a> for Constraints<'a> {
+    type Type = Constraints<'a>;
+    
     fn insert_lock(&mut self, lock: &'a Lock) -> Result<(), SchedulerError> {
         if !self.can_get_lock(lock) {
             return Err(SchedulerError::LockAlreadyOwnedError);
@@ -31,6 +36,22 @@ impl<'a> ConstraintMgmt<'a> for Constraints<'a> {
 
         !lock.is_conflicting(lock)
     }
+
+    fn from_tasks(tasks: &'a [Task]) -> Result<Self::Type, SchedulerError> {
+        let mut constraints = Self::new();
+        
+        for task in tasks {
+            if task.status != TaskStatus::Running {
+                continue;
+            }
+
+            for lock in &task.locks {
+                constraints.insert_lock(lock)?;
+            }
+        }
+
+        Ok(constraints)
+    }
 }
 
 pub struct Scheduler<'a> {
@@ -46,24 +67,14 @@ impl<'a> Scheduler<'a> {
         poisoned_locks: &'a [Lock],
         machine_features: &'a [String],
     ) -> Result<Self, SchedulerError> {
-        let constraints: Constraints = Constraints::new();
+        let constraints: Constraints = Constraints::from_tasks(tasks)?;
 
-        let mut s = Scheduler {
+        let s = Scheduler {
             constraints,
             tasks,
             poisoned_locks,
             machine_features,
         };
-
-        for task in s.tasks {
-            if task.status != TaskStatus::Running {
-                continue;
-            }
-
-            for lock in &task.locks {
-                s.constraints.insert_lock(lock)?;
-            }
-        }
 
         Ok(s)
     }
