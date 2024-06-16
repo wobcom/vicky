@@ -9,8 +9,10 @@ pub enum Error {
     ReqwestDetailed(reqwest::Error, String),
     Io(std::io::Error),
     Json(serde_json::Error),
+    Unauthenticated(),
     #[allow(dead_code)]
     Custom(&'static str),
+    Anyhow(anyhow::Error),
 }
 
 impl From<reqwest::Error> for Error {
@@ -37,6 +39,12 @@ impl From<serde_json::Error> for Error {
     }
 }
 
+impl From<anyhow::Error> for Error {
+    fn from(e: anyhow::Error) -> Self {
+        Error::Anyhow(e)
+    }
+}
+
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -55,6 +63,8 @@ impl Display for Error {
             Error::Io(e) => write!(f, "Filesystem Error: {}", e),
             Error::Json(e) => write!(f, "Parser Error: {}", e),
             Error::Custom(ref str) => write!(f, "Custom Error: {}", str),
+            Error::Anyhow(ref str) => write!(f, "Unknown Error: {}", str),
+            Error::Unauthenticated() => write!(f, "Unauthenticated"),
             Error::ReqwestDetailed(e, ref detail) => {
                 write!(f, "{}", format_http_msg(e.status(), detail))
             }

@@ -7,7 +7,7 @@ use yansi::Paint;
 
 use crate::error::Error;
 use crate::http_client::{prepare_client, print_http};
-use crate::humanize;
+use crate::{humanize, AuthState};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "result")]
@@ -44,14 +44,14 @@ pub struct Task {
     pub features: Vec<String>,
 }
 
-pub fn show_tasks(tasks_args: &TasksArgs) -> Result<(), Error> {
+pub fn show_tasks(tasks_args: &TasksArgs, auth_state: &AuthState) -> Result<(), Error> {
     if tasks_args.ctx.humanize {
         humanize::ensure_jless("tasks")?;
     }
 
-    let client = prepare_client(&tasks_args.ctx)?;
+    let (client, vicky_url) = prepare_client(auth_state)?;
     let request = client
-        .get(format!("{}/{}", tasks_args.ctx.vicky_url, "api/v1/tasks"))
+        .get(format!("{}/{}", vicky_url, "api/v1/tasks"))
         .build()?;
     let response = client.execute(request)?.error_for_status()?;
 
@@ -97,10 +97,10 @@ struct RoTaskCreate {
     status: RoTaskStatus,
 }
 
-pub fn create_task(task_data: &TaskData, ctx: &AppContext) -> Result<(), Error> {
-    let client = prepare_client(ctx)?;
+pub fn create_task(task_data: &TaskData, ctx: &AppContext, auth_state: &AuthState) -> Result<(), Error> {
+    let (client, vicky_url) = prepare_client(auth_state)?;
     let request = client
-        .post(format!("{}/{}", ctx.vicky_url, "api/v1/tasks"))
+        .post(format!("{}/{}", vicky_url, "api/v1/tasks"))
         .body(task_data.to_json().to_string())
         .build()?;
 
@@ -127,13 +127,13 @@ pub fn create_task(task_data: &TaskData, ctx: &AppContext) -> Result<(), Error> 
     Ok(())
 }
 
-pub fn claim_task(features: &[String], ctx: &AppContext) -> Result<(), Error> {
-    let client = prepare_client(ctx)?;
+pub fn claim_task(features: &[String], ctx: &AppContext, auth_state: &AuthState) -> Result<(), Error> {
+    let (client, vicky_url) = prepare_client(auth_state)?;
     let data: serde_json::Value = json!({
         "features": features
     });
     let request = client
-        .post(format!("{}/{}", ctx.vicky_url, "api/v1/tasks/claim"))
+        .post(format!("{}/{}", vicky_url, "api/v1/tasks/claim"))
         .body(data.to_string())
         .build()?;
 
@@ -157,15 +157,15 @@ pub fn claim_task(features: &[String], ctx: &AppContext) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn finish_task(id: &Uuid, status: &String, ctx: &AppContext) -> Result<(), Error> {
-    let client = prepare_client(ctx)?;
+pub fn finish_task(id: &Uuid, status: &String, ctx: &AppContext, auth_state: &AuthState) -> Result<(), Error> {
+    let (client, vicky_url) = prepare_client(auth_state)?;
     let data = json!({
         "result": status
     });
     let request = client
         .post(format!(
             "{}/{}/{}/{}",
-            ctx.vicky_url, "api/v1/tasks", id, "finish"
+            vicky_url, "api/v1/tasks", id, "finish"
         ))
         .body(data.to_string())
         .build()?;

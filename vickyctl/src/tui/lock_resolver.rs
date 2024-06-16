@@ -1,6 +1,7 @@
 use crate::cli::{LocksArgs, ResolveArgs};
 use crate::error::Error;
-use crate::humanize;
+use crate::http_client::prepare_client;
+use crate::{humanize, AuthState};
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
@@ -8,6 +9,7 @@ use crossterm::terminal::{
 use crossterm::{event, execute};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, HighlightSpacing, Row, Table, TableState};
+use reqwest::blocking::Client;
 use std::io;
 use crate::locks::http::{fetch_detailed_poisoned_locks, fetch_locks_raw, unlock_lock};
 use crate::locks::types::{LockType, PoisonedLock};
@@ -24,7 +26,7 @@ impl<'a> From<&'a PoisonedLock> for Row<'a> {
     }
 }
 
-pub fn show_locks(locks_args: &LocksArgs) -> Result<(), Error> {
+pub fn show_locks(locks_args: &LocksArgs, auth_state: &AuthState) -> Result<(), Error> {
     if locks_args.ctx.humanize {
         humanize::ensure_jless("lock")?;
     }
@@ -34,14 +36,18 @@ pub fn show_locks(locks_args: &LocksArgs) -> Result<(), Error> {
         ));
     }
 
-    let locks_json = fetch_locks_raw(&locks_args.ctx, LockType::from(locks_args), false)?;
+    let (client, vicky_url) = prepare_client(auth_state)?;
+
+    let locks_json = fetch_locks_raw(&client, vicky_url, LockType::from(locks_args), false)?;
 
     humanize::handle_user_response(&locks_args.ctx, &locks_json)?;
     Ok(())
 }
 
-pub fn resolve_lock(resolve_args: &ResolveArgs) -> Result<(), Error> {
-    let mut locks = fetch_detailed_poisoned_locks(&resolve_args.ctx)?;
+pub fn resolve_lock(resolve_args: &ResolveArgs, auth_state: &AuthState) -> Result<(), Error> {
+    let (client, vicky_url) = prepare_client(auth_state)?;
+
+    let mut locks = fetch_detailed_poisoned_locks(&client, vicky_url.clone())?;
 
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -61,8 +67,9 @@ pub fn resolve_lock(resolve_args: &ResolveArgs) -> Result<(), Error> {
             locks.len(),
             &mut selected_task,
             &mut selected_button,
-            resolve_args,
             &mut locks,
+            &client,
+            vicky_url.clone(),
         )?;
         terminal.draw(|f| ui(f, &locks, &mut state, &selected_task, &mut selected_button))?;
     }
@@ -74,13 +81,14 @@ pub fn resolve_lock(resolve_args: &ResolveArgs) -> Result<(), Error> {
 }
 
 fn unlock_and_refresh(
-    resolve_args: &ResolveArgs,
+    client: &Client,
+    vicky_url: String,
     locks: &mut Vec<PoisonedLock>,
     selected_task: &mut Option<usize>,
 ) -> Result<(), Error> {
     if let Some(task_idx) = selected_task {
-        unlock_lock(&resolve_args.ctx, &locks[*task_idx])?;
-        *locks = fetch_detailed_poisoned_locks(&resolve_args.ctx)?;
+        unlock_lock(&client, vicky_url.clone(), &locks[*task_idx])?;
+        *locks = fetch_detailed_poisoned_locks(&client, vicky_url)?;
         *selected_task = None;
     }
     Ok(())
@@ -90,7 +98,8 @@ fn handle_popup(
     selected_task: &mut Option<usize>,
     selected_button: &mut bool,
     key: &KeyEvent,
-    args: &ResolveArgs,
+    client: &Client,
+    vicky_url: String,
     locks: &mut Vec<PoisonedLock>,
 ) -> Result<(), Error> {
     if key.code == KeyCode::Left || key.code == KeyCode::Char('y') {
@@ -100,7 +109,7 @@ fn handle_popup(
     }
 
     if key.code == KeyCode::Char('y') || (key.code == KeyCode::Enter && *selected_button) {
-        unlock_and_refresh(args, locks, selected_task)?;
+        unlock_and_refresh(client, vicky_url, locks, selected_task)?;
     } else if key.code == KeyCode::Char('n') || (key.code == KeyCode::Enter && !*selected_button) {
         *selected_task = None;
     }
@@ -113,8 +122,9 @@ fn handle_events(
     lock_amount: usize,
     selected_task: &mut Option<usize>,
     selected_button: &mut bool,
-    args: &ResolveArgs,
     locks: &mut Vec<PoisonedLock>,
+    client: &Client,
+    vicky_url: String,
 ) -> Result<bool, Error> {
     if !event::poll(std::time::Duration::from_millis(50))? {
         return Ok(false);
@@ -135,7 +145,7 @@ fn handle_events(
 
         match selected_task {
             None => handle_task_list(state, lock_amount, selected_task, &key),
-            Some(_) => handle_popup(selected_task, selected_button, &key, args, locks)?,
+            Some(_) => handle_popup(selected_task, selected_button, &key, client, vicky_url, locks)?,
         }
     }
 
