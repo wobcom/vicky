@@ -4,12 +4,6 @@ use uuid::Uuid;
 // TODO: Add abouts to arguments
 #[derive(Parser, Debug, Clone)]
 pub struct AppContext {
-    #[clap(env)]
-    pub vicky_url: String,
-
-    #[clap(env)]
-    pub vicky_token: String,
-
     #[clap(long)]
     pub humanize: bool,
 }
@@ -38,6 +32,13 @@ pub enum TaskCommands {
     Finish { id: Uuid, status: String },
 }
 
+
+#[derive(Subcommand, Debug)]
+pub enum AccountCommands {
+    Show,
+    Login {vicky_url: String, issuer_url: String, client_id: String},
+}
+
 #[derive(Args, Debug)]
 #[command(version, about = "Manage tasks on the vicky delegation server", long_about = None)]
 pub struct TaskArgs {
@@ -51,6 +52,16 @@ pub struct TaskArgs {
 #[derive(Args, Debug)]
 #[command(version, about = "Show all tasks vicky is managing", long_about = None)]
 pub struct TasksArgs {
+    #[command(flatten)]
+    pub ctx: AppContext,
+}
+
+#[derive(Args, Debug)]
+#[command(version, about = "Show all accounts", long_about = None)]
+pub struct AccountArgs {
+    #[command(subcommand)]
+    pub commands: AccountCommands,
+
     #[command(flatten)]
     pub ctx: AppContext,
 }
@@ -80,6 +91,7 @@ pub struct ResolveArgs {
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub enum Cli {
+    Account(AccountArgs),
     Task(TaskArgs),
     Tasks(TasksArgs),
     Locks(LocksArgs),

@@ -1,4 +1,6 @@
-use crate::cli::AppContext;
+use reqwest::blocking::Client;
+
+use crate::AuthState;
 use crate::error::Error;
 use crate::http_client::prepare_client;
 use crate::locks::types::{LockType, PoisonedLock};
@@ -14,15 +16,15 @@ pub fn get_locks_endpoint(lock_type: LockType, detailed: bool) -> &'static str {
 }
 
 pub fn fetch_locks_raw(
-    ctx: &AppContext,
+    client: &Client, 
+    vicky_url: String,
     lock_type: LockType,
     detailed: bool,
 ) -> Result<String, Error> {
-    let client = prepare_client(ctx)?;
     let request = client
         .get(format!(
             "{}/{}",
-            ctx.vicky_url,
+            vicky_url,
             get_locks_endpoint(lock_type, detailed)
         ))
         .build()?;
@@ -32,18 +34,17 @@ pub fn fetch_locks_raw(
     Ok(locks)
 }
 
-pub fn fetch_detailed_poisoned_locks(ctx: &AppContext) -> Result<Vec<PoisonedLock>, Error> {
-    let raw_locks = fetch_locks_raw(ctx, LockType::Poisoned, true)?;
+pub fn fetch_detailed_poisoned_locks(client: &Client, vicky_url: String) -> Result<Vec<PoisonedLock>, Error> {
+    let raw_locks = fetch_locks_raw(client, vicky_url, LockType::Poisoned, true)?;
     let locks: Vec<PoisonedLock> = serde_json::from_str(&raw_locks)?;
     Ok(locks)
 }
 
-pub fn unlock_lock(ctx: &AppContext, lock_to_clear: &PoisonedLock) -> Result<(), Error> {
-    let client = prepare_client(ctx)?;
+pub fn unlock_lock(client: &Client, vicky_url: String, lock_to_clear: &PoisonedLock) -> Result<(), Error> {
     let request = client
         .patch(format!(
             "{}/api/v1/locks/unlock/{}",
-            ctx.vicky_url,
+            vicky_url,
             lock_to_clear.id()
         ))
         .build()?;
