@@ -33,15 +33,12 @@ impl FromStr for Role {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct User {
     pub id: Uuid,
     pub full_name: String,
     pub role: Role,
 }
-
-pub struct Machine {}
 
 async fn extract_user_from_token(jwks_verifier: &State<RemoteJwksVerifier>, db: &Database, oidc_config: &OIDCConfigResolved, token: &str) -> Result<DbUser, AppError> {
     let jwt = jwks_verifier.verify::<Map<String, Value>>(token).await?;

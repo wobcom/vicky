@@ -1,8 +1,6 @@
 use reqwest::blocking::Client;
 
-use crate::AuthState;
 use crate::error::Error;
-use crate::http_client::prepare_client;
 use crate::locks::types::{LockType, PoisonedLock};
 
 pub fn get_locks_endpoint(lock_type: LockType, detailed: bool) -> &'static str {

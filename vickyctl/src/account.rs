@@ -1,7 +1,7 @@
-use openidconnect::{ErrorResponse, ClientId, IssuerUrl, core::{CoreProviderMetadata, CoreClient, CoreDeviceAuthorizationResponse, CoreAuthDisplay, CoreClientAuthMethod, CoreClaimName, CoreClaimType, CoreGrantType, CoreJweContentEncryptionAlgorithm, CoreJweKeyManagementAlgorithm, CoreJsonWebKey, CoreResponseMode, CoreResponseType, CoreSubjectIdentifierType, CoreJwsSigningAlgorithm, CoreJsonWebKeyType, CoreJsonWebKeyUse}, Scope, reqwest::{http_client}, AdditionalProviderMetadata, ProviderMetadata, DeviceAuthorizationUrl, AuthType, OAuth2TokenResponse};
+use openidconnect::{ClientId, IssuerUrl, core::{CoreClient, CoreDeviceAuthorizationResponse, CoreAuthDisplay, CoreClientAuthMethod, CoreClaimName, CoreClaimType, CoreGrantType, CoreJweContentEncryptionAlgorithm, CoreJweKeyManagementAlgorithm, CoreJsonWebKey, CoreResponseMode, CoreResponseType, CoreSubjectIdentifierType, CoreJwsSigningAlgorithm, CoreJsonWebKeyType, CoreJsonWebKeyUse}, Scope, reqwest::{http_client}, AdditionalProviderMetadata, ProviderMetadata, DeviceAuthorizationUrl, AuthType, OAuth2TokenResponse};
 use serde::{Deserialize, Serialize};
 
-use crate::{cli::AppContext, error::Error, FileConfig, AuthState};
+use crate::{FileConfig, AuthState};
 
 
 // Taken from https://github.com/ramosbugs/openidconnect-rs/blob/support/3.x/examples/okta_device_grant.rs
@@ -30,11 +30,11 @@ type DeviceProviderMetadata = ProviderMetadata<
 
 
 pub fn show(auth_state: &AuthState) -> Result<(), anyhow::Error> {
-    print!("{:?}", auth_state.clone());
+    print!("{:?}", auth_state);
     Ok(())
 }
 
-pub fn login(ctx: &AppContext, vicky_url_str: String, issuer_url_str: String, client_id_str: String) -> Result<(), anyhow::Error> {
+pub fn login(vicky_url_str: String, issuer_url_str: String, client_id_str: String) -> Result<(), anyhow::Error> {
 
     let client_id = ClientId::new(client_id_str.clone().to_string());
     let issuer_url = IssuerUrl::new(issuer_url_str.clone().to_string())?;

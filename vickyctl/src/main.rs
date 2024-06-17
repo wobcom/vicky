@@ -89,11 +89,11 @@ fn main() {
         },
         Cli::Tasks(tasks_args) => tasks::show_tasks(&tasks_args, &auth_state),
         Cli::Locks(locks_args) => tui::show_locks(&locks_args, &auth_state),
-        Cli::Resolve(resolve_args) => tui::resolve_lock(&resolve_args, &auth_state),
+        Cli::Resolve(_) => tui::resolve_lock(&auth_state),
 
         Cli::Account(account_args) => match account_args.commands {
             AccountCommands::Show => show(&auth_state).map_err(crate::error::Error::from),
-            AccountCommands::Login{ vicky_url, client_id, issuer_url} => login(&account_args.ctx, vicky_url, issuer_url, client_id).map_err(crate::error::Error::from)
+            AccountCommands::Login{ vicky_url, client_id, issuer_url} => login( vicky_url, issuer_url, client_id).map_err(crate::error::Error::from)
         }
 
     };
