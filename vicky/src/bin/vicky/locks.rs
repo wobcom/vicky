@@ -5,7 +5,7 @@ use uuid::Uuid;
 use vickylib::database::entities::{Database, Lock};
 use vickylib::database::entities::lock::db_impl::LockDatabase;
 use vickylib::database::entities::lock::PoisonedLock;
-use crate::auth::{Machine, User};
+use crate::auth::{User};
 use crate::errors::AppError;
 
 async fn locks_get_poisoned(db: &Database) -> Result<Json<Vec<Lock>>, AppError> {

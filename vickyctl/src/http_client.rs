@@ -11,11 +11,11 @@ pub fn prepare_client(auth_state: &AuthState) -> Result<(Client, String), Error>
     let auth_token: String = "".to_owned();
 
     match auth_state {
-        AuthState::EnvironmentAuthenticated(envConfig) => {
-            base_url = envConfig.url.clone();
+        AuthState::EnvironmentAuthenticated(env_config) => {
+            base_url = env_config.url.clone();
         },
-        AuthState::FileAuthenticated(fileCfg) => {
-            base_url = fileCfg.vicky_url.clone();
+        AuthState::FileAuthenticated(file_config) => {
+            base_url = file_config.vicky_url.clone();
         },
         AuthState::Unauthenticated => {
             return Err(Error::Unauthenticated())

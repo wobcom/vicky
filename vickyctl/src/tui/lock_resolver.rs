@@ -1,4 +1,4 @@
-use crate::cli::{LocksArgs, ResolveArgs};
+use crate::cli::{LocksArgs};
 use crate::error::Error;
 use crate::http_client::prepare_client;
 use crate::{humanize, AuthState};
@@ -44,7 +44,7 @@ pub fn show_locks(locks_args: &LocksArgs, auth_state: &AuthState) -> Result<(), 
     Ok(())
 }
 
-pub fn resolve_lock(resolve_args: &ResolveArgs, auth_state: &AuthState) -> Result<(), Error> {
+pub fn resolve_lock(auth_state: &AuthState) -> Result<(), Error> {
     let (client, vicky_url) = prepare_client(auth_state)?;
 
     let mut locks = fetch_detailed_poisoned_locks(&client, vicky_url.clone())?;
