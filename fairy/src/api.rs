@@ -63,7 +63,7 @@ impl HttpClient {
         let access_token = ccres.access_token().secret();
         let expires_at = Utc::now() + ccres.expires_in().unwrap() - Duration::seconds(5);
 
-        info!("Accquired access token, expiring at {:?} ..", expires_at);
+        info!("Acquired access token, expiring at {:?} ..", expires_at);
 
         self.client_state = HttpClientState::Authenticated {
             access_token: access_token.clone(),
