@@ -2,9 +2,9 @@ use rocket::serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
 pub struct OIDCConfig {
-    issuer_url: String,
-    client_id: String,
-    client_secret: String,
+    pub(crate) issuer_url: String,
+    pub(crate) client_id: String,
+    pub(crate) client_secret: String,
 }
 
 #[derive(Deserialize, Debug)]

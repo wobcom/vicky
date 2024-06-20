@@ -9,6 +9,7 @@ use tokio_util::codec::{FramedRead, LinesCodec};
 
 use crate::api::HttpClient;
 use crate::config::AppConfig;
+use crate::tasks::log_sink::log_sink;
 use crate::tasks::types::{Task, TaskResult};
 
 #[tokio::main(flavor = "current_thread")]
