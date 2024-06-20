@@ -2,21 +2,20 @@ use std::process::{exit, Stdio};
 use std::sync::Arc;
 
 use anyhow::anyhow;
-use api::HttpClient;
 use futures_util::{Sink, StreamExt, TryStreamExt};
+use reqwest::{self, Method};
+use rocket::figment::{Figment, Profile};
+use rocket::figment::providers::{Env, Format, Toml};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio_util::codec::{FramedRead, LinesCodec};
 use uuid::Uuid;
 use which::which;
-use reqwest::{self, Method};
 
-use rocket::figment::providers::{Env, Format, Toml};
-use rocket::figment::{Figment, Profile};
+use api::HttpClient;
 
 mod api;
 pub mod error;
-
 
 #[derive(Deserialize, Debug)]
 pub struct OIDCConfig {
@@ -70,8 +69,6 @@ fn main() -> anyhow::Result<()> {
     run(app_config)
 }
 
-
-
 #[derive(Debug, Deserialize)]
 pub struct FlakeRef {
     pub flake: String,
@@ -107,14 +104,16 @@ fn log_sink(
 ) -> impl Sink<Vec<String>, Error = anyhow::Error> + Send {
     let vicky_client_task = HttpClient::new(cfg.clone());
 
-    futures_util::sink::unfold(vicky_client_task, move |mut http_client, lines: Vec<String>| {
-        async move {
-            let response = http_client.do_request::<_, ()>(
-                Method::POST,
-                &format!("api/v1/tasks/{}/logs", task_id),
-                &serde_json::json!({ "lines": lines }),
-            )
-            .await;
+    futures_util::sink::unfold(
+        vicky_client_task,
+        move |mut http_client, lines: Vec<String>| async move {
+            let response = http_client
+                .do_request::<_, ()>(
+                    Method::POST,
+                    &format!("api/v1/tasks/{}/logs", task_id),
+                    &serde_json::json!({ "lines": lines }),
+                )
+                .await;
 
             match response {
                 Ok(_) => {
@@ -129,8 +128,8 @@ fn log_sink(
                     Err(e)
                 }
             }
-        }
-    })
+        },
+    )
 }
 
 async fn try_run_task(cfg: Arc<AppConfig>, task: &Task) -> anyhow::Result<()> {
@@ -170,38 +169,39 @@ async fn try_run_task(cfg: Arc<AppConfig>, task: &Task) -> anyhow::Result<()> {
 }
 
 async fn run_task(cfg: Arc<AppConfig>, task: Task) {
-
     let mut vicky_client_task = HttpClient::new(cfg.clone());
 
     #[cfg(not(feature = "nixless-test-mode"))]
     let result = match try_run_task(cfg.clone(), &task).await {
-            Err(e) => {
-                log::info!("task failed: {} {} {:?}", task.id, task.display_name, e);
-                TaskResult::Error
-            }
-            Ok(_) => TaskResult::Success,
-        };
+        Err(e) => {
+            log::info!("task failed: {} {} {:?}", task.id, task.display_name, e);
+            TaskResult::Error
+        }
+        Ok(_) => TaskResult::Success,
+    };
 
     #[cfg(feature = "nixless-test-mode")]
     let result = TaskResult::Success;
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    let _ = vicky_client_task.do_request::<_, ()>(
-        Method::POST,
-        &format!("api/v1/tasks/{}/finish", task.id),
-        &serde_json::json!({ "result": result }),
-    )
-    .await;
+    let _ = vicky_client_task
+        .do_request::<_, ()>(
+            Method::POST,
+            &format!("api/v1/tasks/{}/finish", task.id),
+            &serde_json::json!({ "result": result }),
+        )
+        .await;
 }
 
 async fn try_claim(cfg: Arc<AppConfig>, vicky_client: &mut HttpClient) -> anyhow::Result<()> {
     log::debug!("trying to claim task...");
-    if let Some(task) = vicky_client.do_request::<_, Option<Task>>(
-        Method::POST,
-        "api/v1/tasks/claim",
-        &serde_json::json!({ "features": cfg.features }),
-    )
-    .await?
+    if let Some(task) = vicky_client
+        .do_request::<_, Option<Task>>(
+            Method::POST,
+            "api/v1/tasks/claim",
+            &serde_json::json!({ "features": cfg.features }),
+        )
+        .await?
     {
         log::info!("task claimed: {} {} 🎉", task.id, task.display_name);
         log::debug!("{:#?}", task);
