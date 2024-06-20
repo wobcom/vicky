@@ -4,9 +4,7 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use api::HttpClient;
 use futures_util::{Sink, StreamExt, TryStreamExt};
-use hyper::{Body, Client, Method, Request};
 use serde::{Deserialize, Serialize};
-use serde::de::DeserializeOwned;
 use tokio::process::Command;
 use tokio_util::codec::{FramedRead, LinesCodec};
 use uuid::Uuid;
@@ -17,6 +15,7 @@ use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
 
 mod api;
+pub mod error;
 
 
 #[derive(Deserialize, Debug)]
@@ -219,6 +218,7 @@ async fn try_claim(cfg: Arc<AppConfig>, vicky_client: &mut HttpClient) -> anyhow
 async fn run(cfg: AppConfig) -> anyhow::Result<()> {
     let cfg = Arc::new(cfg);
     let mut vicky_client_mgmt = HttpClient::new(cfg.clone());
+    vicky_client_mgmt.renew_access_token().await?;
 
     log::info!("config valid, starting communication with vicky");
     log::info!("waiting for tasks...");

@@ -10,8 +10,8 @@ use reqwest::{self, Method, RequestBuilder};
 use openidconnect::reqwest::async_http_client;
 
 
-
 use crate::AppConfig;
+use crate::error::FairyError;
 
 #[derive(Debug)]
 pub enum HttpClientState {
@@ -37,7 +37,7 @@ impl HttpClient {
         }
     }
 
-    async fn renew_access_token(&mut self) -> anyhow::Result<String> {
+    pub async fn renew_access_token(&mut self) -> anyhow::Result<String> {
         let client_id = ClientId::new(self.app_config.oidc_config.client_id.clone());
         let client_secret = ClientSecret::new(self.app_config.oidc_config.client_secret.clone());
         let issuer_url = IssuerUrl::new(self.app_config.oidc_config.issuer_url.clone())?;
@@ -55,7 +55,8 @@ impl HttpClient {
             .exchange_client_credentials()
             .add_scope(Scope::new("openid".to_string()));
 
-        let ccres = ccreq.request_async(async_http_client).await?;
+        let ccres = ccreq.request_async(async_http_client).await
+            .map_err(|_| FairyError::Unauthorized)?; 
 
         let access_token = ccres.access_token().secret();
         let expires_at = Utc::now() + ccres.expires_in().unwrap() - Duration::seconds(5);
