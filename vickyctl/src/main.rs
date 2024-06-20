@@ -45,13 +45,13 @@ pub enum AuthState {
 
 impl FileConfig {
     fn save(&self) -> Result<(), anyhow::Error> {
-        let mut path:PathBuf = dirs::config_dir().unwrap();
+        let mut path: PathBuf = dirs::config_dir().unwrap();
 
         path.push("vickyctl");
         fs::create_dir_all(path.clone())?;
 
         path.push("account.json");
-        let config_file = File::create_new(path)?;
+        let config_file = File::create(path)?;
 
         serde_json::to_writer_pretty(config_file, self)?;
         Ok(())
