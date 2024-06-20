@@ -1,5 +1,6 @@
 use rocket::figment::{Figment, Profile};
 use rocket::figment::providers::{Env, Format, Toml};
+use tokio::task::spawn_blocking;
 
 use crate::config::AppConfig;
 
@@ -9,7 +10,8 @@ mod error;
 mod tasks;
 mod utils;
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     env_logger::builder()
         .filter_level(log::LevelFilter::Debug)
         .init();
@@ -34,5 +36,15 @@ fn main() -> anyhow::Result<()> {
         ));
 
     let app_config = rocket_config_figment.extract::<AppConfig>()?;
-    tasks::runner::run(app_config)
+    match spawn_blocking(|| tasks::runner::run(app_config)).await?.await {
+        Ok(_) => log::info!("Runner exited successfully."),
+        Err(e) => {
+            for l in e.chain() { // chain here for full debug info
+                log::error!("Runner encountered a fatal error: {:?}", l);
+            }
+            return Err(e);
+        }
+    }
+
+    Ok(())
 }

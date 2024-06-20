@@ -12,7 +12,6 @@ use crate::config::AppConfig;
 use crate::tasks::log_sink::log_sink;
 use crate::tasks::types::{Task, TaskResult};
 
-#[tokio::main(flavor = "current_thread")]
 pub async fn run(cfg: AppConfig) -> anyhow::Result<()> {
     let cfg = Arc::new(cfg);
     let mut vicky_client_mgmt = HttpClient::new(cfg.clone());
