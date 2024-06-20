@@ -57,8 +57,7 @@ impl HttpClient {
 
         let ccres = ccreq
             .request_async(async_http_client)
-            .await
-            .map_err(|_| FairyError::Unauthorized)?;
+            .await?;
 
         let access_token = ccres.access_token().secret();
         let expires_at = Utc::now() + ccres.expires_in().unwrap() - Duration::seconds(5);
