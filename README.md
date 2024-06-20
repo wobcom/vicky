@@ -47,6 +47,7 @@ TODO @yu-re-ka: Add Information
     + Add own machine token to configuration
         + This is needed for `fairy` later.
     + Add OIDC authentication provider to configuration
+        + See OIDC provider section.
 + Enter `vicky`
 + Run `cargo run --bin vicky`
 
@@ -89,3 +90,25 @@ Options:
   -V, --version  Print version
 ```
 
+## OIDC Provider
+
+Since implementing user, role and account management is timeconsuming, we settled on fully using OIDC flows for this application.
+Therefore, there is some configuration required.
+This is tested against Keycloak instances. Your mileage may vary on other implementations.
+
+### Configuration
+
+Configuration is done via a well-known OIDC endpoint, e.g. `https://my-nice-keycloak-instance.com/realms/wobcom/.well-known/openid-configuration`. 
+
+You need two different clients, one client which acts as a service account for your backend services and one client to authenticate your users against using the web interface. Every user authenticating with the backend client gets the role `vicky:machine`, everyone else gets the role `vicky:user`.
+
+We expected the following keys in the userinfo endpoint:
++ `vicky:user`
+    + TBD
+    + `vicky_roles`
+        + List of assigned roles, some of `vicky:machine` or `vicky:user`.
++ `vicky:machine`
+    + `sub`
+    + `preferred_username`
+    + `vicky_roles`
+        + List of assigned roles, some of `vicky:machine` or `vicky:user`.

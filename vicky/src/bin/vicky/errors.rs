@@ -41,6 +41,9 @@ pub enum AppError {
     #[error("JWTFormatError {0:?}")]
     JWTFormatError(String),
 
+    #[error("UserAccountError {0:?}")]
+    UserAccountError(String),
+
     #[error("ReqwestError {source:?}")]
     ReqwestError {
         #[from]

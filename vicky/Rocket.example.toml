@@ -1,9 +1,5 @@
 [default]
 
-machines = [
-    "abc1234"
-]
-
 [default.databases]
 postgres_db = { url = "postgres://vicky:vicky@localhost/vicky" }
 
