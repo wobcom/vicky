@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use chrono::{DateTime, Duration, Utc};
-use log::info;
+use log::{debug, info};
 use openidconnect::{ClientId, ClientSecret, IssuerUrl, OAuth2TokenResponse, Scope};
 use openidconnect::core::{CoreClient, CoreProviderMetadata};
 use openidconnect::reqwest::async_http_client;
@@ -10,7 +10,6 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use crate::AppConfig;
-use crate::error::FairyError;
 
 #[derive(Debug)]
 pub enum HttpClientState {
@@ -78,7 +77,7 @@ impl HttpClient {
     ) -> anyhow::Result<RequestBuilder> {
         let now = Utc::now();
 
-        info!("client_state: {:?}", self.client_state);
+        debug!("client_state: {:?}", self.client_state);
 
         let access_token_to_use = match &self.client_state {
             HttpClientState::Authenticated {

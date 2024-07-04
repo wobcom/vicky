@@ -61,7 +61,7 @@ async fn extract_user_from_token(jwks_verifier: &State<RemoteJwksVerifier>, db: 
                 .send()
                 .await?;
 
-            let user_info = x.json::<serde_json::Value>().await?;
+            let user_info = x.json::<Value>().await?;
 
             log::info!("userinfo={:?}", user_info);
 
