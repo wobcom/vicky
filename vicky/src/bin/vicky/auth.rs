@@ -70,7 +70,7 @@ async fn extract_user_from_token(jwks_verifier: &State<RemoteJwksVerifier>, db: 
             let account_user: DbUser;
 
             match vicky_role {
-                Some(vicky_role) if vicky_role == "vicky:machine" => {
+                Some(vicky_role) if vicky_role.ends_with("machine") => {
                     let preferred_username = match user_info.get("preferred_username").and_then(|x| x.as_str()) {
                         Some(preferred_username) => Some(preferred_username),
                         None => return Err(AppError::JWTFormatError("user_info must contain preferred_username".to_string()))
@@ -82,7 +82,7 @@ async fn extract_user_from_token(jwks_verifier: &State<RemoteJwksVerifier>, db: 
                         role: vicky_role.to_string(),
                     };
                 }
-                Some(vicky_role) if vicky_role == "vicky:admin" => {
+                Some(vicky_role) if vicky_role.ends_with("admin") => {
                     let name = match user_info.get("name").and_then(|x| x.as_str()) {
                         Some(name) => Some(name),
                         None => return Err(AppError::JWTFormatError("user_info must contain name".to_string()))
