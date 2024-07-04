@@ -128,7 +128,7 @@ impl<'r> request::FromRequest<'r> for User {
             .expect("request OIDCConfigResolved");
 
         if let Some(auth_header) = request.headers().get_one("Authorization") {
-            if !auth_header.starts_with("Bearer") {
+            if !auth_header.starts_with("Bearer ") {
                 return request::Outcome::Forward(Status::Forbidden);
             }
 
