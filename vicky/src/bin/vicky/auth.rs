@@ -26,10 +26,12 @@ impl FromStr for Role {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "vicky:admin" => Ok(Self::Admin),
-            "vicky:machine" => Ok(Self::Machine),
-            _      => Err(()),
+        if s.ends_with("admin") {
+            Ok(Self::Admin)
+        } else if s.ends_with("machine") {
+            Ok(Self::Machine)
+        } else {
+            Err(())
         }
     }
 }
