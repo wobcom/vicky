@@ -96,7 +96,7 @@ impl HttpClient {
         Ok(self
             .http_client
             .request(method, url)
-            .header("Authorization", format!("Bearer {}", access_token_to_use)))
+            .bearer_auth(access_token_to_use))
     }
 
     pub async fn do_request<BODY: Serialize, RESPONSE: DeserializeOwned>(
