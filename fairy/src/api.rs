@@ -59,7 +59,7 @@ impl HttpClient {
             .await?;
 
         let access_token = ccres.access_token().secret();
-        let expires_at = Utc::now() + ccres.expires_in().unwrap() - Duration::seconds(5);
+        let expires_at = Utc::now() + ccres.expires_in().unwrap_or_default() - Duration::seconds(5);
 
         info!("Acquired access token, expiring at {:?} ..", expires_at);
 
