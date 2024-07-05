@@ -47,11 +47,11 @@ async fn extract_user_from_token(jwks_verifier: &State<RemoteJwksVerifier>, db: 
     let jwt = jwks_verifier.verify::<Map<String, Value>>(token).await?;
     
     let sub = match &jwt.claims().sub {
-        Some(sub) => Some(Uuid::from_str(sub)?),
-        None => return Err(AppError::JWTFormatError("JWT must contain sub".to_string()))
+        Some(sub) => Uuid::from_str(sub)?,
+        None => return Err(AppError::JWTFormatError("JWT must contain sub".to_string())),
     };
 
-    let user = db.run(move |conn| conn.get_user(sub.unwrap())).await?;
+    let user = db.run(move |conn| conn.get_user(sub)).await?;
 
     match user {
         Some(user) => {
@@ -75,30 +75,30 @@ async fn extract_user_from_token(jwks_verifier: &State<RemoteJwksVerifier>, db: 
             match vicky_role {
                 Some(vicky_role) if vicky_role.ends_with("machine") => {
                     let preferred_username = match user_info.get("preferred_username").and_then(|x| x.as_str()) {
-                        Some(preferred_username) => Some(preferred_username),
-                        None => return Err(AppError::JWTFormatError("user_info must contain preferred_username".to_string()))
+                        Some(preferred_username) => preferred_username,
+                        None => return Err(AppError::JWTFormatError("user_info must contain preferred_username".to_string())),
                     };
 
                     account_user = DbUser {
-                        sub: sub.unwrap(),
-                        name: preferred_username.unwrap().to_string(),
+                        sub,
+                        name: preferred_username.to_string(),
                         role: vicky_role.to_string(),
                     };
                 }
                 Some(vicky_role) if vicky_role.ends_with("admin") => {
                     let name = match user_info.get("name").and_then(|x| x.as_str()) {
-                        Some(name) => Some(name),
-                        None => return Err(AppError::JWTFormatError("user_info must contain name".to_string()))
+                        Some(name) => name,
+                        None => return Err(AppError::JWTFormatError("user_info must contain name".to_string())),
                     };
         
                     account_user = DbUser {
-                        sub: sub.unwrap(),
-                        name: name.unwrap().to_string(),
+                        sub,
+                        name: name.to_string(),
                         role: vicky_role.to_string(),
                     };
                 }
                 _ => {
-                    return Err(AppError::UserAccountError("vicky_roles was not filled".to_string()))
+                    return Err(AppError::UserAccountError("vicky_roles was not filled".to_string()));
                 }
             }
 
@@ -142,6 +142,8 @@ impl<'r> request::FromRequest<'r> for User {
                     let user = User {
                         id: user.sub,
                         full_name: user.name,
+                        
+                        // extract_user_from_token should never return an invalid .role object that doesn't end with "admin" or "machine"
                         role: Role::from_str(&user.role).unwrap()
                     };
 
