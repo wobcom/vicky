@@ -2,5 +2,9 @@
 
 vicky_url = "http://localhost:8000"
 vicky_external_url = "https://vicky.lab.wobcom.de"
-machine_token = ""
 features = []
+
+[default.oidc_config]
+authority = "https://id.lab.wobcom.de/realms/wobcom"
+client_id = "vicky-dev-api"
+client_secret = ""

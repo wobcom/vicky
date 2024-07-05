@@ -14,7 +14,7 @@ use vickylib::{
 use vickylib::database::entities::lock::db_impl::LockDatabase;
 
 use crate::{
-    auth::{Machine, User},
+    auth::{User},
     errors::AppError,
     events::GlobalEvent,
 };
@@ -54,15 +54,6 @@ pub async fn tasks_get_user(db: Database, _user: User) -> Result<Json<Vec<Task>>
     Ok(Json(tasks))
 }
 
-#[get("/", rank = 2)]
-pub async fn tasks_get_machine(
-    db: Database,
-    _machine: Machine,
-) -> Result<Json<Vec<Task>>, VickyError> {
-    let tasks: Vec<Task> = db.run(|conn| conn.get_all_tasks()).await?;
-    Ok(Json(tasks))
-}
-
 async fn tasks_specific_get(id: &str, db: &Database) -> Result<Json<Option<Task>>, VickyError> {
     let task_uuid = Uuid::parse_str(id).unwrap();
     let tasks: Option<Task> = db.run(move |conn| conn.get_task(task_uuid)).await?;
@@ -74,15 +65,6 @@ pub async fn tasks_specific_get_user(
     id: String,
     db: Database,
     _user: User,
-) -> Result<Json<Option<Task>>, VickyError> {
-    tasks_specific_get(&id, &db).await
-}
-
-#[get("/<id>", rank = 2)]
-pub async fn tasks_specific_get_machine(
-    id: String,
-    db: Database,
-    _machine: Machine,
 ) -> Result<Json<Option<Task>>, VickyError> {
     tasks_specific_get(&id, &db).await
 }
@@ -156,7 +138,7 @@ pub async fn tasks_put_logs(
     id: String,
     db: Database,
     logs: Json<LogLines>,
-    _machine: Machine,
+    _user: User,
     log_drain: &State<&LogDrain>,
 ) -> Result<Json<()>, AppError> {
     let task_uuid = Uuid::parse_str(&id)?;
@@ -179,7 +161,7 @@ pub async fn tasks_claim(
     db: Database,
     features: Json<RoTaskClaim>,
     global_events: &State<broadcast::Sender<GlobalEvent>>,
-    _machine: Machine,
+    _user: User,
 ) -> Result<Json<Option<Task>>, AppError> {
     let tasks = db.run(|conn| conn.get_all_tasks()).await?;
     let poisoned_locks = db.run(|conn| conn.get_poisoned_locks()).await?;
@@ -209,7 +191,7 @@ pub async fn tasks_finish(
     finish: Json<RoTaskFinish>,
     db: Database,
     global_events: &State<broadcast::Sender<GlobalEvent>>,
-    _machine: Machine,
+    _user: User,
     log_drain: &State<&LogDrain>,
 ) -> Result<Json<Task>, AppError> {
     let task_uuid = Uuid::parse_str(&id)?;
@@ -249,7 +231,7 @@ pub async fn tasks_add(
     task: Json<RoTaskNew>,
     db: Database,
     global_events: &State<broadcast::Sender<GlobalEvent>>,
-    _machine: Machine,
+    _user: User,
 ) -> Result<Json<RoTask>, AppError> {
     let task_uuid = Uuid::new_v4();
 

@@ -15,3 +15,7 @@ which = "6.0.1"
 ratatui = { version = "0.26.3", features = ["serde"] }
 ratatui-widgets = "0.1.6"
 crossterm = "0.27.0"
+openidconnect = "3.5.0"
+anyhow = "1.0.86"
+dirs = "5.0.1"
+figment = { version = "0.10.19", features = ["json", "env"] }

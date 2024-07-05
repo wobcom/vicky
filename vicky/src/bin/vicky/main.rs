@@ -4,10 +4,10 @@ use aws_sdk_s3::config::{BehaviorVersion, Credentials, Region};
 use aws_sdk_s3::error::SdkError;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use jwtk::jwk::RemoteJwksVerifier;
+use rocket::{Build, Rocket, routes};
 use rocket::fairing::AdHoc;
-use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
-use rocket::{routes, Build, Rocket};
+use rocket::figment::providers::{Env, Format, Toml};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 
@@ -18,13 +18,13 @@ use vickylib::s3::client::S3Client;
 
 use crate::events::{get_global_events, GlobalEvent};
 use crate::locks::{
-    locks_get_active_machine, locks_get_active_user, locks_get_detailed_poisoned_machine,
-    locks_get_detailed_poisoned_user, locks_get_poisoned_machine, locks_get_poisoned_user,
+    locks_get_active_user,
+    locks_get_detailed_poisoned_user, locks_get_poisoned_user,
     locks_unlock,
 };
 use crate::tasks::{
-    tasks_add, tasks_claim, tasks_finish, tasks_get_logs, tasks_get_machine, tasks_get_user,
-    tasks_put_logs, tasks_specific_get_machine, tasks_specific_get_user,
+    tasks_add, tasks_claim, tasks_finish, tasks_get_logs, tasks_get_user,
+    tasks_put_logs, tasks_specific_get_user,
 };
 use crate::user::get_user;
 use crate::webconfig::get_web_config;
@@ -66,8 +66,6 @@ pub struct WebConfig {
 
 #[derive(Deserialize)]
 pub struct Config {
-    machines: Vec<String>,
-
     s3_config: S3Config,
 
     oidc_config: OIDCConfig,
@@ -91,7 +89,13 @@ fn run_migrations(connection: &mut impl MigrationHarness<diesel::pg::Pg>) -> Res
 }
 
 async fn run_rocket_migrations(rocket: Rocket<Build>) -> Result<Rocket<Build>, Rocket<Build>> {
-    let db: Database = Database::get_one(&rocket).await.unwrap();
+    let opt_db = Database::get_one(&rocket).await;
+    
+    let db = match opt_db {
+        Some(db) => db,
+        None => return Err(rocket)
+    };
+    
     match db.run(run_migrations).await {
         Ok(_) => Ok(rocket),
         Err(_) => Err(rocket),
@@ -224,9 +228,7 @@ async fn main() -> anyhow::Result<()> {
         .mount(
             "/api/v1/tasks",
             routes![
-                tasks_get_machine,
                 tasks_get_user,
-                tasks_specific_get_machine,
                 tasks_specific_get_user,
                 tasks_claim,
                 tasks_finish,
@@ -239,11 +241,8 @@ async fn main() -> anyhow::Result<()> {
             "/api/v1/locks",
             routes![
                 locks_get_poisoned_user,
-                locks_get_poisoned_machine,
                 locks_get_detailed_poisoned_user,
-                locks_get_detailed_poisoned_machine,
                 locks_get_active_user,
-                locks_get_active_machine,
                 locks_unlock
             ],
         )

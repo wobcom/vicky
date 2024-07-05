@@ -4,6 +4,7 @@ use jwtk::jwk::RemoteJwksVerifier;
 use log::{warn};
 use rocket::http::Status;
 use rocket::{request, State};
+use rocket::http::hyper::header::AUTHORIZATION;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 use uuid::Uuid;
@@ -11,16 +12,30 @@ use vickylib::database::entities::Database;
 
 use vickylib::database::entities::user::db_impl::{UserDatabase, DbUser};
 
-use crate::{Config, OIDCConfigResolved};
+use crate::{OIDCConfigResolved};
 use crate::errors::AppError;
 
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
     Admin,
+    Machine
 }
 
-#[allow(dead_code)]
+impl FromStr for Role {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.ends_with("admin") {
+            Ok(Self::Admin)
+        } else if s.ends_with("machine") {
+            Ok(Self::Machine)
+        } else {
+            Err(())
+        }
+    }
+}
+
 #[derive(Deserialize)]
 pub struct User {
     pub id: Uuid,
@@ -28,17 +43,15 @@ pub struct User {
     pub role: Role,
 }
 
-pub struct Machine {}
-
 async fn extract_user_from_token(jwks_verifier: &State<RemoteJwksVerifier>, db: &Database, oidc_config: &OIDCConfigResolved, token: &str) -> Result<DbUser, AppError> {
     let jwt = jwks_verifier.verify::<Map<String, Value>>(token).await?;
     
     let sub = match &jwt.claims().sub {
-        Some(sub) => Some(Uuid::from_str(sub)?),
-        None => return Err(AppError::JWTFormatError("JWT must contain sub".to_string()))
+        Some(sub) => Uuid::from_str(sub)?,
+        None => return Err(AppError::JWTFormatError("JWT must contain sub".to_string())),
     };
 
-    let user = db.run(move |conn| conn.get_user(sub.unwrap())).await?;
+    let user = db.run(move |conn| conn.get_user(sub)).await?;
 
     match user {
         Some(user) => {
@@ -51,22 +64,47 @@ async fn extract_user_from_token(jwks_verifier: &State<RemoteJwksVerifier>, db: 
                 .send()
                 .await?;
 
-            let user_info = x.json::<serde_json::Value>().await?;
+            let user_info = x.json::<Value>().await?;
 
-            let name = match user_info.get("name").and_then(|x| x.as_str()) {
-                Some(name) => Some(name),
-                None => return Err(AppError::JWTFormatError("user_info must contain name".to_string()))
-            };
+            log::info!("userinfo={:?}", user_info);
 
-            let new_user = DbUser {
-                sub: sub.unwrap(),
-                name: name.unwrap().to_string(),
-                role: "ADMIN".to_string(),
-            };
+            let vicky_role = user_info.get("vicky_roles").and_then(|x| x.as_str());
 
-            let new_user_create = new_user.clone();
+            let account_user: DbUser;
+
+            match vicky_role {
+                Some(vicky_role) if vicky_role.ends_with("machine") => {
+                    let preferred_username = match user_info.get("preferred_username").and_then(|x| x.as_str()) {
+                        Some(preferred_username) => preferred_username,
+                        None => return Err(AppError::JWTFormatError("user_info must contain preferred_username".to_string())),
+                    };
+
+                    account_user = DbUser {
+                        sub,
+                        name: preferred_username.to_string(),
+                        role: vicky_role.to_string(),
+                    };
+                }
+                Some(vicky_role) if vicky_role.ends_with("admin") => {
+                    let name = match user_info.get("name").and_then(|x| x.as_str()) {
+                        Some(name) => name,
+                        None => return Err(AppError::JWTFormatError("user_info must contain name".to_string())),
+                    };
+        
+                    account_user = DbUser {
+                        sub,
+                        name: name.to_string(),
+                        role: vicky_role.to_string(),
+                    };
+                }
+                _ => {
+                    return Err(AppError::UserAccountError("vicky_roles was not filled".to_string()));
+                }
+            }
+
+            let new_user_create = account_user.clone();
             db.run(move |conn| conn.upsert_user(new_user_create)).await?;
-            Ok(new_user)
+            Ok(account_user)
         }
     }
 }
@@ -92,8 +130,8 @@ impl<'r> request::FromRequest<'r> for User {
             .await
             .expect("request OIDCConfigResolved");
 
-        if let Some(auth_header) = request.headers().get_one("Authorization") {
-            if !auth_header.starts_with("Bearer") {
+        if let Some(auth_header) = request.headers().get_one(AUTHORIZATION.as_str()) {
+            if !auth_header.starts_with("Bearer ") {
                 return request::Outcome::Forward(Status::Forbidden);
             }
 
@@ -104,7 +142,9 @@ impl<'r> request::FromRequest<'r> for User {
                     let user = User {
                         id: user.sub,
                         full_name: user.name,
-                        role: Role::Admin
+                        
+                        // extract_user_from_token should never return an invalid .role object that doesn't end with "admin" or "machine"
+                        role: Role::from_str(&user.role).unwrap()
                     };
 
                     request::Outcome::Success(user)
@@ -121,25 +161,3 @@ impl<'r> request::FromRequest<'r> for User {
     }
 }
 
-#[rocket::async_trait]
-impl<'r> request::FromRequest<'r> for Machine {
-    type Error = ();
-
-    async fn from_request(request: &'r request::Request<'_>) -> request::Outcome<Machine, ()> {
-        let config = request
-            .guard::<&State<Config>>()
-            .await
-            .expect("request Config");
-
-        if let Some(auth_header) = request.headers().get_one("Authorization") {
-            let cfg_user = config.machines.iter().find(|x| *x == auth_header);
-
-            return match cfg_user {
-                Some(_) => request::Outcome::Success(Machine {}),
-                None => request::Outcome::Error((Status::Forbidden, ())),
-            };
-        }
-
-        request::Outcome::Forward(Status::Forbidden)
-    }
-}
