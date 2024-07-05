@@ -111,7 +111,6 @@ impl HttpClient {
                 format!("{}/{}", self.app_config.vicky_url, endpoint),
             )
             .await?
-            .header("content-type", "application/json")
             .json(q)
             .send()
             .await?;
