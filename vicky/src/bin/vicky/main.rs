@@ -4,10 +4,10 @@ use aws_sdk_s3::config::{BehaviorVersion, Credentials, Region};
 use aws_sdk_s3::error::SdkError;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use jwtk::jwk::RemoteJwksVerifier;
+use rocket::{Build, Rocket, routes};
 use rocket::fairing::AdHoc;
-use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
-use rocket::{routes, Build, Rocket};
+use rocket::figment::providers::{Env, Format, Toml};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 
@@ -89,7 +89,13 @@ fn run_migrations(connection: &mut impl MigrationHarness<diesel::pg::Pg>) -> Res
 }
 
 async fn run_rocket_migrations(rocket: Rocket<Build>) -> Result<Rocket<Build>, Rocket<Build>> {
-    let db: Database = Database::get_one(&rocket).await.unwrap();
+    let opt_db = Database::get_one(&rocket).await;
+    
+    let db = match opt_db {
+        Some(db) => db,
+        None => return Err(rocket)
+    };
+    
     match db.run(run_migrations).await {
         Ok(_) => Ok(rocket),
         Err(_) => Err(rocket),
