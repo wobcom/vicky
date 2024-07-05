@@ -4,6 +4,7 @@ use jwtk::jwk::RemoteJwksVerifier;
 use log::{warn};
 use rocket::http::Status;
 use rocket::{request, State};
+use rocket::http::hyper::header::AUTHORIZATION;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 use uuid::Uuid;
@@ -127,7 +128,7 @@ impl<'r> request::FromRequest<'r> for User {
             .await
             .expect("request OIDCConfigResolved");
 
-        if let Some(auth_header) = request.headers().get_one("Authorization") {
+        if let Some(auth_header) = request.headers().get_one(AUTHORIZATION.as_str()) {
             if !auth_header.starts_with("Bearer ") {
                 return request::Outcome::Forward(Status::Forbidden);
             }
