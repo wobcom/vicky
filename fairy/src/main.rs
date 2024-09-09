@@ -1,5 +1,4 @@
 use anyhow::anyhow;
-use api::HttpClient;
 use futures_util::{Sink, StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use std::process::Stdio;
@@ -12,7 +11,6 @@ use reqwest::{self, Method};
 use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
 
-mod api;
 
 
 #[derive(Deserialize, Debug)]

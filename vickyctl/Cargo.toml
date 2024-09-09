@@ -19,3 +19,9 @@ openidconnect = "3.5.0"
 anyhow = "1.0.86"
 dirs = "5.0.1"
 figment = { version = "0.10.19", features = ["json", "env"] }
+chrono = "0.4.38"
+
+
+[lib]
+name = "vickyctllib"
+path = "lib/lib.rs"

@@ -1,13 +1,15 @@
 use crate::cli::{AppContext, TaskData, TasksArgs};
 use log::debug;
+use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
+use vickyctllib::api::HttpClient;
 use yansi::Paint;
 
 use crate::error::Error;
 use crate::http_client::{prepare_client, print_http};
-use crate::{humanize, AuthState};
+use crate::{humanize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "result")]
@@ -44,7 +46,7 @@ pub struct Task {
     pub features: Vec<String>,
 }
 
-pub fn show_tasks(tasks_args: &TasksArgs, auth_state: &AuthState) -> Result<(), Error> {
+pub fn show_tasks(tasks_args: &TasksArgs, client: &HttpClient) -> Result<(), Error> {
     if tasks_args.ctx.humanize {
         humanize::ensure_jless("tasks")?;
     }
@@ -97,15 +99,12 @@ struct RoTaskCreate {
     status: RoTaskStatus,
 }
 
-pub fn create_task(task_data: &TaskData, ctx: &AppContext, auth_state: &AuthState) -> Result<(), Error> {
-    let (client, vicky_url) = prepare_client(auth_state)?;
-    let request = client
-        .post(format!("{}/{}", vicky_url, "api/v1/tasks"))
+pub fn create_task(task_data: &TaskData, ctx: &AppContext, client: &HttpClient) -> Result<(), Error> {
+    let request = client.create_request(Method::POST, "api/v1/tasks")?
         .body(task_data.to_json().to_string())
         .build()?;
 
-    let response = client
-        .execute(request)?
+    let response = request.send()?
         .error_for_status()
         .map_err(|e| (e, "Task couldn't be scheduled.".to_string()))?;
 
@@ -127,7 +126,7 @@ pub fn create_task(task_data: &TaskData, ctx: &AppContext, auth_state: &AuthStat
     Ok(())
 }
 
-pub fn claim_task(features: &[String], ctx: &AppContext, auth_state: &AuthState) -> Result<(), Error> {
+pub fn claim_task(features: &[String], ctx: &AppContext, client: &HttpClient) -> Result<(), Error> {
     let (client, vicky_url) = prepare_client(auth_state)?;
     let data: serde_json::Value = json!({
         "features": features
@@ -157,7 +156,7 @@ pub fn claim_task(features: &[String], ctx: &AppContext, auth_state: &AuthState)
     Ok(())
 }
 
-pub fn finish_task(id: &Uuid, status: &String, ctx: &AppContext, auth_state: &AuthState) -> Result<(), Error> {
+pub fn finish_task(id: &Uuid, status: &String, ctx: &AppContext, client: &HttpClient) -> Result<(), Error> {
     let (client, vicky_url) = prepare_client(auth_state)?;
     let data = json!({
         "result": status

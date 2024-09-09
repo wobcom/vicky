@@ -1,7 +1,8 @@
 use openidconnect::{ClientId, IssuerUrl, core::{CoreClient, CoreDeviceAuthorizationResponse, CoreAuthDisplay, CoreClientAuthMethod, CoreClaimName, CoreClaimType, CoreGrantType, CoreJweContentEncryptionAlgorithm, CoreJweKeyManagementAlgorithm, CoreJsonWebKey, CoreResponseMode, CoreResponseType, CoreSubjectIdentifierType, CoreJwsSigningAlgorithm, CoreJsonWebKeyType, CoreJsonWebKeyUse}, Scope, reqwest::{http_client}, AdditionalProviderMetadata, ProviderMetadata, DeviceAuthorizationUrl, AuthType, OAuth2TokenResponse};
 use serde::{Deserialize, Serialize};
+use vickyctllib::api::ConfigState;
 
-use crate::{FileConfig, AuthState};
+use crate::{FileConfig};
 
 
 // Taken from https://github.com/ramosbugs/openidconnect-rs/blob/support/3.x/examples/okta_device_grant.rs
@@ -29,7 +30,7 @@ type DeviceProviderMetadata = ProviderMetadata<
 >;
 
 
-pub fn show(auth_state: &AuthState) -> Result<(), anyhow::Error> {
+pub fn show(auth_state: &ConfigState) -> Result<(), anyhow::Error> {
     print!("{:?}", auth_state);
     Ok(())
 }

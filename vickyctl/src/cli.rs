@@ -1,4 +1,5 @@
 use clap::{Args, Parser, Subcommand};
+use serde::Serialize;
 use uuid::Uuid;
 
 // TODO: Add abouts to arguments
@@ -8,7 +9,7 @@ pub struct AppContext {
     pub humanize: bool,
 }
 
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, Debug, Clone, Serialize)]
 pub struct TaskData {
     #[clap(short, long)]
     pub name: String,

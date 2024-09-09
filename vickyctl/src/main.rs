@@ -17,46 +17,8 @@ use clap::Parser;
 use cli::AccountCommands;
 use figment::Figment;
 use figment::providers::{Env, Json, Format};
-use serde::{Serialize, Deserialize};
+use vickyctllib::api::{FileConfig, EnvConfig, ConfigState, HttpClient};
 
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct EnvConfig {
-    issuer_url: String,
-    url: String,
-    client_id: String,
-    client_secret: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct FileConfig {
-    issuer_url: String,
-    vicky_url: String,
-    client_id: String,
-    refresh_token: String,
-}
-
-#[derive(Debug)]
-pub enum AuthState {
-    EnvironmentAuthenticated(EnvConfig),
-    FileAuthenticated(FileConfig),
-    Unauthenticated,
-}
-
-impl FileConfig {
-    fn save(&self) -> Result<(), anyhow::Error> {
-        let mut path:PathBuf = dirs::config_dir().unwrap();
-
-        path.push("vickyctl");
-        fs::create_dir_all(path.clone())?;
-
-        path.push("account.json");
-        let config_file = File::create_new(path)?;
-
-        serde_json::to_writer_pretty(config_file, self)?;
-        Ok(())
-    }
-}
 
 fn main() {
     let cli = Cli::parse();
@@ -73,26 +35,29 @@ fn main() {
         .extract().ok();
 
     
-    let mut auth_state = AuthState::Unauthenticated;
+    let mut config_state = ConfigState::Unauthenticated;
 
     if let Some(env_config) = env_config {
-        auth_state = AuthState::EnvironmentAuthenticated(env_config);
+        config_state = ConfigState::EnvironmentAuthenticated(env_config);
     } else if let Some(account_config) = account_config {
-        auth_state = AuthState::FileAuthenticated(account_config);
+        config_state = ConfigState::FileAuthenticated(account_config);
     }
+
+    let user_agent = format!("vickyctl/{}", env!("CARGO_PKG_VERSION"));
+    let http_client = HttpClient::new(&config_state, user_agent);
 
     let error: Result<_, _> = match cli {
         Cli::Task(task_args) => match task_args.commands {
-            TaskCommands::Create(task_data) => create_task(&task_data, &task_args.ctx, &auth_state),
-            TaskCommands::Claim { features } => claim_task(&features, &task_args.ctx, &auth_state),
-            TaskCommands::Finish { id, status } => finish_task(&id, &status, &task_args.ctx, &auth_state),
+            TaskCommands::Create(task_data) => create_task(&task_data, &task_args.ctx, &config_state),
+            TaskCommands::Claim { features } => claim_task(&features, &task_args.ctx, &config_state),
+            TaskCommands::Finish { id, status } => finish_task(&id, &status, &task_args.ctx, &config_state),
         },
-        Cli::Tasks(tasks_args) => tasks::show_tasks(&tasks_args, &auth_state),
-        Cli::Locks(locks_args) => tui::show_locks(&locks_args, &auth_state),
-        Cli::Resolve(_) => tui::resolve_lock(&auth_state),
+        Cli::Tasks(tasks_args) => tasks::show_tasks(&tasks_args, &config_state),
+        Cli::Locks(locks_args) => tui::show_locks(&locks_args, &config_state),
+        Cli::Resolve(_) => tui::resolve_lock(&config_state),
 
         Cli::Account(account_args) => match account_args.commands {
-            AccountCommands::Show => show(&auth_state).map_err(crate::error::Error::from),
+            AccountCommands::Show => show(&config_state).map_err(crate::error::Error::from),
             AccountCommands::Login{ vicky_url, client_id, issuer_url} => login( vicky_url, issuer_url, client_id).map_err(crate::error::Error::from)
         }
 

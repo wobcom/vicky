@@ -26,7 +26,7 @@ impl<'a> From<&'a PoisonedLock> for Row<'a> {
     }
 }
 
-pub fn show_locks(locks_args: &LocksArgs, auth_state: &AuthState) -> Result<(), Error> {
+pub fn show_locks(locks_args: &LocksArgs, client: &HttpClient) -> Result<(), Error> {
     if locks_args.ctx.humanize {
         humanize::ensure_jless("lock")?;
     }
@@ -44,7 +44,7 @@ pub fn show_locks(locks_args: &LocksArgs, auth_state: &AuthState) -> Result<(), 
     Ok(())
 }
 
-pub fn resolve_lock(auth_state: &AuthState) -> Result<(), Error> {
+pub fn resolve_lock(client: &HttpClient) -> Result<(), Error> {
     let (client, vicky_url) = prepare_client(auth_state)?;
 
     let mut locks = fetch_detailed_poisoned_locks(&client, vicky_url.clone())?;
