@@ -17,6 +17,8 @@ const TaskTag = (props: TaskTagProps) => {
     const [tagContent, tagColor] = useMemo(() => {
         const tagContent = task.status.result ?? task.status.state
 
+        console.log(task)
+
         let tagColor = null
         let tagDisplay = null
         switch (tagContent) {

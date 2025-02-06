@@ -1,4 +1,6 @@
+import { EventSourceMessage, fetchEventSource } from "@microsoft/fetch-event-source";
 import { useCallback, useEffect, useRef } from "react";
+import { useAuth } from "react-oidc-context"
 
 export type LogEvent = String;
 
@@ -14,34 +16,41 @@ export type TaskUpdateEvent = {
 export type GlobalEvent = TaskAddEvent | TaskUpdateEvent;
 
 const useEventSource = (url: string, callback: (evt: string) => void, allowStart=true) => {
-    const openEventSource = useRef<EventSource | null>(null);
 
-    const onMessage = useCallback((evt: MessageEvent<any>) => {
+    const auth = useAuth();
+
+    const openEventSource = useRef<Promise<void> | null>(null);
+
+    const onMessage = useCallback((evt: EventSourceMessage) => {
         const x = evt.data;
         return callback(x);
     }, [callback])
 
     useEffect(() => {
-        if(openEventSource.current) {
-            openEventSource.current.onmessage = onMessage
-        }
-    }, [onMessage])
-
-    useEffect(() => {
-        if (!allowStart || openEventSource.current != null) {
+        if (!allowStart || openEventSource.current != null || !auth.user) {
             return;
         }
 
-        let evtSource = new EventSource(url);
+        const controller = new AbortController()
 
-        openEventSource.current = evtSource;
-        evtSource.onmessage = onMessage;
-    
+        openEventSource.current = fetchEventSource(
+            url,
+            {
+                signal: controller.signal,
+                headers: {
+                    "Authorization": `Bearer ${auth.user.access_token}`
+                },
+                onmessage: onMessage
+            }
+        )
+
         return () => {
-            evtSource.close()
+            controller.abort()
             openEventSource.current = null;
         }
-    }, [url, allowStart])
+    }, [url, allowStart, auth.user])
+
+    
 }
 
 const useEventSourceJSON = <T extends any>(url: string, callback: (evt: T) => void) => {

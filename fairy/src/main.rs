@@ -91,14 +91,14 @@ pub struct FlakeRef {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "result")]
+#[serde(tag = "result", rename_all="UPPERCASE")]
 pub enum TaskResult {
     Success,
     Error,
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(tag = "state")]
+#[serde(tag = "state", rename_all="UPPERCASE")]
 pub enum TaskStatus {
     New,
     Running,

@@ -5,14 +5,14 @@ use crate::database::entities::lock::db_impl::DbLock;
 use crate::database::entities::task::db_impl::DbTask;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "result")]
+#[serde(tag = "result", rename_all="UPPERCASE")]
 pub enum TaskResult {
     Success,
     Error,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "state")]
+#[serde(tag = "state", rename_all="UPPERCASE")]
 pub enum TaskStatus {
     New,
     Running,

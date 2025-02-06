@@ -10,14 +10,14 @@ use crate::http_client::{prepare_client, print_http};
 use crate::humanize;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "result")]
+#[serde(tag = "result", rename_all="UPPERCASE")]
 pub enum TaskResult {
     Success,
     Error,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "state")]
+#[serde(tag = "state", rename_all="UPPERCASE")]
 pub enum TaskStatus {
     New,
     Running,

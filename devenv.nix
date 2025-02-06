@@ -3,10 +3,16 @@
 {
   services.minio.enable = true;
   services.minio.buckets = [ "vicky-logs" ];
+  services.minio.accessKey = "minio";
+  services.minio.secretKey = "aichudiKohr6aithi4ahh3aeng2eL7xo";
 
-  env.ETCD_DATA_DIR = config.env.DEVENV_STATE + "/etcd";
+  services.postgres.enable = true;
+  services.postgres.initialDatabases = [
+    {
+      name = "vicky";
+      user = "vicky";
+      pass = "vicky";
+    }
+  ];
 
-  processes = {
-    etcd.exec = "${pkgs.etcd}/bin/etcd --listen-client-urls=http://127.0.0.1:2379 --advertise-client-urls=http://127.0.0.1:2379";
-  };
 }
