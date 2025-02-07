@@ -157,7 +157,7 @@ pub async fn tasks_download_logs(
     id: String,
     db: Database,
     s3: &'_ State<S3Client>,
-    _user: User,
+    _machine: Machine,
 ) -> Result<Json<LogLines>, VickyError> {
     // TODO: Fix Error Handling
     let task_uuid = Uuid::parse_str(&id).unwrap();
