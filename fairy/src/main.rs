@@ -19,6 +19,7 @@ pub(crate) struct AppConfig {
     pub(crate) vicky_external_url: String,
     pub(crate) machine_token: String,
     pub(crate) features: Vec<String>,
+    pub(crate) verbose_nix_logs: bool,
 }
 
 const CODE_NIX_NOT_INSTALLED: i32 = 1;
@@ -146,7 +147,13 @@ fn log_sink(
 }
 
 async fn try_run_task(cfg: Arc<AppConfig>, task: &Task) -> anyhow::Result<()> {
-    let mut args = vec!["run".into(), "-L".into(), task.flake_ref.flake.clone()];
+    let mut args = vec!["run".into()];
+
+    if !&cfg.verbose_nix_logs {
+        args.push("--quiet".into());
+    }
+
+    args.extend(vec!["-L".into(), task.flake_ref.flake.clone()]);
     args.extend(task.flake_ref.args.clone());
 
     let mut child = Command::new("nix")
