@@ -24,7 +24,7 @@ use crate::locks::{
 };
 use crate::tasks::{
     tasks_add, tasks_claim, tasks_finish, tasks_get_logs, tasks_get_machine, tasks_get_user,
-    tasks_put_logs, tasks_specific_get_machine, tasks_specific_get_user,
+    tasks_put_logs, tasks_specific_get_machine, tasks_specific_get_user, tasks_download_logs
 };
 use crate::user::get_user;
 use crate::webconfig::get_web_config;
@@ -232,7 +232,8 @@ async fn main() -> anyhow::Result<()> {
                 tasks_finish,
                 tasks_add,
                 tasks_get_logs,
-                tasks_put_logs
+                tasks_put_logs,
+                tasks_download_logs,
             ],
         )
         .mount(

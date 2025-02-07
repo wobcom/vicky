@@ -151,6 +151,32 @@ pub async fn tasks_get_logs<'a>(
     }
 }
 
+
+#[get("/<id>/logs/download")]
+pub async fn tasks_download_logs(
+    id: String,
+    db: Database,
+    s3: &'_ State<S3Client>,
+    _user: User,
+) -> Result<Json<LogLines>, VickyError> {
+    // TODO: Fix Error Handling
+    let task_uuid = Uuid::parse_str(&id).unwrap();
+    // Note: We still need to verify the existance of the task before accessing S3 with an abitrary string..
+    let _task = db
+        .run(move |conn| conn.get_task(task_uuid))
+        .await
+        .unwrap()
+        .ok_or(AppError::HttpError(Status::NotFound))
+        .unwrap();
+
+    let logs = s3.get_logs(&id).await.unwrap();
+    let log_lines = LogLines {
+        lines: logs,
+    };
+        
+    Ok(Json(log_lines))
+}
+
 #[post("/<id>/logs", format = "json", data = "<logs>")]
 pub async fn tasks_put_logs(
     id: String,
