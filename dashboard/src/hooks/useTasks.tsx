@@ -2,14 +2,14 @@ import { useCallback, useEffect, useState } from "react"
 import { ITask, useAPI } from "../services/api"
 import { GlobalEvent, TaskUpdateEvent, useEventSource, useEventSourceJSON } from "./useEventSource";
 
-const useTasks = () => {
+const useTasks = (filter: string | null) => {
     const api = useAPI();
     const [tasks, setTasks] = useState<ITask[] | null>(null)
     
     const eventCallback = useCallback((evt: GlobalEvent) => {
         switch (evt.type) {
             case "TaskAdd": {
-                api.getTasks().then((tasks) => setTasks(tasks)); 
+                api.getTasks(filter).then((tasks) => setTasks(tasks)); 
                 break;  
             }
             case "TaskUpdate": {
@@ -41,8 +41,8 @@ const useTasks = () => {
     useEventSourceJSON<GlobalEvent>(`/api/events`, eventCallback)
 
     useEffect(() => {
-        api.getTasks().then((tasks) => setTasks(tasks));   
-    }, [])
+        api.getTasks(filter).then((tasks) => setTasks(tasks));   
+    }, [filter])
 
     return tasks;
 }

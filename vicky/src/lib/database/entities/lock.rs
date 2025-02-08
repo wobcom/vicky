@@ -8,10 +8,12 @@ use crate::database::entities::task::db_impl::DbTask;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Lock {
+    #[serde(rename = "WRITE")]
     Write {
         name: String,
         poisoned: Option<Uuid>,
     },
+    #[serde(rename = "READ")]
     Read {
         name: String,
         poisoned: Option<Uuid>,

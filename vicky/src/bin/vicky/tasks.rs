@@ -1,3 +1,4 @@
+use chrono::Utc;
 use rocket::http::Status;
 use rocket::response::stream::{Event, EventStream};
 use rocket::{get, post, serde::json::Json, State};
@@ -48,18 +49,21 @@ pub struct LogLines {
     lines: Vec<String>,
 }
 
-#[get("/")]
-pub async fn tasks_get_user(db: Database, _user: User) -> Result<Json<Vec<Task>>, VickyError> {
-    let tasks: Vec<Task> = db.run(|conn| conn.get_all_tasks()).await?;
+#[get("/?<status>")]
+pub async fn tasks_get_user(db: Database, _user: User, status: Option<String>) -> Result<Json<Vec<Task>>, VickyError> {
+    let task_status: Option<TaskStatus> = status.as_deref().map(|s| s.try_into().expect("Invalid status given"));
+    let tasks: Vec<Task> = db.run(|conn| conn.get_all_tasks_filtered(task_status)).await?;
     Ok(Json(tasks))
 }
 
-#[get("/", rank = 2)]
+#[get("/?<status>", rank = 2)]
 pub async fn tasks_get_machine(
     db: Database,
     _machine: Machine,
+    status: Option<String>
 ) -> Result<Json<Vec<Task>>, VickyError> {
-    let tasks: Vec<Task> = db.run(|conn| conn.get_all_tasks()).await?;
+    let task_status: Option<TaskStatus> = status.as_deref().map(|s| s.try_into().expect("Invalid status given"));
+    let tasks: Vec<Task> = db.run(|conn| conn.get_all_tasks_filtered(task_status)).await?;
     Ok(Json(tasks))
 }
 
@@ -87,13 +91,14 @@ pub async fn tasks_specific_get_machine(
     tasks_specific_get(&id, &db).await
 }
 
-#[get("/<id>/logs")]
+#[get("/<id>/logs?<start>")]
 pub async fn tasks_get_logs<'a>(
     id: String,
     db: Database,
     s3: &'a State<S3Client>,
     _user: User,
     log_drain: &'a State<&'_ LogDrain>,
+    start: Option<i32>,
 ) -> EventStream![Event + 'a] {
     // TODO: Fix Error Handling
     let task_uuid = Uuid::parse_str(&id).unwrap();
@@ -104,6 +109,9 @@ pub async fn tasks_get_logs<'a>(
         .ok_or(AppError::HttpError(Status::NotFound))
         .unwrap();
 
+    // Note: The user might specify a start parameter and we want to skip every line until this start param is reached.
+    let mut skip_lines = start.unwrap_or(0);
+
     EventStream! {
 
         match task.status {
@@ -113,7 +121,10 @@ pub async fn tasks_get_logs<'a>(
                 let existing_log_messages = log_drain.get_logs(task_uuid.to_string()).await.unwrap();
 
                 for element in existing_log_messages {
-                    yield Event::data(element)
+                    if skip_lines <= 0 {
+                        yield Event::data(element)
+                    }
+                    skip_lines -= 1;
                 }
 
                 loop {
@@ -122,7 +133,10 @@ pub async fn tasks_get_logs<'a>(
                     match read_val {
                         Ok((task_id, log_text)) => {
                             if task_id == id {
-                                yield Event::data(log_text)
+                                if skip_lines <= 0 {
+                                    yield Event::data(log_text)
+                                }
+                                skip_lines -= 1;
                             }
                         },
                         Err(TryRecvError::Closed) => {
@@ -140,7 +154,10 @@ pub async fn tasks_get_logs<'a>(
             TaskStatus::Finished(_) => {
                 let logs = s3.get_logs(&id).await.unwrap();
                 for element in logs {
-                    yield Event::data(element)
+                    if skip_lines <= 0 {
+                        yield Event::data(element)
+                    }
+                    skip_lines -= 1;
                 }
                 loop {
                     tokio::time::sleep(time::Duration::from_millis(100)).await;
@@ -220,6 +237,8 @@ pub async fn tasks_claim(
                 .await?
                 .ok_or(AppError::HttpError(Status::NotFound))?;
             task.status = TaskStatus::Running;
+            task.claimed_at = Some(Utc::now().naive_utc());
+
             let task2 = task.clone();
             db.run(move |conn| conn.update_task(&task2)).await?;
             global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
@@ -247,6 +266,7 @@ pub async fn tasks_finish(
     log_drain.finish_logs(&id).await?;
 
     task.status = TaskStatus::Finished(finish.result.clone());
+    task.finished_at = Some(Utc::now().naive_utc());
     
     if finish.result == TaskResult::Error {
         task.locks.iter_mut().for_each(|lock| lock.poison(&task.id));

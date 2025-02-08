@@ -7,6 +7,10 @@ import { CustomProvider } from 'rsuite';
 import { AuthProvider } from 'react-oidc-context';
 import { WebConfigContext, WebConfigProvider } from './contexts/web-config';
 
+import * as dayjs from "dayjs";
+import * as relativeTime from 'dayjs/plugin/relativeTime'
+
+dayjs.extend(relativeTime);
 
 const App = () => {
     return (

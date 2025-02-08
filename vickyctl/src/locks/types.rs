@@ -5,11 +5,13 @@ use crate::tasks::Task;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum PoisonedLock {
+    #[serde(rename = "WRITE")]
     Write {
         id: String,
         name: String,
         poisoned: Task,
     },
+    #[serde(rename = "READ")]
     Read {
         id: String,
         name: String,

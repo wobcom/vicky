@@ -50,10 +50,10 @@ const TaskTag = (props: TaskTagProps) => {
 
         return [tagDisplay, tagColor]
 
-    }, [task])
+    }, [task.status])
 
     return ( 
-        <Tag color={tagColor} size={size}>{tagContent}</Tag>
+        <Tag style={{width: "6em", textAlign: "center"}} color={tagColor} size={size}>{tagContent}</Tag>
     )
 
 }

@@ -1,4 +1,7 @@
 use crate::database::entities::lock::Lock;
+use chrono::{NaiveDateTime, Utc};
+use chrono::naive::serde::ts_seconds_option;
+use chrono::naive::serde::ts_seconds;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::database::entities::lock::db_impl::DbLock;
@@ -35,6 +38,12 @@ pub struct Task {
     pub locks: Vec<Lock>,
     pub flake_ref: FlakeRef,
     pub features: Vec<String>,
+    #[serde(with = "ts_seconds")]
+    pub created_at: NaiveDateTime,
+    #[serde(with = "ts_seconds_option")]
+    pub claimed_at: Option<NaiveDateTime>,
+    #[serde(with = "ts_seconds_option")]
+    pub finished_at: Option<NaiveDateTime>,
 }
 
 impl Task {
@@ -162,6 +171,9 @@ impl TaskBuilder {
             status: self.status,
             locks: self.locks,
             flake_ref: self.flake_ref,
+            created_at: Utc::now().naive_utc(),
+            claimed_at: None,
+            finished_at: None,
         }
     }
 }
@@ -179,6 +191,9 @@ impl From<(DbTask, Vec<DbLock>)> for Task {
                 args: task.flake_ref_args,
             },
             features: task.features,
+            created_at: task.created_at,
+            claimed_at: task.claimed_at,
+            finished_at: task.finished_at
         }
     }
 }
@@ -188,7 +203,8 @@ impl From<(DbTask, Vec<DbLock>)> for Task {
 pub mod db_impl {
     use crate::database::entities::task::{Task, TaskResult, TaskStatus};
     use crate::errors::VickyError;
-    use diesel::{insert_into, update, AsChangeset, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl, Connection};
+    use chrono::{NaiveDateTime};
+    use diesel::{AsChangeset, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl, Connection};
     use std::collections::HashMap;
     use std::fmt::Display;
     use uuid::Uuid;
@@ -198,7 +214,6 @@ pub mod db_impl {
     use crate::database::schema::tasks;
     use itertools::Itertools;
     use serde::Serialize;
-    use crate::database::schema::locks::task_id;
 
     #[derive(Insertable, Queryable, AsChangeset, Debug, Serialize)]
     #[diesel(table_name = tasks)]
@@ -209,6 +224,9 @@ pub mod db_impl {
         pub features: Vec<String>,
         pub flake_ref_uri: String,
         pub flake_ref_args: Vec<String>,
+        pub created_at: NaiveDateTime,
+        pub claimed_at: Option<NaiveDateTime>,
+        pub finished_at: Option<NaiveDateTime>,
     }
 
     impl Display for TaskStatus {
@@ -248,11 +266,15 @@ pub mod db_impl {
                 features: task.features,
                 flake_ref_uri: task.flake_ref.flake,
                 flake_ref_args: task.flake_ref.args,
+                created_at: task.created_at,
+                claimed_at: task.claimed_at,
+                finished_at: task.finished_at,
             }
         }
     }
 
     pub trait TaskDatabase {
+        fn get_all_tasks_filtered(&mut self, task_status: Option<TaskStatus>) -> Result<Vec<Task>, VickyError>;
         fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError>;
         fn get_task(&mut self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
         fn put_task(&mut self, task: Task) -> Result<(), VickyError>;
@@ -260,8 +282,18 @@ pub mod db_impl {
     }
 
     impl TaskDatabase for diesel::pg::PgConnection {
-        fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError> {
-            let db_tasks = tasks::table.load::<DbTask>(self)?;
+
+        fn get_all_tasks_filtered(&mut self, task_status: Option<TaskStatus>) -> Result<Vec<Task>, VickyError> {
+            let mut db_tasks_build = tasks::table.into_boxed();
+
+            if let Some(task_status) = task_status {
+                db_tasks_build = db_tasks_build
+                    .filter(tasks::status.eq(task_status.to_string()))
+            }           
+
+            let db_tasks = db_tasks_build
+                .order(tasks::created_at.desc())
+                .load::<DbTask>(self)?;
 
             // prefetching all locks here, so we don't run into the N+1 Query Problem and distribute them
             let all_locks = locks::table.load::<DbLock>(self).unwrap_or_else(|_| vec![]);
@@ -283,13 +315,17 @@ pub mod db_impl {
             Ok(real_tasks)
         }
 
+        fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError> {
+            self.get_all_tasks_filtered(None)
+        }
+
         fn get_task(&mut self, tid: Uuid) -> Result<Option<Task>, VickyError> {
             let db_task = tasks::table.filter(tasks::id.eq(tid)).first::<DbTask>(self);
             let db_task = match db_task {
                 Err(diesel::result::Error::NotFound) => return Ok(None),
                 _ => db_task?,
             };
-            let db_locks: Vec<DbLock> = locks::table.filter(task_id.eq(task_id)).load::<DbLock>(self)?;
+            let db_locks: Vec<DbLock> = locks::table.filter(locks::task_id.eq(tid)).load::<DbLock>(self)?;
 
             let task = (db_task, db_locks).into();
 
@@ -305,25 +341,29 @@ pub mod db_impl {
                     .collect();
                 let db_task: DbTask = task.into();
                 
-                insert_into(tasks::table).values(db_task).execute(conn)?;
+                diesel::insert_into(tasks::table).values(db_task).execute(conn)?;
                 for mut db_lock in db_locks {
                     db_lock.id = None;
-                    insert_into(locks::table).values(db_lock).execute(conn)?;
+                    diesel::insert_into(locks::table).values(db_lock).execute(conn)?;
                 }
                 Ok(())
             })
         }
 
         fn update_task(&mut self, task: &Task) -> Result<(), VickyError> {
-            update(tasks::table.filter(tasks::id.eq(task.id)))
-                .set(tasks::status.eq(task.status.clone().to_string()))
+            diesel::update(tasks::table.filter(tasks::id.eq(task.id)))
+                .set((
+                    tasks::status.eq(task.status.clone().to_string()), 
+                    tasks::claimed_at.eq(task.claimed_at),
+                    tasks::finished_at.eq(task.finished_at)
+                ))
                 .execute(self)?;
 
             // FIXME: Conversion from DbLock to Lock drops id. No way to update locks here.
             //        this is just a workaround for now. Should behave fine though 
             //        and is more performant.
             if task.status == TaskStatus::Finished(TaskResult::Error) {
-                update(locks::table.filter(task_id.eq(task.id)))
+                diesel::update(locks::table.filter(locks::task_id.eq(task.id)))
                     .set(locks::poisoned_by_task.eq(task.id))
                     .execute(self)?;
             }

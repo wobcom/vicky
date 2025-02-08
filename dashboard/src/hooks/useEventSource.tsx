@@ -1,5 +1,5 @@
 import { EventSourceMessage, fetchEventSource } from "@microsoft/fetch-event-source";
-import { useCallback, useEffect, useRef } from "react";
+import { MutableRefObject, Ref, RefCallback, useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "react-oidc-context"
 
 export type LogEvent = String;
@@ -15,12 +15,11 @@ export type TaskUpdateEvent = {
 
 export type GlobalEvent = TaskAddEvent | TaskUpdateEvent;
 
-const useEventSource = (url: string, callback: (evt: string) => void, allowStart=true) => {
+const useEventSource = (url: string, callback: (evt: string) => void, allowStart=true, params: ({start: number} | null) = null) => {
 
     const auth = useAuth();
 
     const openEventSource = useRef<Promise<void> | null>(null);
-
     const onMessage = useCallback((evt: EventSourceMessage) => {
         const x = evt.data;
         return callback(x);
@@ -33,9 +32,12 @@ const useEventSource = (url: string, callback: (evt: string) => void, allowStart
 
         const controller = new AbortController()
 
+        let urlWithParam = params ? `${url}?start=${params.start}` : url
+
         openEventSource.current = fetchEventSource(
-            url,
+            urlWithParam,
             {
+                openWhenHidden: true,
                 signal: controller.signal,
                 headers: {
                     "Authorization": `Bearer ${auth.user.access_token}`
@@ -60,10 +62,23 @@ const useEventSourceJSON = <T extends any>(url: string, callback: (evt: T) => vo
     }, [callback])
 
 
-    return useEventSource(url, onMessage)
+    return useEventSource(url, onMessage, true, null)
+}
+
+const useLogStream = (url: string, callback: (line: string) => void, allowStart: boolean) => {
+    const [seenLogLines, setSeenLogLines] = useState(0);
+
+    const onMessage = useCallback((str: string) => {
+        setSeenLogLines(sSLL => sSLL + 1);
+        return callback(str);
+        
+    }, [callback])
+
+    return useEventSource(url, onMessage, allowStart, {start: seenLogLines})
 }
 
 export {
     useEventSource,
+    useLogStream,
     useEventSourceJSON
 }

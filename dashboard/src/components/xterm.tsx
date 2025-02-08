@@ -2,7 +2,7 @@ import { useWindowSize } from "@uidotdev/usehooks";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Terminal as XTerm } from "xterm"
 import { FitAddon } from 'xterm-addon-fit';
-import { useEventSource } from "../hooks/useEventSource";
+import { useEventSource, useLogStream } from "../hooks/useEventSource";
 import { useAPI } from "../services/api";
 
 type TerminalProps = {
@@ -29,7 +29,7 @@ const Terminal = (props: TerminalProps) => {
         termRef.write(logLine + "\r\n")
     }, [termRef])
 
-    useEventSource(`/api/tasks/${taskId}/logs`, eventCallback, termRef != null);
+    useLogStream(`/api/tasks/${taskId}/logs`, eventCallback, termRef != null);
     
     useEffect(() => {
         // Window Resizing takes some more time than JS execution...
@@ -40,6 +40,7 @@ const Terminal = (props: TerminalProps) => {
         if (ref && !termRef) {
             const iTerm = new XTerm({
                 scrollback: 100000,
+                fontFamily: "Mono"
             })
             const fitAddon = new FitAddon();
             iTerm.loadAddon(fitAddon)

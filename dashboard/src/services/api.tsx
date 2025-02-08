@@ -7,12 +7,15 @@ type ITask = {
     display_name: string,
     locks: {
         type: "WRITE" | "READ"
-        object: string,
+        name: string,
     }[]
     status: {
         state: string,
         result?: string,
     }
+    created_at: number,
+    claimed_at: number | null,
+    finished_at: number | null,
 }
 
 type IUser = {
@@ -49,8 +52,8 @@ const useAPI = () => {
         ).then(x => x.json());
     }
 
-    const getTasks = (): Promise<ITask[]> => {
-        return fetchJSON(`${BASE_URL}/tasks`);
+    const getTasks = (filter: string | null): Promise<ITask[]> => {
+        return fetchJSON(`${BASE_URL}/tasks${filter ? `?status=${filter}` : ''}`);
     }
 
     const getTask = (id: string): Promise<ITask> => {

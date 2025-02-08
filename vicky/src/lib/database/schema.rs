@@ -19,6 +19,9 @@ diesel::table! {
         features -> Array<Text>,
         flake_ref_uri -> Varchar,
         flake_ref_args -> Array<Text>,
+        created_at -> Timestamp,
+        claimed_at -> Nullable<Timestamp>,
+        finished_at -> Nullable<Timestamp>,
     }
 }
 
