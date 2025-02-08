@@ -63,7 +63,8 @@
     devShells.default = pkgs.mkShell {
       name = "vicky-shell";
       RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
-      nativeBuildInputs = with pkgs; [ rustc clippy cargo rustfmt pkg-config protobuf devenv ];
+      DATABASE_URL = "postgres://vicky:vicky@localhost/vicky";
+      nativeBuildInputs = with pkgs; [ rustc clippy cargo rustfmt pkg-config protobuf devenv diesel-cli ];
       buildInputs = with pkgs; [ openssl postgresql ];
     };
 
