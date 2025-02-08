@@ -148,9 +148,8 @@ fn handle_task_list(
     selected_task: &mut Option<usize>,
     key: &KeyEvent,
 ) {
-    match state.selected_mut() {
-        Some(cur) => handle_task_list_input(lock_amount, selected_task, key, cur),
-        None => (),
+    if let Some(cur) = state.selected_mut() {
+        handle_task_list_input(lock_amount, selected_task, key, cur);
     };
 }
 
