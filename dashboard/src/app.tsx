@@ -23,6 +23,7 @@ const App = () => {
                             authority: value?.authority,
                             client_id: value?.client_id,
                             redirect_uri: `${url.protocol}//${url.host}`,
+                            scope: "openid profile email",
                             onSigninCallback: (): void => {
                                 window.history.replaceState({}, document.title, window.location.pathname);
                             },
