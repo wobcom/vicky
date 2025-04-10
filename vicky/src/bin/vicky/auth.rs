@@ -92,32 +92,32 @@ impl<'r> request::FromRequest<'r> for User {
             .await
             .expect("request OIDCConfigResolved");
 
-        if let Some(auth_header) = request.headers().get_one("Authorization") {
-            if !auth_header.starts_with("Bearer") {
-                return request::Outcome::Forward(Status::Forbidden);
-            }
-
-            let token = auth_header.trim_start_matches("Bearer ");
-
-            return match extract_user_from_token(jwks_verifier, db, oidc_config_resolved, token).await {
-                Ok(user) => {
-                    let user = User {
-                        id: user.sub,
-                        full_name: user.name,
-                        role: Role::Admin
-                    };
-
-                    request::Outcome::Success(user)
-                }
-
-                Err(x) => {
-                    warn!("Login failed: {:?}", x);
-                    request::Outcome::Error((Status::Forbidden, ()))
-                }
-            }
+        let Some(auth_header) = request.headers().get_one("Authorization") else {
+            return request::Outcome::Forward(Status::Forbidden);
+        };
+        
+        if !auth_header.starts_with("Bearer") {
+            return request::Outcome::Forward(Status::Forbidden);
         }
 
-        request::Outcome::Forward(Status::Forbidden)
+        let token = auth_header.trim_start_matches("Bearer ");
+    
+        match extract_user_from_token(jwks_verifier, db, oidc_config_resolved, token).await {
+            Ok(user) => {
+                let user = User {
+                    id: user.sub,
+                    full_name: user.name,
+                    role: Role::Admin
+                };
+                    
+                request::Outcome::Success(user)
+            }
+                
+            Err(x) => {
+                warn!("Login failed: {:?}", x);
+                 request::Outcome::Error((Status::Forbidden, ()))
+            }
+        }
     }
 }
 
@@ -131,15 +131,16 @@ impl<'r> request::FromRequest<'r> for Machine {
             .await
             .expect("request Config");
 
-        if let Some(auth_header) = request.headers().get_one("Authorization") {
-            let cfg_user = config.machines.iter().find(|x| *x == auth_header);
+        let Some(auth_header) = request.headers().get_one("Authorization") else {
+            return request::Outcome::Forward(Status::Forbidden)
+        };
 
-            return match cfg_user {
-                Some(_) => request::Outcome::Success(Machine {}),
-                None => request::Outcome::Error((Status::Forbidden, ())),
-            };
+        let cfg_user = config.machines.iter().find(|x| *x == auth_header);
+
+        match cfg_user {
+            Some(_) => request::Outcome::Success(Machine {}),
+            None => request::Outcome::Error((Status::Forbidden, ())),
         }
-
-        request::Outcome::Forward(Status::Forbidden)
     }
 }
+
