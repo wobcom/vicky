@@ -160,9 +160,9 @@ fn handle_task_list_input(
     cur: &mut usize,
 ) {
     if (key.code == KeyCode::Up || key.code == KeyCode::Char('k')) && *cur > 0 {
-        *cur -= 1;
+        *cur = cur.saturating_sub(1);
     } else if (key.code == KeyCode::Down || key.code == KeyCode::Char('j'))
-        && *cur < lock_amount - 1
+        && *cur < lock_amount.saturating_sub(1)
     {
         *cur += 1;
     } else if key.code == KeyCode::Enter {
@@ -227,7 +227,10 @@ fn draw_confirm_clear(
     if lock.is_none() {
         return;
     }
-    let lock = lock.unwrap();
+    let lock = match lock {
+        Some(lock) => lock,
+        None => return,
+    };
     draw_centered_popup(
         f,
         &format!("Do you really want to clear the lock {}?", lock.name()),

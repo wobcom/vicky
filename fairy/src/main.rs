@@ -133,7 +133,7 @@ fn log_sink(cfg: Arc<AppConfig>, task_id: Uuid) -> impl Sink<Vec<String>, Error 
             let response = api::<_, ()>(
                 &cfg,
                 Method::POST,
-                &format!("api/v1/tasks/{}/logs", task_id),
+                &format!("api/v1/tasks/{task_id}/logs"),
                 &serde_json::json!({ "lines": lines }),
             )
             .await;
@@ -179,8 +179,20 @@ async fn try_run_task(cfg: Arc<AppConfig>, task: &Task) -> Result<()> {
     let logger = log_sink(cfg.clone(), task.id);
 
     let lines = futures_util::stream::select(
-        FramedRead::new(child.stdout.take().unwrap(), LinesCodec::new()),
-        FramedRead::new(child.stderr.take().unwrap(), LinesCodec::new()),
+        FramedRead::new(
+            child
+                .stdout
+                .take()
+                .ok_or(Error::MissingPipe { which: "stdout" })?,
+            LinesCodec::new(),
+        ),
+        FramedRead::new(
+            child
+                .stderr
+                .take()
+                .ok_or(Error::MissingPipe { which: "stderr" })?,
+            LinesCodec::new(),
+        ),
     );
 
     lines
@@ -195,7 +207,7 @@ async fn try_run_task(cfg: Arc<AppConfig>, task: &Task) -> Result<()> {
         log::info!("task finished: {} {} 🎉", task.id, task.display_name);
         Ok(())
     } else {
-        Err(error::Error::TaskExit {
+        Err(Error::TaskExit {
             code: exit_status.code(),
         })
     }
@@ -253,7 +265,7 @@ async fn run(cfg: AppConfig) -> Result<()> {
     let cfg = Arc::new(cfg);
     loop {
         if let Err(e) = try_claim(cfg.clone()).await {
-            log::error!("{}", e);
+            log::error!("{e}");
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         }
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;

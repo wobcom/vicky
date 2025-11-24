@@ -6,6 +6,7 @@ use log::error;
 use rocket::{http::Status, response::Responder, Request};
 use thiserror::Error;
 use tokio::sync::broadcast::error::SendError;
+use uuid::Uuid;
 
 #[derive(Error, Debug)]
 pub enum VickyError {
@@ -30,7 +31,7 @@ pub enum VickyError {
     #[error("log broadcast failed: {source}")]
     PushError {
         #[from]
-        source: SendError<(String, String)>,
+        source: SendError<(Uuid, String)>,
     },
 
     #[error("s3 client error: {source}")]
@@ -83,7 +84,7 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for VickyError {
     fn respond_to(self, req: &'r Request<'_>) -> rocket::response::Result<'o> {
         // log `self` to your favored error tracker, e.g.
         // sentry::capture_error(&self);
-        error!("Error: {}", self);
+        error!("Error: {self}");
 
         Status::InternalServerError.respond_to(req)
     }

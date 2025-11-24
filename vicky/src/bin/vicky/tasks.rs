@@ -1,4 +1,5 @@
 use chrono::Utc;
+use log::{error, warn};
 use rocket::http::Status;
 use rocket::response::stream::{Event, EventStream};
 use rocket::{get, post, serde::json::Json, State};
@@ -83,53 +84,46 @@ pub async fn tasks_get_machine(
     Ok(Json(tasks))
 }
 
-async fn tasks_specific_get(id: &str, db: &Database) -> Result<Json<Option<Task>>, AppError> {
-    let task_uuid = Uuid::parse_str(id)?;
-    let tasks: Option<Task> = db.run(move |conn| conn.get_task(task_uuid)).await?;
+async fn tasks_specific_get(id: Uuid, db: &Database) -> Result<Json<Option<Task>>, AppError> {
+    let tasks: Option<Task> = db.run(move |conn| conn.get_task(id)).await?;
     Ok(Json(tasks))
 }
 
 #[get("/<id>")]
 pub async fn tasks_specific_get_user(
-    id: String,
+    id: Uuid,
     db: Database,
     _user: User,
 ) -> Result<Json<Option<Task>>, AppError> {
-    tasks_specific_get(&id, &db).await
+    tasks_specific_get(id, &db).await
 }
 
 #[get("/<id>", rank = 2)]
 pub async fn tasks_specific_get_machine(
-    id: String,
+    id: Uuid,
     db: Database,
     _machine: Machine,
 ) -> Result<Json<Option<Task>>, AppError> {
-    tasks_specific_get(&id, &db).await
+    tasks_specific_get(id, &db).await
 }
 
 #[get("/<id>/logs?<start>")]
 pub async fn tasks_get_logs<'a>(
-    id: String,
+    id: Uuid,
     db: Database,
     s3: &'a State<S3Client>,
     _user: User,
     log_drain: &'a State<&'_ LogDrain>,
     start: Option<i32>,
 ) -> EventStream![Event + 'a] {
-    let setup = match Uuid::parse_str(&id) {
-        Ok(task_uuid) => match db.run(move |conn| conn.get_task(task_uuid)).await {
-            Ok(Some(task)) => Some((task_uuid, task)),
-            Ok(None) => {
-                log::warn!("task {} not found", id);
-                None
-            }
-            Err(err) => {
-                log::error!("task lookup failed {}: {}", id, err);
-                None
-            }
-        },
+    let setup = match db.run(move |conn| conn.get_task(id)).await {
+        Ok(Some(task)) => Some((id, task)),
+        Ok(None) => {
+            warn!("task {id} not found");
+            None
+        }
         Err(err) => {
-            log::warn!("invalid task id {}: {}", id, err);
+            error!("task lookup failed {id}: {err}");
             None
         }
     };
@@ -144,7 +138,7 @@ pub async fn tasks_get_logs<'a>(
             TaskStatus::Running => {
                 let mut recv = log_drain.send_handle.subscribe();
                 let existing_log_messages = log_drain
-                    .get_logs(task_uuid.to_string())
+                    .get_logs(task_uuid)
                     .await
                     .unwrap_or_default();
 
@@ -180,7 +174,7 @@ pub async fn tasks_get_logs<'a>(
                 }
             },
             TaskStatus::Finished(_) => {
-                match s3.get_logs(&id).await {
+                match s3.get_logs(&id.to_string()).await {
                     Ok(logs) => {
                         for element in logs {
                             if skip_lines <= 0 {
@@ -193,7 +187,7 @@ pub async fn tasks_get_logs<'a>(
                         }
                     }
                     Err(err) => {
-                        log::error!("failed to load logs for {}: {}", id, err);
+                        log::error!("failed to load logs for {id}: {err}");
                     }
                 }
             },
@@ -204,20 +198,19 @@ pub async fn tasks_get_logs<'a>(
 
 #[get("/<id>/logs/download")]
 pub async fn tasks_download_logs(
-    id: String,
+    id: Uuid,
     db: Database,
     s3: &'_ State<S3Client>,
     _machine: Machine,
 ) -> Result<Json<LogLines>, AppError> {
-    let task_uuid = Uuid::parse_str(&id)?;
     // Note: We still need to verify the existence of the task before accessing S3 with an abitrary string..
     let _task = db
-        .run(move |conn| conn.get_task(task_uuid))
+        .run(move |conn| conn.get_task(id))
         .await
         .map_err(AppError::from)?
         .ok_or(AppError::HttpError(Status::NotFound))?;
 
-    let logs = s3.get_logs(&id).await.map_err(AppError::from)?;
+    let logs = s3.get_logs(&id.to_string()).await.map_err(AppError::from)?;
     let log_lines = LogLines { lines: logs };
 
     Ok(Json(log_lines))
@@ -225,15 +218,14 @@ pub async fn tasks_download_logs(
 
 #[post("/<id>/logs", format = "json", data = "<logs>")]
 pub async fn tasks_put_logs(
-    id: String,
+    id: Uuid,
     db: Database,
     logs: Json<LogLines>,
     _machine: Machine,
     log_drain: &State<&LogDrain>,
 ) -> Result<Json<()>, AppError> {
-    let task_uuid = Uuid::parse_str(&id)?;
     let task = db
-        .run(move |conn| conn.get_task(task_uuid))
+        .run(move |conn| conn.get_task(id))
         .await?
         .ok_or(AppError::HttpError(Status::NotFound))?;
 
@@ -279,20 +271,19 @@ pub async fn tasks_claim(
 
 #[post("/<id>/finish", format = "json", data = "<finish>")]
 pub async fn tasks_finish(
-    id: String,
+    id: Uuid,
     finish: Json<RoTaskFinish>,
     db: Database,
     global_events: &State<broadcast::Sender<GlobalEvent>>,
     _machine: Machine,
     log_drain: &State<&LogDrain>,
 ) -> Result<Json<Task>, AppError> {
-    let task_uuid = Uuid::parse_str(&id)?;
     let mut task = db
-        .run(move |conn| conn.get_task(task_uuid))
+        .run(move |conn| conn.get_task(id))
         .await?
         .ok_or(AppError::HttpError(Status::NotFound))?;
 
-    log_drain.finish_logs(&id).await?;
+    log_drain.finish_logs(id).await?;
 
     task.status = TaskStatus::Finished(finish.result.clone());
     task.finished_at = Some(Utc::now().naive_utc());

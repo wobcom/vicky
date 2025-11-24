@@ -53,7 +53,7 @@ async fn extract_user_from_token(
             let oidc_client = reqwest::Client::new();
             let x = oidc_client
                 .get(oidc_config.userinfo_endpoint.clone())
-                .header("Authorization", format!("Bearer {}", token))
+                .header("Authorization", format!("Bearer {token}"))
                 .send()
                 .await?;
 

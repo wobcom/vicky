@@ -51,7 +51,7 @@ pub fn show_tasks(tasks_args: &TasksArgs) -> Result<(), Error> {
 
     let client = prepare_client(&tasks_args.ctx)?;
     let request = client
-        .get(format!("{}/{}", tasks_args.ctx.vicky_url, "api/v1/tasks"))
+        .get(format!("{}/api/v1/tasks", tasks_args.ctx.vicky_url))
         .build()?;
     let response = client.execute(request)?.error_for_status()?;
 
@@ -100,7 +100,7 @@ struct RoTaskCreate {
 pub fn create_task(task_data: &TaskData, ctx: &AppContext) -> Result<(), Error> {
     let client = prepare_client(ctx)?;
     let request = client
-        .post(format!("{}/{}", ctx.vicky_url, "api/v1/tasks"))
+        .post(format!("{}/api/v1/tasks", ctx.vicky_url))
         .body(task_data.to_json().to_string())
         .build()?;
 
@@ -133,7 +133,7 @@ pub fn claim_task(features: &[String], ctx: &AppContext) -> Result<(), Error> {
         "features": features
     });
     let request = client
-        .post(format!("{}/{}", ctx.vicky_url, "api/v1/tasks/claim"))
+        .post(format!("{}/api/v1/tasks/claim", ctx.vicky_url))
         .body(data.to_string())
         .build()?;
 
@@ -152,21 +152,18 @@ pub fn claim_task(features: &[String], ctx: &AppContext) -> Result<(), Error> {
             &format!("Task was claimed: {}", pretty_data.bright_blue()),
         );
     } else {
-        println!("{}", pretty_data);
+        println!("{pretty_data}");
     }
     Ok(())
 }
 
-pub fn finish_task(id: &Uuid, status: &String, ctx: &AppContext) -> Result<(), Error> {
+pub fn finish_task(id: &Uuid, status: &str, ctx: &AppContext) -> Result<(), Error> {
     let client = prepare_client(ctx)?;
     let data = json!({
         "result": status
     });
     let request = client
-        .post(format!(
-            "{}/{}/{}/{}",
-            ctx.vicky_url, "api/v1/tasks", id, "finish"
-        ))
+        .post(format!("{}/api/v1/tasks/{id}/finish", ctx.vicky_url))
         .body(data.to_string())
         .build()?;
 
@@ -188,7 +185,7 @@ pub fn finish_task(id: &Uuid, status: &String, ctx: &AppContext) -> Result<(), E
             ),
         );
     } else {
-        println!("{}", pretty_data);
+        println!("{pretty_data}");
     }
     Ok(())
 }

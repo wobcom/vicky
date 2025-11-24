@@ -32,7 +32,9 @@ impl<'a> ConstraintMgmt<'a> for Constraints<'a> {
         if !self.contains_key(lock.name()) {
             return true; // lock wasn't used yet
         }
-        let lock = self.get(lock.name()).expect("Lock must be in list");
+        let Some(lock) = self.get(lock.name()) else {
+            return false; // block execution if missing lock entry
+        };
 
         !lock.is_conflicting(lock)
     }

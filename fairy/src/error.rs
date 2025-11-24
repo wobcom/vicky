@@ -43,4 +43,7 @@ pub enum Error {
 
     #[snafu(display("nix exited with {code:?}"))]
     TaskExit { code: Option<i32> },
+
+    #[snafu(display("missing log pipe: {which}"))]
+    MissingPipe { which: &'static str },
 }

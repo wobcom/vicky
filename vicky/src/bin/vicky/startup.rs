@@ -61,19 +61,17 @@ pub async fn ensure_bucket(client: &Client, bucket: &str) -> Result<()> {
                     if c.err().is_bucket_already_exists()
                         || c.err().is_bucket_already_owned_by_you() =>
                 {
-                    log::info!("Bucket \"{}\" is already present on the log drain.", bucket);
+                    log::info!("Bucket \"{bucket}\" is already present on the log drain.");
                     return Ok(());
                 }
                 SdkError::DispatchFailure(_) => {
                     log::error!(
-                        "Failed to communicate with Log Drain / S3 Bucket Connector (is the bucket running and available?): {:?}",
-                        err
+                        "Failed to communicate with Log Drain / S3 Bucket Connector (is the bucket running and available?): {err:?}"
                     );
                 }
                 _ => {
                     log::error!(
-                        "Log Drain / S3 Bucket Connector ran into an irrecoverable error: {:?}",
-                        err
+                        "Log Drain / S3 Bucket Connector ran into an irrecoverable error: {err:?}"
                     );
                 }
             }
