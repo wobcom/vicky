@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{auth::User, errors::AppError};
 
+#[allow(unused)]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-
 pub struct Me {
     full_name: String,
     role: String,

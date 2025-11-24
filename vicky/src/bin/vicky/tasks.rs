@@ -54,10 +54,12 @@ pub async fn tasks_get_user(
     db: Database,
     _user: User,
     status: Option<String>,
-) -> Result<Json<Vec<Task>>, VickyError> {
+) -> Result<Json<Vec<Task>>, AppError> {
     let task_status: Option<TaskStatus> = status
         .as_deref()
-        .map(|s| s.try_into().expect("Invalid status given"));
+        .map(TaskStatus::try_from)
+        .transpose()
+        .map_err(|_| AppError::HttpError(Status::BadRequest))?;
     let tasks: Vec<Task> = db
         .run(|conn| conn.get_all_tasks_filtered(task_status))
         .await?;
@@ -69,18 +71,20 @@ pub async fn tasks_get_machine(
     db: Database,
     _machine: Machine,
     status: Option<String>,
-) -> Result<Json<Vec<Task>>, VickyError> {
+) -> Result<Json<Vec<Task>>, AppError> {
     let task_status: Option<TaskStatus> = status
         .as_deref()
-        .map(|s| s.try_into().expect("Invalid status given"));
+        .map(TaskStatus::try_from)
+        .transpose()
+        .map_err(|_| AppError::HttpError(Status::BadRequest))?;
     let tasks: Vec<Task> = db
         .run(|conn| conn.get_all_tasks_filtered(task_status))
         .await?;
     Ok(Json(tasks))
 }
 
-async fn tasks_specific_get(id: &str, db: &Database) -> Result<Json<Option<Task>>, VickyError> {
-    let task_uuid = Uuid::parse_str(id).unwrap();
+async fn tasks_specific_get(id: &str, db: &Database) -> Result<Json<Option<Task>>, AppError> {
+    let task_uuid = Uuid::parse_str(id)?;
     let tasks: Option<Task> = db.run(move |conn| conn.get_task(task_uuid)).await?;
     Ok(Json(tasks))
 }
@@ -90,7 +94,7 @@ pub async fn tasks_specific_get_user(
     id: String,
     db: Database,
     _user: User,
-) -> Result<Json<Option<Task>>, VickyError> {
+) -> Result<Json<Option<Task>>, AppError> {
     tasks_specific_get(&id, &db).await
 }
 
@@ -99,7 +103,7 @@ pub async fn tasks_specific_get_machine(
     id: String,
     db: Database,
     _machine: Machine,
-) -> Result<Json<Option<Task>>, VickyError> {
+) -> Result<Json<Option<Task>>, AppError> {
     tasks_specific_get(&id, &db).await
 }
 
@@ -112,25 +116,37 @@ pub async fn tasks_get_logs<'a>(
     log_drain: &'a State<&'_ LogDrain>,
     start: Option<i32>,
 ) -> EventStream![Event + 'a] {
-    // TODO: Fix Error Handling
-    let task_uuid = Uuid::parse_str(&id).unwrap();
-    let task = db
-        .run(move |conn| conn.get_task(task_uuid))
-        .await
-        .unwrap()
-        .ok_or(AppError::HttpError(Status::NotFound))
-        .unwrap();
+    let setup = match Uuid::parse_str(&id) {
+        Ok(task_uuid) => match db.run(move |conn| conn.get_task(task_uuid)).await {
+            Ok(Some(task)) => Some((task_uuid, task)),
+            Ok(None) => {
+                log::warn!("task {} not found", id);
+                None
+            }
+            Err(err) => {
+                log::error!("task lookup failed {}: {}", id, err);
+                None
+            }
+        },
+        Err(err) => {
+            log::warn!("invalid task id {}: {}", id, err);
+            None
+        }
+    };
 
     // Note: The user might specify a start parameter and we want to skip every line until this start param is reached.
     let mut skip_lines = start.unwrap_or(0);
 
     EventStream! {
-
+        if let Some((task_uuid, task)) = setup {
         match task.status {
             TaskStatus::New => {},
             TaskStatus::Running => {
                 let mut recv = log_drain.send_handle.subscribe();
-                let existing_log_messages = log_drain.get_logs(task_uuid.to_string()).await.unwrap();
+                let existing_log_messages = log_drain
+                    .get_logs(task_uuid.to_string())
+                    .await
+                    .unwrap_or_default();
 
                 for element in existing_log_messages {
                     if skip_lines <= 0 {
@@ -164,19 +180,25 @@ pub async fn tasks_get_logs<'a>(
                 }
             },
             TaskStatus::Finished(_) => {
-                let logs = s3.get_logs(&id).await.unwrap();
-                for element in logs {
-                    if skip_lines <= 0 {
-                        yield Event::data(element)
+                match s3.get_logs(&id).await {
+                    Ok(logs) => {
+                        for element in logs {
+                            if skip_lines <= 0 {
+                                yield Event::data(element)
+                            }
+                            skip_lines -= 1;
+                        }
+                        loop {
+                            tokio::time::sleep(time::Duration::from_millis(100)).await;
+                        }
                     }
-                    skip_lines -= 1;
-                }
-                loop {
-                    tokio::time::sleep(time::Duration::from_millis(100)).await;
+                    Err(err) => {
+                        log::error!("failed to load logs for {}: {}", id, err);
+                    }
                 }
             },
         }
-
+        }
     }
 }
 
@@ -186,18 +208,16 @@ pub async fn tasks_download_logs(
     db: Database,
     s3: &'_ State<S3Client>,
     _machine: Machine,
-) -> Result<Json<LogLines>, VickyError> {
-    // TODO: Fix Error Handling
-    let task_uuid = Uuid::parse_str(&id).unwrap();
-    // Note: We still need to verify the existance of the task before accessing S3 with an abitrary string..
+) -> Result<Json<LogLines>, AppError> {
+    let task_uuid = Uuid::parse_str(&id)?;
+    // Note: We still need to verify the existence of the task before accessing S3 with an abitrary string..
     let _task = db
         .run(move |conn| conn.get_task(task_uuid))
         .await
-        .unwrap()
-        .ok_or(AppError::HttpError(Status::NotFound))
-        .unwrap();
+        .map_err(AppError::from)?
+        .ok_or(AppError::HttpError(Status::NotFound))?;
 
-    let logs = s3.get_logs(&id).await.unwrap();
+    let logs = s3.get_logs(&id).await.map_err(AppError::from)?;
     let log_lines = LogLines { lines: logs };
 
     Ok(Json(log_lines))

@@ -68,3 +68,11 @@ impl From<VickyError> for AppError {
         }
     }
 }
+
+impl From<vickylib::errors::S3ClientError> for AppError {
+    fn from(source: vickylib::errors::S3ClientError) -> Self {
+        AppError::VickyError {
+            source: Box::new(source.into()),
+        }
+    }
+}

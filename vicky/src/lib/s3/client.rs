@@ -26,8 +26,7 @@ impl S3Client {
             .await?;
 
         let existing_vec = get_object_result.body.collect().await?;
-        let res = String::from_utf8(existing_vec.to_vec())
-            .unwrap()
+        let res = String::from_utf8(existing_vec.to_vec())?
             .split(['\n', '\r'])
             .map(|x| x.to_string())
             .collect();

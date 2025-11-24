@@ -71,6 +71,12 @@ pub enum S3ClientError {
         #[from]
         source: ByteStreamError,
     },
+
+    #[error("invalid utf8 in log object: {source}")]
+    Utf8 {
+        #[from]
+        source: std::string::FromUtf8Error,
+    },
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for VickyError {

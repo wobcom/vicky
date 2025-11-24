@@ -1,6 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::time;
 
+use log::error;
 use rocket::futures::lock::Mutex;
 use tokio::sync::broadcast::{self, error::TryRecvError, Sender};
 
@@ -42,11 +43,8 @@ impl LogDrain {
                         {
                             let mut llb = ldr.live_log_buffers.lock().await;
 
-                            if !llb.contains_key(&task_id) {
-                                llb.insert(task_id.clone(), VecDeque::new());
-                            }
-
-                            let live_log_buffer = llb.get_mut(&task_id).unwrap();
+                            let live_log_buffer =
+                                llb.entry(task_id.clone()).or_insert_with(VecDeque::new);
                             if live_log_buffer.len() == LOG_BUFFER {
                                 live_log_buffer.pop_front();
                             }
@@ -56,21 +54,21 @@ impl LogDrain {
                         {
                             let mut push_log_buffers = ldr.push_log_buffers.lock().await;
 
-                            if !push_log_buffers.contains_key(&task_id) {
-                                push_log_buffers.insert(task_id.clone(), vec![]);
-                            }
-
-                            let push_log_buffer = push_log_buffers.get_mut(&task_id).unwrap();
+                            let push_log_buffer = push_log_buffers
+                                .entry(task_id.clone())
+                                .or_insert_with(Vec::new);
                             push_log_buffer.push(log_text.clone());
 
                             // TODO: Figure out a good buffer length for our use case.
                             if push_log_buffer.len() > 16 {
                                 // Push buffer to S3
 
-                                s3_client_m
+                                if let Err(err) = s3_client_m
                                     .upload_log_parts(&task_id, push_log_buffer.to_vec())
                                     .await
-                                    .unwrap();
+                                {
+                                    error!("failed to upload log parts for {}: {}", task_id, err);
+                                }
                                 push_log_buffer.clear()
                             }
                         }

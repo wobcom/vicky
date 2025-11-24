@@ -38,12 +38,14 @@ async fn extract_user_from_token(
 ) -> Result<DbUser, AppError> {
     let jwt = jwks_verifier.verify::<Map<String, Value>>(token).await?;
 
-    let sub = match &jwt.claims().sub {
-        Some(sub) => Some(Uuid::from_str(sub)?),
-        None => return Err(AppError::JWTFormatError("JWT must contain sub".to_string())),
-    };
+    let sub = jwt
+        .claims()
+        .sub
+        .as_deref()
+        .ok_or_else(|| AppError::JWTFormatError("JWT must contain sub".to_string()))?;
+    let sub = Uuid::from_str(sub)?;
 
-    let user = db.run(move |conn| conn.get_user(sub.unwrap())).await?;
+    let user = db.run(move |conn| conn.get_user(sub)).await?;
 
     match user {
         Some(user) => Ok(user),
@@ -57,18 +59,16 @@ async fn extract_user_from_token(
 
             let user_info = x.json::<serde_json::Value>().await?;
 
-            let name = match user_info.get("name").and_then(|x| x.as_str()) {
-                Some(name) => Some(name),
-                None => {
-                    return Err(AppError::JWTFormatError(
-                        "user_info must contain name".to_string(),
-                    ))
-                }
-            };
+            let name = user_info
+                .get("name")
+                .and_then(|x| x.as_str())
+                .ok_or_else(|| {
+                    AppError::JWTFormatError("user_info must contain name".to_string())
+                })?;
 
             let new_user = DbUser {
-                sub: sub.unwrap(),
-                name: name.unwrap().to_string(),
+                sub,
+                name: name.to_string(),
                 role: "ADMIN".to_string(),
             };
 
@@ -85,17 +85,21 @@ impl<'r> request::FromRequest<'r> for User {
     type Error = ();
 
     async fn from_request(request: &'r request::Request<'_>) -> request::Outcome<User, ()> {
-        let jwks_verifier: &State<_> = request
-            .guard::<&State<RemoteJwksVerifier>>()
-            .await
-            .expect("request KeyStore");
+        let jwks_verifier: &State<_> = match request.guard::<&State<RemoteJwksVerifier>>().await {
+            request::Outcome::Success(v) => v,
+            _ => return request::Outcome::Error((Status::InternalServerError, ())),
+        };
 
-        let db: &Database = &request.guard::<Database>().await.expect("request Database");
+        let db = match request.guard::<Database>().await {
+            request::Outcome::Success(v) => v,
+            _ => return request::Outcome::Error((Status::InternalServerError, ())),
+        };
 
-        let oidc_config_resolved: &OIDCConfigResolved = request
-            .guard::<&State<OIDCConfigResolved>>()
-            .await
-            .expect("request OIDCConfigResolved");
+        let oidc_config_resolved: &OIDCConfigResolved =
+            match request.guard::<&State<OIDCConfigResolved>>().await {
+                request::Outcome::Success(v) => v,
+                _ => return request::Outcome::Error((Status::InternalServerError, ())),
+            };
 
         let Some(auth_header) = request.headers().get_one("Authorization") else {
             return request::Outcome::Forward(Status::Forbidden);
@@ -107,7 +111,7 @@ impl<'r> request::FromRequest<'r> for User {
 
         let token = auth_header.trim_start_matches("Bearer ");
 
-        match extract_user_from_token(jwks_verifier, db, oidc_config_resolved, token).await {
+        match extract_user_from_token(jwks_verifier, &db, oidc_config_resolved, token).await {
             Ok(user) => {
                 let user = User {
                     id: user.sub,
@@ -131,10 +135,10 @@ impl<'r> request::FromRequest<'r> for Machine {
     type Error = ();
 
     async fn from_request(request: &'r request::Request<'_>) -> request::Outcome<Machine, ()> {
-        let config = request
-            .guard::<&State<Config>>()
-            .await
-            .expect("request Config");
+        let config = match request.guard::<&State<Config>>().await {
+            request::Outcome::Success(cfg) => cfg,
+            _ => return request::Outcome::Error((Status::InternalServerError, ())),
+        };
 
         let Some(auth_header) = request.headers().get_one("Authorization") else {
             return request::Outcome::Forward(Status::Forbidden);
