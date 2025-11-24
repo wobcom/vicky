@@ -8,44 +8,44 @@ use crate::events::GlobalEvent;
 
 #[derive(Error, Debug)]
 pub enum AppError {
-    #[error("GlobalEvent Push Error {source:?}")]
+    #[error("broadcast failed: {source}")]
     PushError2 {
         #[from]
         source: SendError<GlobalEvent>,
     },
 
-    #[error("Vicky Error {source:?}")]
+    #[error("service error: {source}")]
     VickyError {
         #[from]
-        source: VickyError,
+        source: Box<VickyError>,
     },
 
-    #[error("HTTP Error {0:?}")]
+    #[error("http {0}")]
     HttpError(Status),
 
-    #[error("uuid Error {source:?}")]
+    #[error("bad uuid: {source}")]
     Uuid {
         #[from]
         source: uuid::Error,
     },
 
-    #[error("Migration Error {0:?}")]
+    #[error("migration failed: {0}")]
     MigrationError(String),
 
-    #[error("JWKS Error {source:?}")]
+    #[error("jwks check failed: {source}")]
     JWKSError {
         #[from]
         source: jwtk::Error,
     },
 
-    #[error("JWTFormatError {0:?}")]
+    #[error("invalid jwt: {0}")]
     JWTFormatError(String),
 
-    #[error("ReqwestError {source:?}")]
+    #[error("reqwest error: {source}")]
     ReqwestError {
         #[from]
         source: reqwest::Error,
-    }
+    },
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for AppError {
@@ -57,6 +57,14 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for AppError {
         match self {
             Self::HttpError(x) => x.respond_to(req),
             _ => Status::InternalServerError.respond_to(req),
+        }
+    }
+}
+
+impl From<VickyError> for AppError {
+    fn from(source: VickyError) -> Self {
+        AppError::VickyError {
+            source: Box::new(source),
         }
     }
 }

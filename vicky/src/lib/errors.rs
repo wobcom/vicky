@@ -9,66 +9,61 @@ use tokio::sync::broadcast::error::SendError;
 
 #[derive(Error, Debug)]
 pub enum VickyError {
-    #[error("serde_json Error {source:?}")]
+    #[error("json error: {source}")]
     SerdeJson {
         #[from]
         source: serde_json::Error,
     },
 
-    #[error("diesel Error {source:?}")]
+    #[error("database error: {source}")]
     Diesel {
         #[from]
         source: diesel::result::Error,
     },
 
-    #[error("Scheduling Error {source:?}")]
+    #[error("scheduler error: {source}")]
     Scheduler {
         #[from]
         source: SchedulerError,
     },
 
-    #[error("Log Push Error {source:?}")]
+    #[error("log broadcast failed: {source}")]
     PushError {
         #[from]
         source: SendError<(String, String)>,
     },
 
-    #[error("S3 Client Error {source:?}")]
+    #[error("s3 client error: {source}")]
     S3ClientError {
         #[from]
-        source: S3ClientError,
+        source: Box<S3ClientError>,
     },
 }
 
 #[derive(Error, Debug)]
 pub enum SchedulerError {
-    #[error("Invalid Scheduling")]
+    #[error("no valid schedule")]
     GeneralSchedulingError,
-    #[error("Lock Already Owned")]
+    #[error("lock already owned")]
     LockAlreadyOwnedError,
 }
 
 #[derive(Error, Debug)]
 pub enum S3ClientError {
-    #[error("Object Already Exists")]
+    #[error("object already exists")]
     ObjectAlreadyExistsError,
 
     #[error(transparent)]
-    SdkError {
-        #[from]
-        source: aws_sdk_s3::Error,
-    },
+    SdkError { source: Box<aws_sdk_s3::Error> },
 
     #[error(transparent)]
     SdkPutObjectError {
-        #[from]
-        source: aws_sdk_s3::error::SdkError<PutObjectError>,
+        source: Box<aws_sdk_s3::error::SdkError<PutObjectError>>,
     },
 
     #[error(transparent)]
     SdkGetObjectError {
-        #[from]
-        source: aws_sdk_s3::error::SdkError<GetObjectError>,
+        source: Box<aws_sdk_s3::error::SdkError<GetObjectError>>,
     },
 
     #[error(transparent)]
@@ -85,5 +80,37 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for VickyError {
         error!("Error: {}", self);
 
         Status::InternalServerError.respond_to(req)
+    }
+}
+
+impl From<S3ClientError> for VickyError {
+    fn from(source: S3ClientError) -> Self {
+        VickyError::S3ClientError {
+            source: Box::new(source),
+        }
+    }
+}
+
+impl From<aws_sdk_s3::Error> for S3ClientError {
+    fn from(source: aws_sdk_s3::Error) -> Self {
+        S3ClientError::SdkError {
+            source: Box::new(source),
+        }
+    }
+}
+
+impl From<aws_sdk_s3::error::SdkError<PutObjectError>> for S3ClientError {
+    fn from(source: aws_sdk_s3::error::SdkError<PutObjectError>) -> Self {
+        S3ClientError::SdkPutObjectError {
+            source: Box::new(source),
+        }
+    }
+}
+
+impl From<aws_sdk_s3::error::SdkError<GetObjectError>> for S3ClientError {
+    fn from(source: aws_sdk_s3::error::SdkError<GetObjectError>) -> Self {
+        S3ClientError::SdkGetObjectError {
+            source: Box::new(source),
+        }
     }
 }

@@ -145,12 +145,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anyhow"
-version = "1.0.95"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34ac096ce696dc2fcabef30516bb13c0a68a11d30131d3df6f04711467681b04"
-
-[[package]]
 name = "async-stream"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1224,7 +1218,6 @@ dependencies = [
 name = "fairy"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "env_logger 0.10.2",
  "futures-util",
  "hyper 0.14.32",
@@ -1233,6 +1226,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "snafu",
  "tokio",
  "tokio-util",
  "uuid",
@@ -3621,6 +3615,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 
 [[package]]
+name = "snafu"
+version = "0.8.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e84b3f4eacbf3a1ce05eac6763b4d629d60cbc94d632e4092c54ade71f1e1a2"
+dependencies = [
+ "snafu-derive",
+]
+
+[[package]]
+name = "snafu-derive"
+version = "0.8.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1c97747dbf44bb1ca44a561ece23508e99cb592e862f22222dcf42f51d1e451"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "socket2"
 version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4346,7 +4361,6 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 name = "vicky"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "aws-sdk-s3",
  "chrono",
@@ -4365,6 +4379,7 @@ dependencies = [
  "rocket_sync_db_pools",
  "serde",
  "serde_json",
+ "snafu",
  "thiserror 1.0.69",
  "tokio",
  "uuid",

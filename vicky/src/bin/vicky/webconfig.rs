@@ -1,11 +1,11 @@
+use rocket::State;
 use rocket::{get, serde::json::Json};
-use rocket::{State};
 use serde::{Deserialize, Serialize};
 
 use crate::{errors::AppError, WebConfig};
 
+#[allow(unused)]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-
 pub struct Me {
     full_name: String,
     role: String,

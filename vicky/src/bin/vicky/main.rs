@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use aws_sdk_s3::config::{BehaviorVersion, Credentials, Region};
-use aws_sdk_s3::error::SdkError;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use jwtk::jwk::RemoteJwksVerifier;
 use rocket::fairing::AdHoc;
@@ -9,6 +8,7 @@ use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
 use rocket::{routes, Build, Rocket};
 use serde::{Deserialize, Serialize};
+use snafu::ResultExt;
 use tokio::sync::broadcast;
 
 use errors::AppError;
@@ -22,9 +22,10 @@ use crate::locks::{
     locks_get_detailed_poisoned_user, locks_get_poisoned_machine, locks_get_poisoned_user,
     locks_unlock,
 };
+use crate::startup::Result;
 use crate::tasks::{
-    tasks_add, tasks_claim, tasks_finish, tasks_get_logs, tasks_get_machine, tasks_get_user,
-    tasks_put_logs, tasks_specific_get_machine, tasks_specific_get_user, tasks_download_logs
+    tasks_add, tasks_claim, tasks_download_logs, tasks_finish, tasks_get_logs, tasks_get_machine,
+    tasks_get_user, tasks_put_logs, tasks_specific_get_machine, tasks_specific_get_user,
 };
 use crate::user::get_user;
 use crate::webconfig::get_web_config;
@@ -33,6 +34,7 @@ mod auth;
 mod errors;
 mod events;
 mod locks;
+mod startup;
 mod tasks;
 mod user;
 mod webconfig;
@@ -91,7 +93,13 @@ fn run_migrations(connection: &mut impl MigrationHarness<diesel::pg::Pg>) -> Res
 }
 
 async fn run_rocket_migrations(rocket: Rocket<Build>) -> Result<Rocket<Build>, Rocket<Build>> {
-    let db: Database = Database::get_one(&rocket).await.unwrap();
+    log::info!("Running database migrations");
+
+    let Some(db) = Database::get_one(&rocket).await else {
+        log::error!("Failed to get a database connection");
+        return Err(rocket);
+    };
+
     match db.run(run_migrations).await {
         Ok(_) => Ok(rocket),
         Err(_) => Err(rocket),
@@ -99,10 +107,17 @@ async fn run_rocket_migrations(rocket: Rocket<Build>) -> Result<Rocket<Build>, R
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() {
+    if let Err(e) = inner_main().await {
+        log::error!("Fatal: {e}");
+    }
+}
+
+async fn inner_main() -> Result<()> {
     env_logger::builder()
         .filter_module("vicky", log::LevelFilter::Debug)
         .init();
+    log::info!("vicky starting...");
 
     // Took from rocket source code and added .split("__") to be able to add keys in nested structures.
     let rocket_config_figment = Figment::from(rocket::Config::default())
@@ -120,13 +135,18 @@ async fn main() -> anyhow::Result<()> {
 
     let build_rocket = rocket::custom(rocket_config_figment);
 
-    let app_config = build_rocket.figment().extract::<Config>()?;
+    log::info!("loading service config...");
+    let app_config = build_rocket
+        .figment()
+        .extract::<Config>()
+        .context(startup::ConfigErr)?;
 
-    let oidc_config_resolved: OIDCConfigResolved =
-        reqwest::get(app_config.oidc_config.well_known_uri)
-            .await?
-            .json()
-            .await?;
+    log::info!(
+        "fetching OIDC discovery from {}",
+        app_config.oidc_config.well_known_uri
+    );
+    let oidc_config_resolved =
+        startup::fetch_oidc_config(&app_config.oidc_config.well_known_uri).await?;
 
     log::info!(
         "Fetched OIDC configuration, found jwks_uri={}",
@@ -149,6 +169,7 @@ async fn main() -> anyhow::Result<()> {
         "static",
     );
 
+    log::info!("building s3 client");
     let s3_conf = aws_sdk_s3::Config::builder()
         .behavior_version(BehaviorVersion::v2024_03_28())
         .force_path_style(true)
@@ -159,44 +180,8 @@ async fn main() -> anyhow::Result<()> {
 
     let s3_client = aws_sdk_s3::Client::from_conf(s3_conf);
 
-    match s3_client
-        .create_bucket()
-        .bucket(env_aws_cfg.log_bucket.clone())
-        .send()
-        .await
-    {
-        Ok(b) => {
-            log::info!(
-                "Bucket \"{}\" was successfully created on the log drain.",
-                b.location().unwrap_or_default()
-            );
-        }
-        Err(e) => match &e {
-            SdkError::ServiceError(c)
-                if c.err().is_bucket_already_exists()
-                    || c.err().is_bucket_already_owned_by_you() =>
-            {
-                log::info!(
-                    "Bucket \"{}\" is already present on the log drain.",
-                    &env_aws_cfg.log_bucket
-                );
-            }
-            SdkError::DispatchFailure(_) => {
-                log::error!(
-                    "Failed to communicate with Log Drain / S3 Bucket Connector (is the bucket running and available?): {:?}",
-                    e
-                );
-                return Err(e.into());
-            }
-            _ => {
-                log::error!(
-                    "Log Drain / S3 Bucket Connector ran into an irrecoverable error: {:?}",
-                    e
-                );
-                return Err(e.into());
-            }
-        },
-    };
+    log::info!("ensuring log bucket {}", env_aws_cfg.log_bucket);
+    startup::ensure_bucket(&s3_client, &env_aws_cfg.log_bucket).await?;
 
     let s3_ext_client_drain = S3Client::new(s3_client.clone(), env_aws_cfg.log_bucket.clone());
     let s3_ext_client = S3Client::new(s3_client, env_aws_cfg.log_bucket.clone());
@@ -205,6 +190,7 @@ async fn main() -> anyhow::Result<()> {
 
     let (tx_global_events, _rx_task_events) = broadcast::channel::<GlobalEvent>(5);
 
+    log::info!("starting web api");
     build_rocket
         .manage(s3_ext_client)
         .manage(log_drain)
@@ -249,7 +235,8 @@ async fn main() -> anyhow::Result<()> {
             ],
         )
         .launch()
-        .await?;
+        .await
+        .context(startup::LaunchErr)?;
 
     Ok(())
 }
