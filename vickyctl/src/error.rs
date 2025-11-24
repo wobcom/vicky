@@ -1,6 +1,6 @@
+use crate::http_client::format_http_msg;
 use std::fmt::{Debug, Display, Formatter};
 use yansi::Paint;
-use crate::http_client::{format_http_msg};
 
 #[derive(Debug)]
 pub enum Error {

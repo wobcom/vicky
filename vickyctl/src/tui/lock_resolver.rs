@@ -1,6 +1,9 @@
 use crate::cli::{LocksArgs, ResolveArgs};
 use crate::error::Error;
 use crate::humanize;
+use crate::locks::http::{fetch_detailed_poisoned_locks, fetch_locks_raw, unlock_lock};
+use crate::locks::types::{LockType, PoisonedLock};
+use crate::tui::utils::{centered_rect, get_longest_len};
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
@@ -9,9 +12,6 @@ use crossterm::{event, execute};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, HighlightSpacing, Row, Table, TableState};
 use std::io;
-use crate::locks::http::{fetch_detailed_poisoned_locks, fetch_locks_raw, unlock_lock};
-use crate::locks::types::{LockType, PoisonedLock};
-use crate::tui::utils::{centered_rect, get_longest_len};
 
 impl<'a> From<&'a PoisonedLock> for Row<'a> {
     fn from(value: &'a PoisonedLock) -> Self {
@@ -176,16 +176,22 @@ fn minimal_widths(locks: &[PoisonedLock]) -> [Constraint; 4] {
     [
         Constraint::Max(get_longest_len(locks.iter().map(|l| l.name()))),
         Constraint::Max(5),
-        Constraint::Max(get_longest_len(
-            locks
-                .iter()
-                .map(|l| l.get_poisoned_by().display_name.as_str()),
-        ).max("Failed Task Name".len() as u16)),
-        Constraint::Min(get_longest_len(
-            locks
-                .iter()
-                .map(|l| l.get_poisoned_by().flake_ref.flake.as_str()),
-        ).max("Task Flake URI".len() as u16)),
+        Constraint::Max(
+            get_longest_len(
+                locks
+                    .iter()
+                    .map(|l| l.get_poisoned_by().display_name.as_str()),
+            )
+            .max("Failed Task Name".len() as u16),
+        ),
+        Constraint::Min(
+            get_longest_len(
+                locks
+                    .iter()
+                    .map(|l| l.get_poisoned_by().flake_ref.flake.as_str()),
+            )
+            .max("Task Flake URI".len() as u16),
+        ),
     ]
 }
 

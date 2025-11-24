@@ -1,2 +1,2 @@
-mod schema;
 pub mod entities;
+mod schema;

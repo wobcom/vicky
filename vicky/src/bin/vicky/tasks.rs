@@ -6,13 +6,13 @@ use serde::{Deserialize, Serialize};
 use std::time;
 use tokio::sync::broadcast::{self, error::TryRecvError};
 use uuid::Uuid;
+use vickylib::database::entities::lock::db_impl::LockDatabase;
 use vickylib::database::entities::task::db_impl::TaskDatabase;
 use vickylib::database::entities::task::{FlakeRef, TaskResult, TaskStatus};
 use vickylib::database::entities::{Database, Lock, Task};
 use vickylib::{
     errors::VickyError, logs::LogDrain, s3::client::S3Client, vicky::scheduler::Scheduler,
 };
-use vickylib::database::entities::lock::db_impl::LockDatabase;
 
 use crate::{
     auth::{Machine, User},
@@ -50,9 +50,17 @@ pub struct LogLines {
 }
 
 #[get("/?<status>")]
-pub async fn tasks_get_user(db: Database, _user: User, status: Option<String>) -> Result<Json<Vec<Task>>, VickyError> {
-    let task_status: Option<TaskStatus> = status.as_deref().map(|s| s.try_into().expect("Invalid status given"));
-    let tasks: Vec<Task> = db.run(|conn| conn.get_all_tasks_filtered(task_status)).await?;
+pub async fn tasks_get_user(
+    db: Database,
+    _user: User,
+    status: Option<String>,
+) -> Result<Json<Vec<Task>>, VickyError> {
+    let task_status: Option<TaskStatus> = status
+        .as_deref()
+        .map(|s| s.try_into().expect("Invalid status given"));
+    let tasks: Vec<Task> = db
+        .run(|conn| conn.get_all_tasks_filtered(task_status))
+        .await?;
     Ok(Json(tasks))
 }
 
@@ -60,10 +68,14 @@ pub async fn tasks_get_user(db: Database, _user: User, status: Option<String>) -
 pub async fn tasks_get_machine(
     db: Database,
     _machine: Machine,
-    status: Option<String>
+    status: Option<String>,
 ) -> Result<Json<Vec<Task>>, VickyError> {
-    let task_status: Option<TaskStatus> = status.as_deref().map(|s| s.try_into().expect("Invalid status given"));
-    let tasks: Vec<Task> = db.run(|conn| conn.get_all_tasks_filtered(task_status)).await?;
+    let task_status: Option<TaskStatus> = status
+        .as_deref()
+        .map(|s| s.try_into().expect("Invalid status given"));
+    let tasks: Vec<Task> = db
+        .run(|conn| conn.get_all_tasks_filtered(task_status))
+        .await?;
     Ok(Json(tasks))
 }
 
@@ -168,7 +180,6 @@ pub async fn tasks_get_logs<'a>(
     }
 }
 
-
 #[get("/<id>/logs/download")]
 pub async fn tasks_download_logs(
     id: String,
@@ -187,10 +198,8 @@ pub async fn tasks_download_logs(
         .unwrap();
 
     let logs = s3.get_logs(&id).await.unwrap();
-    let log_lines = LogLines {
-        lines: logs,
-    };
-        
+    let log_lines = LogLines { lines: logs };
+
     Ok(Json(log_lines))
 }
 
@@ -267,11 +276,11 @@ pub async fn tasks_finish(
 
     task.status = TaskStatus::Finished(finish.result.clone());
     task.finished_at = Some(Utc::now().naive_utc());
-    
+
     if finish.result == TaskResult::Error {
         task.locks.iter_mut().for_each(|lock| lock.poison(&task.id));
     }
-    
+
     // TODO: this clone is weird and can be saved I think
     let task2 = task.clone();
     db.run(move |conn| conn.update_task(&task2)).await?;

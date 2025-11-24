@@ -1,9 +1,9 @@
+use crate::cli::AppContext;
 use crate::error::Error;
 use reqwest::blocking::Client;
 use reqwest::header::{HeaderMap, AUTHORIZATION};
 use reqwest::StatusCode;
 use yansi::Paint;
-use crate::cli::AppContext;
 
 pub fn prepare_client(ctx: &AppContext) -> Result<Client, Error> {
     let mut default_headers = HeaderMap::new();

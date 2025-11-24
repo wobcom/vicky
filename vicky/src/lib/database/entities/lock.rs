@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::database::entities::lock::db_impl::DbLock;
-use crate::database::entities::Task;
 use crate::database::entities::task::db_impl::DbTask;
+use crate::database::entities::Task;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -71,8 +71,16 @@ impl Lock {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum PoisonedLock {
-    Write { id: Uuid, name: String, poisoned: Task },
-    Read { id: Uuid, name: String, poisoned: Task },
+    Write {
+        id: Uuid,
+        name: String,
+        poisoned: Task,
+    },
+    Read {
+        id: Uuid,
+        name: String,
+        poisoned: Task,
+    },
 }
 
 impl From<(DbLock, DbTask)> for PoisonedLock {
@@ -101,10 +109,10 @@ pub mod db_impl {
     use serde::Serialize;
     use uuid::Uuid;
 
-    use crate::database::entities::Lock;
     use crate::database::entities::lock::PoisonedLock;
     use crate::database::entities::task::db_impl::DbTask;
     use crate::database::entities::task::TaskStatus;
+    use crate::database::entities::Lock;
     use crate::database::schema::{locks, tasks};
     use crate::errors::VickyError;
 
@@ -184,8 +192,9 @@ pub mod db_impl {
     impl LockDatabase for PgConnection {
         fn get_poisoned_locks(&mut self) -> Result<Vec<Lock>, VickyError> {
             let poisoned_locks = {
-                let poisoned_db_locks: Vec<DbLock> =
-                    locks::table.filter(locks::poisoned_by_task.is_not_null()).load(self)?;
+                let poisoned_db_locks: Vec<DbLock> = locks::table
+                    .filter(locks::poisoned_by_task.is_not_null())
+                    .load(self)?;
                 poisoned_db_locks.into_iter().map(Lock::from).collect()
             };
 

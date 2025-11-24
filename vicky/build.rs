@@ -1,6 +1,6 @@
-use std::{fs, io};
 use std::fs::File;
 use std::io::{BufWriter, Write};
+use std::{fs, io};
 
 use regex::{Captures, Regex};
 

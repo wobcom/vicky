@@ -2,8 +2,8 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 
 #[allow(dead_code)]
 pub fn get_longest_len<'a, T>(str_iter: T) -> u16
-    where
-        T: Iterator<Item = &'a str>,
+where
+    T: Iterator<Item = &'a str>,
 {
     str_iter
         .map(|l| l.len())
@@ -21,7 +21,7 @@ pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
                 Constraint::Percentage(percent_y),
                 Constraint::Percentage((100 - percent_y) / 2),
             ]
-                .as_ref(),
+            .as_ref(),
         )
         .split(r);
 
@@ -33,7 +33,7 @@ pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
                 Constraint::Percentage(percent_x),
                 Constraint::Percentage((100 - percent_x) / 2),
             ]
-                .as_ref(),
+            .as_ref(),
         )
         .split(popup_layout[1])[1]
 }

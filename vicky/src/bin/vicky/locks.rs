@@ -1,12 +1,12 @@
-use diesel::PgConnection;
-use rocket::{get, patch};
-use rocket::serde::json::Json;
-use uuid::Uuid;
-use vickylib::database::entities::{Database, Lock};
-use vickylib::database::entities::lock::db_impl::LockDatabase;
-use vickylib::database::entities::lock::PoisonedLock;
 use crate::auth::{Machine, User};
 use crate::errors::AppError;
+use diesel::PgConnection;
+use rocket::serde::json::Json;
+use rocket::{get, patch};
+use uuid::Uuid;
+use vickylib::database::entities::lock::db_impl::LockDatabase;
+use vickylib::database::entities::lock::PoisonedLock;
+use vickylib::database::entities::{Database, Lock};
 
 async fn locks_get_poisoned(db: &Database) -> Result<Json<Vec<Lock>>, AppError> {
     let poisoned_locks: Vec<Lock> = db.run(PgConnection::get_poisoned_locks).await?;
@@ -14,7 +14,8 @@ async fn locks_get_poisoned(db: &Database) -> Result<Json<Vec<Lock>>, AppError> 
 }
 
 async fn locks_get_detailed_poisoned(db: &Database) -> Result<Json<Vec<PoisonedLock>>, AppError> {
-    let poisoned_locks: Vec<PoisonedLock> = db.run(PgConnection::get_poisoned_locks_with_tasks).await?;
+    let poisoned_locks: Vec<PoisonedLock> =
+        db.run(PgConnection::get_poisoned_locks_with_tasks).await?;
     Ok(Json(poisoned_locks))
 }
 
@@ -33,7 +34,6 @@ pub async fn locks_get_poisoned_machine(
 ) -> Result<Json<Vec<Lock>>, AppError> {
     locks_get_poisoned(&db).await
 }
-
 
 #[get("/poisoned_detailed")]
 pub async fn locks_get_detailed_poisoned_user(
@@ -57,10 +57,7 @@ async fn locks_get_active(db: &Database) -> Result<Json<Vec<Lock>>, AppError> {
 }
 
 #[get("/active")]
-pub async fn locks_get_active_user(
-    db: Database,
-    _user: User,
-) -> Result<Json<Vec<Lock>>, AppError> {
+pub async fn locks_get_active_user(db: Database, _user: User) -> Result<Json<Vec<Lock>>, AppError> {
     locks_get_active(&db).await
 }
 
@@ -79,7 +76,7 @@ pub async fn locks_unlock(
     lock_id: String,
 ) -> Result<(), AppError> {
     let lock_uuid = Uuid::try_parse(&lock_id)?;
-    
+
     db.run(move |conn| conn.unlock_lock(&lock_uuid)).await?;
     Ok(())
 }

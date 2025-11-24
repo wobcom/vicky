@@ -73,7 +73,7 @@ pub struct ResolveArgs {
     pub ctx: AppContext,
     #[clap(long)]
     pub all: bool,
-    #[clap(long,short)]
+    #[clap(long, short)]
     pub task_id: Option<String>,
 }
 
@@ -85,4 +85,3 @@ pub enum Cli {
     Locks(LocksArgs),
     Resolve(ResolveArgs),
 }
-

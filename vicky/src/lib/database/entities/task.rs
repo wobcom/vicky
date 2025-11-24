@@ -1,21 +1,21 @@
+use crate::database::entities::lock::db_impl::DbLock;
 use crate::database::entities::lock::Lock;
-use chrono::{NaiveDateTime, Utc};
-use chrono::naive::serde::ts_seconds_option;
+use crate::database::entities::task::db_impl::DbTask;
 use chrono::naive::serde::ts_seconds;
+use chrono::naive::serde::ts_seconds_option;
+use chrono::{NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::database::entities::lock::db_impl::DbLock;
-use crate::database::entities::task::db_impl::DbTask;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "result", rename_all="UPPERCASE")]
+#[serde(tag = "result", rename_all = "UPPERCASE")]
 pub enum TaskResult {
     Success,
     Error,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "state", rename_all="UPPERCASE")]
+#[serde(tag = "state", rename_all = "UPPERCASE")]
 pub enum TaskStatus {
     New,
     Running,
@@ -100,12 +100,18 @@ impl TaskBuilder {
     }
 
     pub fn with_read_lock<S: Into<String>>(mut self, name: S) -> Self {
-        self.locks.push(Lock::Read { name: name.into(), poisoned: None });
+        self.locks.push(Lock::Read {
+            name: name.into(),
+            poisoned: None,
+        });
         self
     }
 
     pub fn with_write_lock<S: Into<String>>(mut self, name: S) -> Self {
-        self.locks.push(Lock::Write { name: name.into(), poisoned: None });
+        self.locks.push(Lock::Write {
+            name: name.into(),
+            poisoned: None,
+        });
         self
     }
 
@@ -193,7 +199,7 @@ impl From<(DbTask, Vec<DbLock>)> for Task {
             features: task.features,
             created_at: task.created_at,
             claimed_at: task.claimed_at,
-            finished_at: task.finished_at
+            finished_at: task.finished_at,
         }
     }
 }
@@ -203,8 +209,10 @@ impl From<(DbTask, Vec<DbLock>)> for Task {
 pub mod db_impl {
     use crate::database::entities::task::{Task, TaskResult, TaskStatus};
     use crate::errors::VickyError;
-    use chrono::{NaiveDateTime};
-    use diesel::{AsChangeset, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl, Connection};
+    use chrono::NaiveDateTime;
+    use diesel::{
+        AsChangeset, Connection, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl,
+    };
     use std::collections::HashMap;
     use std::fmt::Display;
     use uuid::Uuid;
@@ -274,7 +282,10 @@ pub mod db_impl {
     }
 
     pub trait TaskDatabase {
-        fn get_all_tasks_filtered(&mut self, task_status: Option<TaskStatus>) -> Result<Vec<Task>, VickyError>;
+        fn get_all_tasks_filtered(
+            &mut self,
+            task_status: Option<TaskStatus>,
+        ) -> Result<Vec<Task>, VickyError>;
         fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError>;
         fn get_task(&mut self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
         fn put_task(&mut self, task: Task) -> Result<(), VickyError>;
@@ -282,14 +293,15 @@ pub mod db_impl {
     }
 
     impl TaskDatabase for diesel::pg::PgConnection {
-
-        fn get_all_tasks_filtered(&mut self, task_status: Option<TaskStatus>) -> Result<Vec<Task>, VickyError> {
+        fn get_all_tasks_filtered(
+            &mut self,
+            task_status: Option<TaskStatus>,
+        ) -> Result<Vec<Task>, VickyError> {
             let mut db_tasks_build = tasks::table.into_boxed();
 
             if let Some(task_status) = task_status {
-                db_tasks_build = db_tasks_build
-                    .filter(tasks::status.eq(task_status.to_string()))
-            }           
+                db_tasks_build = db_tasks_build.filter(tasks::status.eq(task_status.to_string()))
+            }
 
             let db_tasks = db_tasks_build
                 .order(tasks::created_at.desc())
@@ -325,7 +337,9 @@ pub mod db_impl {
                 Err(diesel::result::Error::NotFound) => return Ok(None),
                 _ => db_task?,
             };
-            let db_locks: Vec<DbLock> = locks::table.filter(locks::task_id.eq(tid)).load::<DbLock>(self)?;
+            let db_locks: Vec<DbLock> = locks::table
+                .filter(locks::task_id.eq(tid))
+                .load::<DbLock>(self)?;
 
             let task = (db_task, db_locks).into();
 
@@ -340,11 +354,15 @@ pub mod db_impl {
                     .map(|l| DbLock::from_lock(l, task.id))
                     .collect();
                 let db_task: DbTask = task.into();
-                
-                diesel::insert_into(tasks::table).values(db_task).execute(conn)?;
+
+                diesel::insert_into(tasks::table)
+                    .values(db_task)
+                    .execute(conn)?;
                 for mut db_lock in db_locks {
                     db_lock.id = None;
-                    diesel::insert_into(locks::table).values(db_lock).execute(conn)?;
+                    diesel::insert_into(locks::table)
+                        .values(db_lock)
+                        .execute(conn)?;
                 }
                 Ok(())
             })
@@ -353,21 +371,21 @@ pub mod db_impl {
         fn update_task(&mut self, task: &Task) -> Result<(), VickyError> {
             diesel::update(tasks::table.filter(tasks::id.eq(task.id)))
                 .set((
-                    tasks::status.eq(task.status.clone().to_string()), 
+                    tasks::status.eq(task.status.clone().to_string()),
                     tasks::claimed_at.eq(task.claimed_at),
-                    tasks::finished_at.eq(task.finished_at)
+                    tasks::finished_at.eq(task.finished_at),
                 ))
                 .execute(self)?;
 
             // FIXME: Conversion from DbLock to Lock drops id. No way to update locks here.
-            //        this is just a workaround for now. Should behave fine though 
+            //        this is just a workaround for now. Should behave fine though
             //        and is more performant.
             if task.status == TaskStatus::Finished(TaskResult::Error) {
                 diesel::update(locks::table.filter(locks::task_id.eq(task.id)))
                     .set(locks::poisoned_by_task.eq(task.id))
                     .execute(self)?;
             }
-            
+
             Ok(())
         }
     }

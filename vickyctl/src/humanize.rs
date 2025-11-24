@@ -1,9 +1,9 @@
 use std::io::{ErrorKind, Write};
 use std::process::{Command, Stdio};
 
+use crate::cli::AppContext;
 use log::debug;
 use which::which;
-use crate::cli::AppContext;
 
 use crate::error::Error;
 

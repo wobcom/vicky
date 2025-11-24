@@ -1,11 +1,9 @@
 pub mod db_impl {
     use crate::{database::schema::users, errors::VickyError};
-    use diesel::{Identifiable, Insertable, Queryable, Selectable, OptionalExtension, AsChangeset};
+    use diesel::{AsChangeset, Identifiable, Insertable, OptionalExtension, Queryable, Selectable};
     use uuid::Uuid;
 
-    use diesel::{
-        ExpressionMethods, QueryDsl, RunQueryDsl,
-    };
+    use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 
     #[derive(Selectable, Insertable, Identifiable, Queryable, AsChangeset, Debug, Clone)]
     #[diesel(table_name = users)]
@@ -22,9 +20,11 @@ pub mod db_impl {
     }
 
     impl UserDatabase for diesel::pg::PgConnection {
-
         fn get_user(&mut self, sub_: Uuid) -> Result<Option<DbUser>, VickyError> {
-            let db_task: Option<DbUser> = users::table.filter(users::sub.eq(sub_)).first(self).optional()?;
+            let db_task: Option<DbUser> = users::table
+                .filter(users::sub.eq(sub_))
+                .first(self)
+                .optional()?;
             Ok(db_task)
         }
 
