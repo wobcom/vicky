@@ -7,7 +7,11 @@ use yansi::Paint;
 
 pub fn prepare_client(ctx: &AppContext) -> Result<Client, Error> {
     let mut default_headers = HeaderMap::new();
-    default_headers.insert(AUTHORIZATION, ctx.vicky_token.parse().unwrap());
+    let auth_header = ctx
+        .vicky_token
+        .parse()
+        .map_err(|_| Error::Custom("VICKY_TOKEN is not a valid header value"))?;
+    default_headers.insert(AUTHORIZATION, auth_header);
     let client = Client::builder()
         .default_headers(default_headers)
         .user_agent(format!("vickyctl/{}", env!("CARGO_PKG_VERSION")))

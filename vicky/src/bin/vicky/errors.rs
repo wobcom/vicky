@@ -52,7 +52,7 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for AppError {
     fn respond_to(self, req: &'r Request<'_>) -> rocket::response::Result<'o> {
         // log `self` to your favored error tracker, e.g.
         // sentry::capture_error(&self);
-        error!("Error: {}", self);
+        error!("Error: {self}");
 
         match self {
             Self::HttpError(x) => x.respond_to(req),

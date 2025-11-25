@@ -52,9 +52,9 @@ impl Display for Error {
                 )
             }
             Error::Reqwest(e) => write!(f, "{}", format_http_msg(e.status(), &e.to_string())),
-            Error::Io(e) => write!(f, "Filesystem Error: {}", e),
-            Error::Json(e) => write!(f, "Parser Error: {}", e),
-            Error::Custom(ref str) => write!(f, "Custom Error: {}", str),
+            Error::Io(e) => write!(f, "Filesystem Error: {e}"),
+            Error::Json(e) => write!(f, "Parser Error: {e}"),
+            Error::Custom(ref str) => write!(f, "Custom Error: {str}"),
             Error::ReqwestDetailed(e, ref detail) => {
                 write!(f, "{}", format_http_msg(e.status(), detail))
             }

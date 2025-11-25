@@ -1,7 +1,7 @@
+use crate::errors::S3ClientError;
 use aws_sdk_s3::primitives::ByteStream;
 use log::info;
-
-use crate::errors::S3ClientError;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct S3Client {
@@ -15,7 +15,7 @@ impl S3Client {
     }
 
     pub async fn get_logs(&self, task_id: &str) -> Result<Vec<String>, S3ClientError> {
-        let key = format!("vicky-logs/{}.log", task_id);
+        let key = format!("vicky-logs/{task_id}.log");
 
         let get_object_result = self
             .inner
@@ -35,12 +35,12 @@ impl S3Client {
 
     pub async fn upload_log_parts(
         &self,
-        task_id: &str,
+        task_id: Uuid,
         log_lines: Vec<String>,
     ) -> Result<(), S3ClientError> {
-        let key = format!("vicky-logs/{}.log", task_id);
+        let key = format!("vicky-logs/{task_id}.log");
 
-        info!("Checking, if {} already exists", key);
+        info!("Checking, if {key} already exists");
         let get_object_result = self
             .inner
             .get_object()
@@ -53,21 +53,21 @@ impl S3Client {
 
         match get_object_result {
             Ok(gor) => {
-                info!("{} already exists, downloading...", key);
+                info!("{key} already exists, downloading...");
                 let existing_vec = gor.body.collect().await?;
                 new_vec.append(&mut existing_vec.to_vec());
             }
             // This object does not exist, this is fine, currently there is no better way to do this.
             Err(_) => {
-                info!("{} does not exist", key);
+                info!("{key} does not exist");
             }
         }
 
-        let new_line_log_lines: Vec<String> =
-            log_lines.iter().map(|x| format!("{}\n", x)).collect();
-        new_vec.append(&mut new_line_log_lines.join("").as_bytes().to_vec());
+        new_vec.extend(log_lines.join("\n").as_bytes());
+        new_vec.push(b'\n');
+
         let bs = ByteStream::from(new_vec);
-        info!("Uploading {}", key);
+        info!("Uploading {key}");
         self.inner
             .put_object()
             .bucket(&self.bucket)

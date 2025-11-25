@@ -247,7 +247,7 @@ pub mod db_impl {
                     TaskResult::Error => "FINISHED::ERROR",
                 },
             };
-            write!(f, "{}", str)
+            write!(f, "{str}")
         }
     }
 

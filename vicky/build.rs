@@ -21,8 +21,7 @@ fn ensure_locks_id_nullable() -> io::Result<()> {
     let mut new_schema = fs::read_to_string(SCHEMA_RS_PATH)?;
     for (table_name, field_name, old_type) in TABLE_FIELDS.iter() {
         let regex = Regex::new(&format!(
-            r"(diesel::table!\s*\{{\n\s*{}\s*\({}\)\s*\{{\n\s*{}\s*->\s*){}",
-            table_name, field_name, field_name, old_type,
+            r"(diesel::table!\s*\{{\n\s*{table_name}\s*\({field_name}\)\s*\{{\n\s*{field_name}\s*->\s*){old_type}"
         ))
         .expect("The values entered for the replacement were not valid.");
 
