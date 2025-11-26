@@ -11,6 +11,7 @@ use vickylib::database::entities::lock::db_impl::LockDatabase;
 use vickylib::database::entities::task::db_impl::TaskDatabase;
 use vickylib::database::entities::task::{FlakeRef, TaskResult, TaskStatus};
 use vickylib::database::entities::{Database, Lock, Task};
+use vickylib::query::FilterParams;
 use vickylib::{
     errors::VickyError, logs::LogDrain, s3::client::S3Client, vicky::scheduler::Scheduler,
 };
@@ -50,11 +51,49 @@ pub struct LogLines {
     lines: Vec<String>,
 }
 
-#[get("/?<status>")]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct Count {
+    count: i64,
+}
+
+#[get("/count?<status>")]
+pub async fn tasks_count_user(
+    db: Database,
+    _user: User,
+    status: Option<String>,
+) -> Result<Json<Count>, AppError> {
+    let task_status: Option<TaskStatus> = status
+        .as_deref()
+        .map(TaskStatus::try_from)
+        .transpose()
+        .map_err(|_| AppError::HttpError(Status::BadRequest))?;
+    let tasks_count = db.run(|conn| conn.count_all_tasks(task_status)).await?;
+    let c: Count = Count { count: tasks_count };
+    Ok(Json(c))
+}
+
+#[get("/count?<status>", rank = 2)]
+pub async fn tasks_count_machine(
+    db: Database,
+    _machine: Machine,
+    status: Option<String>,
+) -> Result<Json<Count>, AppError> {
+    let task_status: Option<TaskStatus> = status
+        .as_deref()
+        .map(TaskStatus::try_from)
+        .transpose()
+        .map_err(|_| AppError::HttpError(Status::BadRequest))?;
+    let tasks_count = db.run(|conn| conn.count_all_tasks(task_status)).await?;
+    let c: Count = Count { count: tasks_count };
+    Ok(Json(c))
+}
+
+#[get("/?<status>&<filter_params..>")]
 pub async fn tasks_get_user(
     db: Database,
     _user: User,
     status: Option<String>,
+    filter_params: Option<FilterParams>,
 ) -> Result<Json<Vec<Task>>, AppError> {
     let task_status: Option<TaskStatus> = status
         .as_deref()
@@ -62,16 +101,17 @@ pub async fn tasks_get_user(
         .transpose()
         .map_err(|_| AppError::HttpError(Status::BadRequest))?;
     let tasks: Vec<Task> = db
-        .run(|conn| conn.get_all_tasks_filtered(task_status))
+        .run(|conn| conn.get_all_tasks_filtered(task_status, filter_params))
         .await?;
     Ok(Json(tasks))
 }
 
-#[get("/?<status>", rank = 2)]
+#[get("/?<status>&<filter_params..>", rank = 2)]
 pub async fn tasks_get_machine(
     db: Database,
     _machine: Machine,
     status: Option<String>,
+    filter_params: Option<FilterParams>,
 ) -> Result<Json<Vec<Task>>, AppError> {
     let task_status: Option<TaskStatus> = status
         .as_deref()
@@ -79,7 +119,7 @@ pub async fn tasks_get_machine(
         .transpose()
         .map_err(|_| AppError::HttpError(Status::BadRequest))?;
     let tasks: Vec<Task> = db
-        .run(|conn| conn.get_all_tasks_filtered(task_status))
+        .run(|conn| conn.get_all_tasks_filtered(task_status, filter_params))
         .await?;
     Ok(Json(tasks))
 }
@@ -89,7 +129,7 @@ async fn tasks_specific_get(id: Uuid, db: &Database) -> Result<Json<Option<Task>
     Ok(Json(tasks))
 }
 
-#[get("/<id>")]
+#[get("/<id>", rank = 10)]
 pub async fn tasks_specific_get_user(
     id: Uuid,
     db: Database,
@@ -98,7 +138,7 @@ pub async fn tasks_specific_get_user(
     tasks_specific_get(id, &db).await
 }
 
-#[get("/<id>", rank = 2)]
+#[get("/<id>", rank = 11)]
 pub async fn tasks_specific_get_machine(
     id: Uuid,
     db: Database,

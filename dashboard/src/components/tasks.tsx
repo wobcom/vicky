@@ -3,20 +3,26 @@ import { Link, useParams } from "react-router-dom"
 import CalendarIcon from '@rsuite/icons/Calendar';
 import TimeIcon from '@rsuite/icons/Time';
 
-import { Button, ButtonGroup, ButtonToolbar, Col, Grid, HStack, List, Panel, Text, VStack } from "rsuite"
+import { Button, ButtonGroup, ButtonToolbar, Col, Grid, HStack, List, Pagination, Panel, Text, VStack } from "rsuite"
 import { TaskTag } from "./tag";
 import { Task } from "./task";
 import * as dayjs from "dayjs"
 
 import * as s from "./tasks.module.css";
-import { useTask, useTasks } from "../hooks/useTasks";
+import { useTask, useTasks, useTasksCount } from "../hooks/useTasks";
 
 const Tasks = () => {
 
     const { taskId } = useParams();
 
-    const [filter, setFilter] = useState<string | null>(null)
-    const tasks = useTasks(filter);
+    const [filter, setFilter] = useState<string | null>(null);
+
+    const [page, setPage] = useState<number>(1);
+
+    const NUM_PER_PAGE = 10;
+
+    const tasks = useTasks(filter, NUM_PER_PAGE, (page - 1) * NUM_PER_PAGE);
+    const tasksCount = useTasksCount(filter);
     const task = useTask(taskId);
 
 
@@ -66,6 +72,15 @@ const Tasks = () => {
                             })
                         }
                     </List>
+                    <div className={s.Pagination}>
+                    {
+                        tasksCount ?
+                        (
+                            <Pagination bordered next prev maxButtons={10} total={tasksCount} limit={NUM_PER_PAGE} activePage={page} onChangePage={(p: number) => setPage(p)} />
+                        )
+                        : null
+                    }
+                    </div>
                 </Panel>
 
             </Col>

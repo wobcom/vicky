@@ -209,9 +209,12 @@ impl From<(DbTask, Vec<DbLock>)> for Task {
 pub mod db_impl {
     use crate::database::entities::task::{Task, TaskResult, TaskStatus};
     use crate::errors::VickyError;
+    use crate::query::FilterParams;
     use chrono::NaiveDateTime;
+    
     use diesel::{
-        AsChangeset, Connection, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl,
+        AsChangeset, Connection, ExpressionMethods, Insertable, QueryDsl, Queryable,
+        RunQueryDsl,
     };
     use std::collections::HashMap;
     use std::fmt::Display;
@@ -282,9 +285,11 @@ pub mod db_impl {
     }
 
     pub trait TaskDatabase {
+        fn count_all_tasks(&mut self, task_status: Option<TaskStatus>) -> Result<i64, VickyError>;
         fn get_all_tasks_filtered(
             &mut self,
             task_status: Option<TaskStatus>,
+            filter_params: Option<FilterParams>,
         ) -> Result<Vec<Task>, VickyError>;
         fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError>;
         fn get_task(&mut self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
@@ -293,14 +298,37 @@ pub mod db_impl {
     }
 
     impl TaskDatabase for diesel::pg::PgConnection {
+        fn count_all_tasks(&mut self, task_status: Option<TaskStatus>) -> Result<i64, VickyError> {
+            let mut tasks_count_b = tasks::table.into_boxed();
+
+            if let Some(task_status) = task_status {
+                tasks_count_b = tasks_count_b.filter(tasks::status.eq(task_status.to_string()))
+            }
+
+            let tasks_count: i64 = tasks_count_b.count().first(self)?;
+
+            Ok(tasks_count)
+        }
+
         fn get_all_tasks_filtered(
             &mut self,
             task_status: Option<TaskStatus>,
+            filter_params: Option<FilterParams>,
         ) -> Result<Vec<Task>, VickyError> {
             let mut db_tasks_build = tasks::table.into_boxed();
 
             if let Some(task_status) = task_status {
                 db_tasks_build = db_tasks_build.filter(tasks::status.eq(task_status.to_string()))
+            }
+
+            let limit = filter_params.clone().and_then(|x| x.limit);
+            let offset = filter_params.clone().and_then(|x| x.offset);
+
+            if let Some(r_limit) = limit {
+                db_tasks_build = db_tasks_build.limit(r_limit)
+            }
+            if let Some(r_offset) = offset {
+                db_tasks_build = db_tasks_build.offset(r_offset)
             }
 
             let db_tasks = db_tasks_build
@@ -328,7 +356,7 @@ pub mod db_impl {
         }
 
         fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError> {
-            self.get_all_tasks_filtered(None)
+            self.get_all_tasks_filtered(None, None)
         }
 
         fn get_task(&mut self, tid: Uuid) -> Result<Option<Task>, VickyError> {

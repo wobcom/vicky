@@ -24,8 +24,9 @@ use crate::locks::{
 };
 use crate::startup::Result;
 use crate::tasks::{
-    tasks_add, tasks_claim, tasks_download_logs, tasks_finish, tasks_get_logs, tasks_get_machine,
-    tasks_get_user, tasks_put_logs, tasks_specific_get_machine, tasks_specific_get_user,
+    tasks_add, tasks_claim, tasks_count_machine, tasks_count_user, tasks_download_logs,
+    tasks_finish, tasks_get_logs, tasks_get_machine, tasks_get_user, tasks_put_logs,
+    tasks_specific_get_machine, tasks_specific_get_user,
 };
 use crate::user::get_user;
 use crate::webconfig::get_web_config;
@@ -210,6 +211,8 @@ async fn inner_main() -> Result<()> {
         .mount(
             "/api/v1/tasks",
             routes![
+                tasks_count_user,
+                tasks_count_machine,
                 tasks_get_machine,
                 tasks_get_user,
                 tasks_specific_get_machine,

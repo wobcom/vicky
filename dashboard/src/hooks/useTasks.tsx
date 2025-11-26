@@ -2,14 +2,43 @@ import { useCallback, useEffect, useState } from "react"
 import { ITask, useAPI } from "../services/api"
 import { GlobalEvent, TaskUpdateEvent, useEventSource, useEventSourceJSON } from "./useEventSource";
 
-const useTasks = (filter: string | null) => {
+const useTasksCount = (filter: string | null) => {
     const api = useAPI();
-    const [tasks, setTasks] = useState<ITask[] | null>(null)
+    const [tasksCount, setTasksCount] = useState<number | null>(null)
     
     const eventCallback = useCallback((evt: GlobalEvent) => {
         switch (evt.type) {
             case "TaskAdd": {
-                api.getTasks(filter).then((tasks) => setTasks(tasks)); 
+                api.getTasksCount(filter).then((r) => setTasksCount(r.count)); 
+                break;  
+            }
+            default: {
+                break;
+            }
+        }
+    }, [api])
+
+    useEventSourceJSON<GlobalEvent>(`/api/events`, eventCallback)
+
+    useEffect(() => {
+        api.getTasksCount(filter).then((r) => setTasksCount(r.count));   
+    }, [filter])
+
+    return tasksCount;
+}
+
+const useTasks = (filter: string | null, limit?: number, offset?: number) => {
+    const api = useAPI();
+    const [tasks, setTasks] = useState<ITask[] | null>(null)
+    
+    const fetchTasks = async () => {
+        api.getTasks(filter, limit, offset).then((tasks) => setTasks(tasks)); 
+    }
+    
+    const eventCallback = useCallback((evt: GlobalEvent) => {
+        switch (evt.type) {
+            case "TaskAdd": {
+                fetchTasks()
                 break;  
             }
             case "TaskUpdate": {
@@ -41,8 +70,8 @@ const useTasks = (filter: string | null) => {
     useEventSourceJSON<GlobalEvent>(`/api/events`, eventCallback)
 
     useEffect(() => {
-        api.getTasks(filter).then((tasks) => setTasks(tasks));   
-    }, [filter])
+        fetchTasks()
+    }, [filter, limit, offset])
 
     return tasks;
 }
@@ -82,6 +111,7 @@ const useTask = (id?: string | null) => {
 
 
 export {
+    useTasksCount,
     useTasks,
     useTask
 }
