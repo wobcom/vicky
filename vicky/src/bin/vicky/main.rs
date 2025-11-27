@@ -121,7 +121,7 @@ async fn inner_main() -> Result<()> {
 
     // Took from rocket source code and added .split("__") to be able to add keys in nested structures.
     let rocket_config_figment = Figment::from(rocket::Config::default())
-        .merge(Toml::file(Env::var_or("ROCKET_CONFIG", "Rocket.toml")).nested())
+        .merge(Toml::file(Env::var_or("ROCKET_CONFIG", "config.toml")).nested())
         .merge(
             Env::prefixed("ROCKET_")
                 .ignore(&["PROFILE"])

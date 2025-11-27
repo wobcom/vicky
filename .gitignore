@@ -1,6 +1,7 @@
 /target
 deployment/data
 Rocket.toml
+config.toml
 result
 certs
 # Devenv
