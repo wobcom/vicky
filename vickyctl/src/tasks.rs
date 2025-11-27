@@ -134,7 +134,7 @@ pub fn claim_task(features: &[String], ctx: &AppContext) -> Result<(), Error> {
     });
     let request = client
         .post(format!("{}/api/v1/tasks/claim", ctx.vicky_url))
-        .body(data.to_string())
+        .json(&data)
         .build()?;
 
     let response = client
@@ -164,7 +164,7 @@ pub fn finish_task(id: &Uuid, status: &str, ctx: &AppContext) -> Result<(), Erro
     });
     let request = client
         .post(format!("{}/api/v1/tasks/{id}/finish", ctx.vicky_url))
-        .body(data.to_string())
+        .json(&data)
         .build()?;
 
     let response = client

@@ -5,22 +5,56 @@ use crate::database::entities::lock::db_impl::DbLock;
 use crate::database::entities::task::db_impl::DbTask;
 use crate::database::entities::Task;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum LockKind {
+    Read,
+    Write,
+}
+
+impl LockKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            LockKind::Read => "READ",
+            LockKind::Write => "WRITE",
+        }
+    }
+
+    pub fn is_write(&self) -> bool {
+        matches!(self, LockKind::Write)
+    }
+}
+
+impl TryFrom<&str> for LockKind {
+    type Error = &'static str;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "READ" => Ok(Self::Read),
+            "WRITE" => Ok(Self::Write),
+            _ => Err("Unexpected lock type received."),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type")]
-pub enum Lock {
-    #[serde(rename = "WRITE")]
-    Write {
-        name: String,
-        poisoned: Option<Uuid>,
-    },
-    #[serde(rename = "READ")]
-    Read {
-        name: String,
-        poisoned: Option<Uuid>,
-    },
+pub struct Lock {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub kind: LockKind,
+    #[serde(rename = "poisoned")]
+    pub poisoned_by: Option<Uuid>,
 }
 
 impl Lock {
+    pub fn read<S: Into<String>>(name: S) -> Self {
+        Self::new(name, LockKind::Read)
+    }
+
+    pub fn write<S: Into<String>>(name: S) -> Self {
+        Self::new(name, LockKind::Write)
+    }
+
     pub fn is_conflicting(&self, other: &Lock) -> bool {
         if self.name() != other.name() {
             return false;
@@ -30,75 +64,50 @@ impl Lock {
             return true;
         }
 
-        matches!(
-            (self, other),
-            (Lock::Write { .. }, Lock::Write { .. })
-                | (Lock::Read { .. }, Lock::Write { .. })
-                | (Lock::Write { .. }, Lock::Read { .. })
-        )
+        self.kind.is_write() || other.kind.is_write()
     }
 
     pub fn poison(&mut self, by_task: &Uuid) {
-        match self {
-            Lock::Write {
-                ref mut poisoned, ..
-            } => {
-                *poisoned = Some(*by_task);
-            }
-            Lock::Read {
-                ref mut poisoned, ..
-            } => {
-                *poisoned = Some(*by_task);
-            }
-        };
+        self.poisoned_by = Some(*by_task);
     }
 
     pub fn name(&self) -> &str {
-        match self {
-            Lock::Write { name, .. } => name,
-            Lock::Read { name, .. } => name,
-        }
+        self.name.as_str()
     }
 
     pub fn is_poisoned(&self) -> bool {
-        match self {
-            Lock::Write { poisoned, .. } => poisoned,
-            Lock::Read { poisoned, .. } => poisoned,
+        self.poisoned_by.is_some()
+    }
+
+    fn new<S: Into<String>>(name: S, kind: LockKind) -> Self {
+        Self {
+            name: name.into(),
+            kind,
+            poisoned_by: None,
         }
-        .is_some()
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum PoisonedLock {
-    Write {
-        id: Uuid,
-        name: String,
-        poisoned: Task,
-    },
-    Read {
-        id: Uuid,
-        name: String,
-        poisoned: Task,
-    },
+pub struct PoisonedLock {
+    pub id: Uuid,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub kind: LockKind,
+    pub poisoned: Task,
 }
 
 impl From<(DbLock, DbTask)> for PoisonedLock {
     fn from(value: (DbLock, DbTask)) -> Self {
         let (lock, task) = value;
-        match lock.type_.as_str() {
-            // Other locks data is omitted here because of recursivity and since this is explicitly for a PoisonedLock
-            "WRITE" => PoisonedLock::Write {
-                id: lock.id.unwrap_or_default(),
-                name: lock.name,
-                poisoned: Task::from((task, vec![])),
-            },
-            "READ" => PoisonedLock::Read {
-                id: lock.id.unwrap_or_default(),
-                name: lock.name,
-                poisoned: Task::from((task, vec![])),
-            },
-            _ => panic!("Unexpected lock type received."),
+        let kind =
+            LockKind::try_from(lock.lock_type.as_str()).expect("Unexpected lock type received.");
+
+        PoisonedLock {
+            id: lock.id,
+            name: lock.name,
+            kind,
+            poisoned: Task::from((task, vec![])),
         }
     }
 }
@@ -109,75 +118,56 @@ pub mod db_impl {
     use serde::Serialize;
     use uuid::Uuid;
 
-    use crate::database::entities::lock::PoisonedLock;
+    use crate::database::entities::lock::{Lock, LockKind, PoisonedLock};
     use crate::database::entities::task::db_impl::DbTask;
     use crate::database::entities::task::TaskStatus;
-    use crate::database::entities::Lock;
     use crate::database::schema::{locks, tasks};
     use crate::errors::VickyError;
 
-    #[derive(Insertable, Selectable, Identifiable, Queryable, Debug, Serialize)]
+    #[derive(Selectable, Identifiable, Queryable, Debug, Serialize)]
     #[diesel(table_name = locks)]
     pub struct DbLock {
-        pub id: Option<Uuid>,
-        pub task_id: Uuid,
-        pub name: String,
-        pub type_: String,
-        pub poisoned_by_task: Option<Uuid>,
-    }
-
-    #[derive(Debug, Serialize)]
-    pub struct PoisonedDbLock {
         pub id: Uuid,
         pub task_id: Uuid,
         pub name: String,
-        pub type_: String,
-        pub task: DbTask,
+        pub lock_type: String,
+        pub poisoned_by_task: Option<Uuid>,
     }
 
-    impl DbLock {
+    #[derive(Insertable, Debug)]
+    #[diesel(table_name = locks)]
+    pub struct NewDbLock {
+        pub task_id: Uuid,
+        pub name: String,
+        pub lock_type: String,
+        pub poisoned_by_task: Option<Uuid>,
+    }
+
+    impl NewDbLock {
         pub fn from_lock(lock: &Lock, task_id: Uuid) -> Self {
-            // Converting a Lock to a DbLock only happens when inserting or updating the database,
-            // in which case the id column is irrelevant as it's auto generated in the database.
-            // A DbLock should not be inserted into a database anyway, as it's just a transient type
-            // for inserting a NewDbLock. Thus, id is set to -1 here. Maybe this can be improved wholly?
-            // At least it works.
-            match lock {
-                Lock::Write { name, poisoned } => DbLock {
-                    id: None,
-                    task_id,
-                    name: name.clone(),
-                    type_: "WRITE".to_string(),
-                    poisoned_by_task: *poisoned,
-                },
-                Lock::Read { name, poisoned } => DbLock {
-                    id: None,
-                    task_id,
-                    name: name.clone(),
-                    type_: "READ".to_string(),
-                    poisoned_by_task: *poisoned,
-                },
+            NewDbLock {
+                task_id,
+                name: lock.name.clone(),
+                lock_type: lock.kind.as_str().to_string(),
+                poisoned_by_task: lock.poisoned_by,
             }
         }
     }
 
     impl From<DbLock> for Lock {
         fn from(lock: DbLock) -> Lock {
-            match lock.type_.as_str() {
-                "WRITE" => Lock::Write {
-                    name: lock.name,
-                    poisoned: lock.poisoned_by_task,
-                },
-                "READ" => Lock::Read {
-                    name: lock.name,
-                    poisoned: lock.poisoned_by_task,
-                },
-                _ => panic!(
+            let kind = LockKind::try_from(lock.lock_type.as_str()).unwrap_or_else(|_| {
+                panic!(
                     "Can't parse lock from database lock. Database corrupted? \
                 Expected READ or WRITE but found {} as type at key {}.",
-                    lock.type_,
-                    lock.id.unwrap_or_default()
-                ),
+                    lock.lock_type, lock.id
+                )
+            });
+
+            Lock {
+                name: lock.name,
+                kind,
+                poisoned_by: lock.poisoned_by_task,
             }
         }
     }
