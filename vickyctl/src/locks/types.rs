@@ -1,51 +1,32 @@
-use serde::{Deserialize, Serialize};
-
 use crate::cli::LocksArgs;
 use crate::tasks::Task;
+use serde::{Deserialize, Serialize};
+use vickylib::database::entities::LockKind;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum PoisonedLock {
-    #[serde(rename = "WRITE")]
-    Write {
-        id: String,
-        name: String,
-        poisoned: Task,
-    },
-    #[serde(rename = "READ")]
-    Read {
-        id: String,
-        name: String,
-        poisoned: Task,
-    },
+pub struct PoisonedLock {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub kind: LockKind,
+    pub poisoned: Task,
 }
 
 impl PoisonedLock {
     pub fn id(&self) -> &str {
-        match self {
-            PoisonedLock::Write { id, .. } => id,
-            PoisonedLock::Read { id, .. } => id,
-        }
+        &self.id
     }
 
     pub fn name(&self) -> &str {
-        match self {
-            PoisonedLock::Write { name, .. } => name,
-            PoisonedLock::Read { name, .. } => name,
-        }
+        &self.name
     }
 
     pub fn get_poisoned_by(&self) -> &Task {
-        match self {
-            PoisonedLock::Write { poisoned, .. } => poisoned,
-            PoisonedLock::Read { poisoned, .. } => poisoned,
-        }
+        &self.poisoned
     }
 
     pub fn get_type(&self) -> &'static str {
-        match self {
-            PoisonedLock::Write { .. } => "WRITE",
-            PoisonedLock::Read { .. } => "READ",
-        }
+        self.kind.as_str()
     }
 }
 

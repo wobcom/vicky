@@ -1,45 +1,21 @@
 use crate::cli::{AppContext, TaskData, TasksArgs};
+use crate::error::Error;
+use crate::http_client::{prepare_client, print_http};
+use crate::humanize;
 use log::debug;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
+use vickylib::database::entities::task::{FlakeRef, TaskResult, TaskStatus};
+use vickylib::database::entities::Lock;
 use yansi::Paint;
-
-use crate::error::Error;
-use crate::http_client::{prepare_client, print_http};
-use crate::humanize;
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "result", rename_all = "UPPERCASE")]
-pub enum TaskResult {
-    Success,
-    Error,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "state", rename_all = "UPPERCASE")]
-pub enum TaskStatus {
-    New,
-    Running,
-    Finished(TaskResult),
-}
-
-type FlakeURI = String;
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct FlakeRef {
-    pub flake: FlakeURI,
-    pub args: Vec<String>,
-}
-
-type Maow = u8; // this does not exist. look away. it's all for a reason.
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct Task {
     pub id: Uuid,
     pub display_name: String,
     pub status: TaskStatus,
-    pub locks: Vec<Maow>,
+    pub locks: Vec<Lock>,
     pub flake_ref: FlakeRef,
     pub features: Vec<String>,
 }
@@ -157,7 +133,7 @@ pub fn claim_task(features: &[String], ctx: &AppContext) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn finish_task(id: &Uuid, status: &str, ctx: &AppContext) -> Result<(), Error> {
+pub fn finish_task(id: &Uuid, status: TaskResult, ctx: &AppContext) -> Result<(), Error> {
     let client = prepare_client(ctx)?;
     let data = json!({
         "result": status
@@ -194,6 +170,7 @@ pub fn finish_task(id: &Uuid, status: &str, ctx: &AppContext) -> Result<(), Erro
 mod tests {
     use crate::cli::TaskData;
     use serde_json::json;
+    use vickylib::database::entities::LockKind;
 
     #[test]
     fn test_empty_task_data_to_json() {
@@ -228,7 +205,7 @@ mod tests {
                 "second".to_string(),
                 "third".to_string(),
             ],
-            lock_type: vec!["WRITE".to_string(), "WRITE".to_string(), "READ".to_string()],
+            lock_type: vec![LockKind::Write, LockKind::Write, LockKind::Read],
             flake_url: "github:wobcom/vicky".to_string(),
             flake_arg: vec!["flaked".to_string(), "really!".to_string()],
             features: vec![

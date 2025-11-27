@@ -320,10 +320,9 @@ mod tests {
             .with_display_name("I need to do something")
             .with_write_lock("Entire Prod Cluster")
             .build()];
-        let poisoned_locks = vec![Lock::Write {
-            name: "Entire Prod Cluster".to_string(),
-            poisoned: Some(Uuid::new_v4()),
-        }];
+        let mut poisoned_lock = Lock::write("Entire Prod Cluster");
+        poisoned_lock.poison(&Uuid::new_v4());
+        let poisoned_locks = vec![poisoned_lock];
 
         let res = Scheduler::new(&tasks, &poisoned_locks, &[]).unwrap();
 
@@ -342,10 +341,9 @@ mod tests {
                 .with_write_lock("Entire Staging Cluster")
                 .build(),
         ];
-        let poisoned_locks = vec![Lock::Write {
-            name: "Entire Prod Cluster".to_string(),
-            poisoned: Some(Uuid::new_v4()),
-        }];
+        let mut poisoned_lock = Lock::write("Entire Prod Cluster");
+        poisoned_lock.poison(&Uuid::new_v4());
+        let poisoned_locks = vec![poisoned_lock];
 
         let res = Scheduler::new(&tasks, &poisoned_locks, &[]).unwrap();
 
@@ -361,10 +359,9 @@ mod tests {
             .with_display_name("I need to do something")
             .with_read_lock("Entire Prod Cluster")
             .build()];
-        let poisoned_locks = vec![Lock::Read {
-            name: "Entire Prod Cluster".to_string(),
-            poisoned: Some(Uuid::new_v4()),
-        }];
+        let mut poisoned_lock = Lock::read("Entire Prod Cluster");
+        poisoned_lock.poison(&Uuid::new_v4());
+        let poisoned_locks = vec![poisoned_lock];
 
         let res = Scheduler::new(&tasks, &poisoned_locks, &[]).unwrap();
 
