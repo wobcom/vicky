@@ -1,5 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 use uuid::Uuid;
+use vickylib::database::entities::task::TaskResult;
+use vickylib::database::entities::LockKind;
 
 // TODO: Add abouts to arguments
 #[derive(Parser, Debug, Clone)]
@@ -21,7 +23,7 @@ pub struct TaskData {
     #[clap(long)]
     pub lock_name: Vec<String>,
     #[clap(long)]
-    pub lock_type: Vec<String>,
+    pub lock_type: Vec<LockKind>,
     #[clap(long)]
     pub flake_url: String,
     #[clap(long)]
@@ -33,9 +35,9 @@ pub struct TaskData {
 #[derive(Subcommand, Debug)]
 pub enum TaskCommands {
     Create(TaskData),
-    // Logs, // TODO: could add this later
+    // TODO: Logs
     Claim { features: Vec<String> },
-    Finish { id: Uuid, status: String },
+    Finish { id: Uuid, status: TaskResult },
 }
 
 #[derive(Args, Debug)]

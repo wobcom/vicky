@@ -17,7 +17,7 @@ fn main() {
         Cli::Task(task_args) => match task_args.commands {
             TaskCommands::Create(task_data) => create_task(&task_data, &task_args.ctx),
             TaskCommands::Claim { features } => claim_task(&features, &task_args.ctx),
-            TaskCommands::Finish { id, status } => finish_task(&id, &status, &task_args.ctx),
+            TaskCommands::Finish { id, status } => finish_task(&id, status, &task_args.ctx),
         },
         Cli::Tasks(tasks_args) => tasks::show_tasks(&tasks_args),
         Cli::Locks(locks_args) => tui::show_locks(&locks_args),

@@ -233,7 +233,7 @@ fn draw_confirm_clear(
     };
     draw_centered_popup(
         f,
-        &format!("Do you really want to clear the lock {}?", lock.name()),
+        &format!("Do you really want to clear the lock {:?}?", lock.name()),
         button_select,
     );
 }

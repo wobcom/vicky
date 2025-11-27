@@ -2,7 +2,7 @@ pub mod lock;
 pub mod task;
 pub mod user;
 
-pub use lock::Lock;
+pub use lock::{Lock, LockKind};
 use rocket_sync_db_pools::database;
 pub use task::Task;
 
