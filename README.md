@@ -41,9 +41,9 @@ TODO @yu-re-ka: Add Information
 
 ### Vicky
 
-+ Copy `vicky/Rocket.example.toml` to `vicky/Rocket.toml`
++ Copy `vicky/config.example.toml` to `vicky/config.toml`
     + `Rocket.example.toml` contains the correct configuration to run with the provided development environment.
-+ Edit `vicky/Rocket.toml`
++ Edit `vicky/config.toml`
     + Add own machine token to configuration
         + This is needed for `fairy` later.
     + Add OIDC authentication provider to configuration
@@ -53,8 +53,8 @@ TODO @yu-re-ka: Add Information
 
 ### Fairy
 
-+ Copy `fairy/Rocket.example.toml` to `fairy/Rocket.toml`
-+ Edit `fairy/Rocket.toml`
++ Copy `fairy/config.example.toml` to `fairy/config.toml`
++ Edit `fairy/config.toml`
     + Add `machine_token` from last step into this configuration.
 + Enter `fairy`
 + Run `cargo run --bin fairy`
