@@ -52,8 +52,23 @@ const useAPI = () => {
         ).then(x => x.json());
     }
 
-    const getTasks = (filter: string | null): Promise<ITask[]> => {
-        return fetchJSON(`${BASE_URL}/tasks${filter ? `?status=${filter}` : ''}`);
+    const getTasks = (filter: string | null, limit?: number, offset?: number): Promise<ITask[]> => {
+        const urlParams = new URLSearchParams();
+        if (filter) {
+            urlParams.set("status", filter)
+        }
+        if (limit) {
+            urlParams.set("limit", limit.toString())
+        }
+        if (offset) {
+            urlParams.set("offset", offset.toString())
+        }
+
+        return fetchJSON(`${BASE_URL}/tasks?${urlParams.toString()}`);
+    }
+
+    const getTasksCount = (filter: string | null): Promise<{count: number}> => {
+        return fetchJSON(`${BASE_URL}/tasks/count${filter ? `?status=${filter}` : ''}`);
     }
 
     const getTask = (id: string): Promise<ITask> => {
@@ -71,6 +86,7 @@ const useAPI = () => {
     
     return {
         getTasks,
+        getTasksCount,
         getTask,
         getTaskLogs,
         getUser,

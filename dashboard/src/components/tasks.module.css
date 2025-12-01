@@ -15,3 +15,11 @@
 .GridElement {
     height: 100%;
 }
+
+.Pagination {
+    padding: 1em 0;
+
+    display: flex;
+    flex-flow: row;
+    justify-content: end;
+}
