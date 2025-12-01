@@ -5,19 +5,22 @@ use chrono::naive::serde::ts_seconds;
 use chrono::naive::serde::ts_seconds_option;
 use chrono::{NaiveDateTime, Utc};
 use delegate::delegate;
+use diesel::{AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, clap::ValueEnum)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
 #[serde(tag = "result", rename_all = "UPPERCASE")]
 pub enum TaskResult {
     Success,
     Error,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, FromSqlRow, AsExpression)]
 #[serde(tag = "state", rename_all = "UPPERCASE")]
+#[diesel(sql_type = db_impl::TaskStatusSqlType)]
 pub enum TaskStatus {
+    NeedsUserValidation,
     New,
     Running,
     Finished(TaskResult),
@@ -185,7 +188,7 @@ impl From<(DbTask, Vec<DbLock>)> for Task {
         Task {
             id: task.id,
             display_name: task.display_name,
-            status: task.status.as_str().try_into().expect("Database corrupted"),
+            status: task.status,
             locks: locks.into_iter().map(Lock::from).collect(),
             flake_ref: FlakeRef {
                 flake: task.flake_ref_uri,
@@ -211,21 +214,47 @@ pub mod db_impl {
     use crate::database::entities::lock::db_impl::{DbLock, NewDbLock};
     use crate::database::schema::locks;
     use crate::database::schema::tasks;
+    use diesel::deserialize::FromSql;
+    use diesel::pg::PgValue;
+    use diesel::serialize::{IsNull, Output, ToSql};
     use diesel::{
-        AsChangeset, Connection, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl,
+        AsChangeset, BoolExpressionMethods, Connection, ExpressionMethods, Insertable, QueryDsl,
+        QueryId, Queryable, RunQueryDsl, SqlType,
     };
     use itertools::Itertools;
     use serde::Serialize;
     use std::collections::HashMap;
     use std::fmt::Display;
+    use std::io::Write;
     use uuid::Uuid;
+
+    #[derive(SqlType, QueryId)]
+    #[diesel(postgres_type(name = "TaskStatus_Type"))]
+    pub struct TaskStatusSqlType;
+
+    impl ToSql<TaskStatusSqlType, diesel::pg::Pg> for TaskStatus {
+        fn to_sql<'b>(
+            &'b self,
+            out: &mut Output<'b, '_, diesel::pg::Pg>,
+        ) -> diesel::serialize::Result {
+            out.write_all(self.to_string().as_bytes())?;
+            Ok(IsNull::No)
+        }
+    }
+
+    impl FromSql<TaskStatusSqlType, diesel::pg::Pg> for TaskStatus {
+        fn from_sql(bytes: PgValue<'_>) -> diesel::deserialize::Result<Self> {
+            let task_status_str = String::from_utf8(bytes.as_bytes().to_vec())?;
+            Ok(Self::try_from(task_status_str.as_str()).map_err(|e| e.to_string())?)
+        }
+    }
 
     #[derive(Insertable, Queryable, AsChangeset, Debug, Serialize)]
     #[diesel(table_name = tasks)]
     pub struct DbTask {
         pub id: Uuid,
         pub display_name: String,
-        pub status: String,
+        pub status: TaskStatus,
         pub features: Vec<String>,
         pub flake_ref_uri: String,
         pub flake_ref_args: Vec<String>,
@@ -237,6 +266,7 @@ pub mod db_impl {
     impl Display for TaskStatus {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             let str = match self {
+                TaskStatus::NeedsUserValidation => "NEEDS_USER_VALIDATION",
                 TaskStatus::New => "NEW",
                 TaskStatus::Running => "RUNNING",
                 TaskStatus::Finished(r) => match r {
@@ -253,6 +283,7 @@ pub mod db_impl {
 
         fn try_from(str: &str) -> Result<Self, Self::Error> {
             match str {
+                "NEEDS_USER_VALIDATION" => Ok(TaskStatus::NeedsUserValidation),
                 "NEW" => Ok(TaskStatus::New),
                 "RUNNING" => Ok(TaskStatus::Running),
                 "FINISHED::SUCCESS" => Ok(TaskStatus::Finished(TaskResult::Success)),
@@ -267,7 +298,7 @@ pub mod db_impl {
             DbTask {
                 id: task.id,
                 display_name: task.display_name,
-                status: task.status.to_string(),
+                status: task.status,
                 features: task.features,
                 flake_ref_uri: task.flake_ref.flake,
                 flake_ref_args: task.flake_ref.args,
@@ -289,6 +320,7 @@ pub mod db_impl {
         fn get_task(&mut self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
         fn put_task(&mut self, task: Task) -> Result<(), VickyError>;
         fn update_task(&mut self, task: &Task) -> Result<(), VickyError>;
+        fn confirm_task(&mut self, task_id: Uuid) -> Result<(), VickyError>;
     }
 
     impl TaskDatabase for diesel::pg::PgConnection {
@@ -296,7 +328,7 @@ pub mod db_impl {
             let mut tasks_count_b = tasks::table.into_boxed();
 
             if let Some(task_status) = task_status {
-                tasks_count_b = tasks_count_b.filter(tasks::status.eq(task_status.to_string()))
+                tasks_count_b = tasks_count_b.filter(tasks::status.eq(task_status))
             }
 
             let tasks_count: i64 = tasks_count_b.count().first(self)?;
@@ -312,7 +344,7 @@ pub mod db_impl {
             let mut db_tasks_build = tasks::table.into_boxed();
 
             if let Some(task_status) = task_status {
-                db_tasks_build = db_tasks_build.filter(tasks::status.eq(task_status.to_string()))
+                db_tasks_build = db_tasks_build.filter(tasks::status.eq(task_status))
             }
 
             let limit = filter_params.clone().and_then(|x| x.limit);
@@ -390,7 +422,7 @@ pub mod db_impl {
         fn update_task(&mut self, task: &Task) -> Result<(), VickyError> {
             diesel::update(tasks::table.filter(tasks::id.eq(task.id)))
                 .set((
-                    tasks::status.eq(task.status.clone().to_string()),
+                    tasks::status.eq(task.status),
                     tasks::claimed_at.eq(task.claimed_at),
                     tasks::finished_at.eq(task.finished_at),
                 ))
@@ -404,6 +436,20 @@ pub mod db_impl {
                     .set(locks::poisoned_by_task.eq(task.id))
                     .execute(self)?;
             }
+
+            Ok(())
+        }
+
+        fn confirm_task(&mut self, task_id: Uuid) -> Result<(), VickyError> {
+            diesel::update(
+                tasks::table.filter(
+                    tasks::id
+                        .eq(task_id)
+                        .and(tasks::status.eq(TaskStatus::NeedsUserValidation)),
+                ),
+            )
+            .set(tasks::status.eq(TaskStatus::New))
+            .execute(self)?;
 
             Ok(())
         }

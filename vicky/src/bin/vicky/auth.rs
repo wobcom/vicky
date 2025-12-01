@@ -1,36 +1,25 @@
-use std::str::FromStr;
-
 use jwtk::jwk::RemoteJwksVerifier;
 use log::warn;
 use rocket::http::Status;
 use rocket::{request, State};
-use serde::Deserialize;
 use serde_json::{Map, Value};
+use std::str::FromStr;
 use uuid::Uuid;
 use vickylib::database::entities::Database;
 
-use vickylib::database::entities::user::db_impl::DbUser;
-use vickylib::database::entities::user::Role;
 use crate::config::{Config, OIDCConfigResolved};
 use crate::errors::AppError;
+use vickylib::database::entities::user::{Role, User};
 
-
-#[allow(dead_code)]
-#[derive(Deserialize)]
-pub struct User {
-    pub id: Uuid,
-    pub full_name: String,
-    pub role: Role,
-}
-
-pub struct Machine {}
+pub struct MachineGuard {}
+pub struct UserGuard(pub User);
 
 async fn extract_user_from_token(
     jwks_verifier: &State<RemoteJwksVerifier>,
     db: &Database,
     oidc_config: &OIDCConfigResolved,
     token: &str,
-) -> Result<DbUser, AppError> {
+) -> Result<User, AppError> {
     let jwt = jwks_verifier.verify::<Map<String, Value>>(token).await?;
 
     let sub = jwt
@@ -61,10 +50,10 @@ async fn extract_user_from_token(
                     AppError::JWTFormatError("user_info must contain name".to_string())
                 })?;
 
-            let new_user = DbUser {
-                sub,
+            let new_user = User {
+                id: sub,
                 name: name.to_string(),
-                role: "ADMIN".to_string(),
+                role: Role::Admin,
             };
 
             db.upsert_user(new_user.clone()).await?;
@@ -74,10 +63,10 @@ async fn extract_user_from_token(
 }
 
 #[rocket::async_trait]
-impl<'r> request::FromRequest<'r> for User {
+impl<'r> request::FromRequest<'r> for UserGuard {
     type Error = ();
 
-    async fn from_request(request: &'r request::Request<'_>) -> request::Outcome<User, ()> {
+    async fn from_request(request: &'r request::Request<'_>) -> request::Outcome<UserGuard, ()> {
         let jwks_verifier: &State<_> = match request.guard::<&State<RemoteJwksVerifier>>().await {
             request::Outcome::Success(v) => v,
             _ => return request::Outcome::Error((Status::InternalServerError, ())),
@@ -107,12 +96,12 @@ impl<'r> request::FromRequest<'r> for User {
         match extract_user_from_token(jwks_verifier, &db, oidc_config_resolved, token).await {
             Ok(user) => {
                 let user = User {
-                    id: user.sub,
-                    full_name: user.name,
+                    id: user.id,
+                    name: user.name,
                     role: Role::Admin,
                 };
 
-                request::Outcome::Success(user)
+                request::Outcome::Success(UserGuard(user))
             }
 
             Err(x) => {
@@ -124,10 +113,10 @@ impl<'r> request::FromRequest<'r> for User {
 }
 
 #[rocket::async_trait]
-impl<'r> request::FromRequest<'r> for Machine {
+impl<'r> request::FromRequest<'r> for MachineGuard {
     type Error = ();
 
-    async fn from_request(request: &'r request::Request<'_>) -> request::Outcome<Machine, ()> {
+    async fn from_request(request: &'r request::Request<'_>) -> request::Outcome<MachineGuard, ()> {
         let config = match request.guard::<&State<Config>>().await {
             request::Outcome::Success(cfg) => cfg,
             _ => return request::Outcome::Error((Status::InternalServerError, ())),
@@ -140,7 +129,7 @@ impl<'r> request::FromRequest<'r> for Machine {
         let cfg_user = config.machines.iter().find(|x| *x == auth_header);
 
         match cfg_user {
-            Some(_) => request::Outcome::Success(Machine {}),
+            Some(_) => request::Outcome::Success(MachineGuard {}),
             None => request::Outcome::Error((Status::Forbidden, ())),
         }
     }

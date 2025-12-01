@@ -15,7 +15,7 @@ use vickylib::{
 };
 
 use crate::{
-    auth::{Machine, User},
+    auth::{MachineGuard, UserGuard},
     errors::AppError,
     events::GlobalEvent,
 };
@@ -57,7 +57,7 @@ pub struct Count {
 #[get("/count?<status>")]
 pub async fn tasks_count_user(
     db: Database,
-    _user: User,
+    _user: UserGuard,
     status: Option<String>,
 ) -> Result<Json<Count>, AppError> {
     let task_status: Option<TaskStatus> = status
@@ -73,7 +73,7 @@ pub async fn tasks_count_user(
 #[get("/count?<status>", rank = 2)]
 pub async fn tasks_count_machine(
     db: Database,
-    _machine: Machine,
+    _machine: MachineGuard,
     status: Option<String>,
 ) -> Result<Json<Count>, AppError> {
     let task_status: Option<TaskStatus> = status
@@ -89,7 +89,7 @@ pub async fn tasks_count_machine(
 #[get("/?<status>&<filter_params..>")]
 pub async fn tasks_get_user(
     db: Database,
-    _user: User,
+    _user: UserGuard,
     status: Option<String>,
     filter_params: Option<FilterParams>,
 ) -> Result<Json<Vec<Task>>, AppError> {
@@ -107,7 +107,7 @@ pub async fn tasks_get_user(
 #[get("/?<status>&<filter_params..>", rank = 2)]
 pub async fn tasks_get_machine(
     db: Database,
-    _machine: Machine,
+    _machine: MachineGuard,
     status: Option<String>,
     filter_params: Option<FilterParams>,
 ) -> Result<Json<Vec<Task>>, AppError> {
@@ -131,7 +131,7 @@ async fn tasks_specific_get(id: Uuid, db: &Database) -> Result<Json<Option<Task>
 pub async fn tasks_specific_get_user(
     id: Uuid,
     db: Database,
-    _user: User,
+    _user: UserGuard,
 ) -> Result<Json<Option<Task>>, AppError> {
     tasks_specific_get(id, &db).await
 }
@@ -140,7 +140,7 @@ pub async fn tasks_specific_get_user(
 pub async fn tasks_specific_get_machine(
     id: Uuid,
     db: Database,
-    _machine: Machine,
+    _machine: MachineGuard,
 ) -> Result<Json<Option<Task>>, AppError> {
     tasks_specific_get(id, &db).await
 }
@@ -150,7 +150,7 @@ pub async fn tasks_get_logs<'a>(
     id: Uuid,
     db: Database,
     s3: &'a State<S3Client>,
-    _user: User,
+    _user: UserGuard,
     log_drain: &'a State<LogDrain>,
     start: Option<i32>,
 ) -> EventStream![Event + 'a] {
@@ -172,7 +172,7 @@ pub async fn tasks_get_logs<'a>(
     EventStream! {
         if let Some((task_uuid, task)) = setup {
         match task.status {
-            TaskStatus::New => {},
+            TaskStatus::NeedsUserValidation | TaskStatus::New => {},
             TaskStatus::Running => {
                 let mut recv = log_drain.send_handle.subscribe();
                 let existing_log_messages = log_drain
@@ -239,7 +239,7 @@ pub async fn tasks_download_logs(
     id: Uuid,
     db: Database,
     s3: &'_ State<S3Client>,
-    _machine: Machine,
+    _machine: MachineGuard,
 ) -> Result<Json<LogLines>, AppError> {
     // Note: We still need to verify the existence of the task before accessing S3 with an abitrary string..
     let _task = db
@@ -259,7 +259,7 @@ pub async fn tasks_put_logs(
     id: Uuid,
     db: Database,
     logs: Json<LogLines>,
-    _machine: Machine,
+    _machine: MachineGuard,
     log_drain: &State<LogDrain>,
 ) -> Result<Json<()>, AppError> {
     let task = db
@@ -281,7 +281,7 @@ pub async fn tasks_claim(
     db: Database,
     features: Json<RoTaskClaim>,
     global_events: &State<broadcast::Sender<GlobalEvent>>,
-    _machine: Machine,
+    _machine: MachineGuard,
 ) -> Result<Json<Option<Task>>, AppError> {
     let tasks = db.get_all_tasks().await?;
     let poisoned_locks = db.get_poisoned_locks().await?;
@@ -312,7 +312,7 @@ pub async fn tasks_finish(
     finish: Json<RoTaskFinish>,
     db: Database,
     global_events: &State<broadcast::Sender<GlobalEvent>>,
-    _machine: Machine,
+    _machine: MachineGuard,
     log_drain: &State<LogDrain>,
 ) -> Result<Json<Task>, AppError> {
     let mut task = db
@@ -350,7 +350,7 @@ pub async fn tasks_add(
     task: Json<RoTaskNew>,
     db: Database,
     global_events: &State<broadcast::Sender<GlobalEvent>>,
-    _machine: Machine,
+    _machine: MachineGuard,
 ) -> Result<Json<RoTask>, AppError> {
     let task_uuid = Uuid::new_v4();
 

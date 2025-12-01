@@ -15,12 +15,12 @@ use std::io;
 
 impl<'a> From<&'a PoisonedLock> for Row<'a> {
     fn from(value: &'a PoisonedLock) -> Self {
-        let poisoned_by = value.get_poisoned_by();
+        let poisoned_by = value.poisoned_by();
         let task_name = poisoned_by.display_name.as_str();
         let name = value.name();
-        let ty = value.get_type();
+        let ty = value.kind();
         let uri = poisoned_by.flake_ref.flake.as_str();
-        Row::new(vec![name, ty, task_name, uri])
+        Row::new(vec![name, ty.into(), task_name, uri])
     }
 }
 
@@ -180,7 +180,7 @@ fn minimal_widths(locks: &[PoisonedLock]) -> [Constraint; 4] {
             get_longest_len(
                 locks
                     .iter()
-                    .map(|l| l.get_poisoned_by().display_name.as_str()),
+                    .map(|l| l.poisoned_by().display_name.as_str()),
             )
             .max("Failed Task Name".len() as u16),
         ),
@@ -188,7 +188,7 @@ fn minimal_widths(locks: &[PoisonedLock]) -> [Constraint; 4] {
             get_longest_len(
                 locks
                     .iter()
-                    .map(|l| l.get_poisoned_by().flake_ref.flake.as_str()),
+                    .map(|l| l.poisoned_by().flake_ref.flake.as_str()),
             )
             .max("Task Flake URI".len() as u16),
         ),

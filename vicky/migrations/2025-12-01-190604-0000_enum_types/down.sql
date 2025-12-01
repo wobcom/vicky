@@ -1,0 +1,15 @@
+ALTER TABLE locks
+    ALTER COLUMN type TYPE VARCHAR USING "type"::text;
+
+ALTER TABLE tasks
+    ALTER COLUMN status TYPE VARCHAR USING status::text;
+
+ALTER TABLE users
+    ALTER COLUMN role TYPE VARCHAR USING role::text;
+
+DROP TYPE IF EXISTS "TaskStatus_Type";
+DROP TYPE IF EXISTS "LockKind_Type";
+DROP TYPE IF EXISTS "Role_Type";
+
+ALTER TABLE users
+    RENAME COLUMN id TO sub;

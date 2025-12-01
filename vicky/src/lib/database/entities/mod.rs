@@ -6,7 +6,8 @@ use crate::database::entities::lock::db_impl::LockDatabase;
 use crate::database::entities::lock::PoisonedLock;
 use crate::database::entities::task::db_impl::TaskDatabase;
 use crate::database::entities::task::TaskStatus;
-use crate::database::entities::user::db_impl::{DbUser, UserDatabase};
+use crate::database::entities::user::db_impl::UserDatabase;
+use crate::database::entities::user::User;
 use crate::errors::VickyError;
 use crate::query::FilterParams;
 use delegate::delegate;
@@ -50,8 +51,8 @@ impl Database {
         #[expr(self.run(move |conn| $).await)]
         #[through(UserDatabase)]
         to conn {
-            pub async fn get_user(&self, sub: Uuid) -> Result<Option<DbUser>, VickyError>;
-            pub async fn upsert_user(&self, user: DbUser) -> Result<(), VickyError>;
+            pub async fn get_user(&self, id: Uuid) -> Result<Option<User>, VickyError>;
+            pub async fn upsert_user(&self, user: User) -> Result<(), VickyError>;
         }
     }
 }

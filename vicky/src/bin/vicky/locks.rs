@@ -1,4 +1,4 @@
-use crate::auth::{Machine, User};
+use crate::auth::{MachineGuard, UserGuard};
 use crate::errors::AppError;
 use rocket::serde::json::Json;
 use rocket::{get, patch};
@@ -19,7 +19,7 @@ async fn locks_get_detailed_poisoned(db: &Database) -> Result<Json<Vec<PoisonedL
 #[get("/poisoned")]
 pub async fn locks_get_poisoned_user(
     db: Database,
-    _user: User,
+    _user: UserGuard,
 ) -> Result<Json<Vec<Lock>>, AppError> {
     locks_get_poisoned(&db).await
 }
@@ -27,7 +27,7 @@ pub async fn locks_get_poisoned_user(
 #[get("/poisoned", rank = 2)]
 pub async fn locks_get_poisoned_machine(
     db: Database,
-    _machine: Machine,
+    _machine: MachineGuard,
 ) -> Result<Json<Vec<Lock>>, AppError> {
     locks_get_poisoned(&db).await
 }
@@ -35,7 +35,7 @@ pub async fn locks_get_poisoned_machine(
 #[get("/poisoned_detailed")]
 pub async fn locks_get_detailed_poisoned_user(
     db: Database,
-    _user: User,
+    _user: UserGuard,
 ) -> Result<Json<Vec<PoisonedLock>>, AppError> {
     locks_get_detailed_poisoned(&db).await
 }
@@ -43,7 +43,7 @@ pub async fn locks_get_detailed_poisoned_user(
 #[get("/poisoned_detailed", rank = 2)]
 pub async fn locks_get_detailed_poisoned_machine(
     db: Database,
-    _machine: Machine,
+    _machine: MachineGuard,
 ) -> Result<Json<Vec<PoisonedLock>>, AppError> {
     locks_get_detailed_poisoned(&db).await
 }
@@ -54,14 +54,17 @@ async fn locks_get_active(db: &Database) -> Result<Json<Vec<Lock>>, AppError> {
 }
 
 #[get("/active")]
-pub async fn locks_get_active_user(db: Database, _user: User) -> Result<Json<Vec<Lock>>, AppError> {
+pub async fn locks_get_active_user(
+    db: Database,
+    _user: UserGuard,
+) -> Result<Json<Vec<Lock>>, AppError> {
     locks_get_active(&db).await
 }
 
 #[get("/active", rank = 2)]
 pub async fn locks_get_active_machine(
     db: Database,
-    _machine: Machine,
+    _machine: MachineGuard,
 ) -> Result<Json<Vec<Lock>>, AppError> {
     locks_get_active(&db).await
 }
@@ -69,7 +72,7 @@ pub async fn locks_get_active_machine(
 #[patch("/unlock/<lock_id>")]
 pub async fn locks_unlock(
     db: Database,
-    _user: Machine, // TODO: Should actually be user-only, but we don't have that yet
+    _user: MachineGuard, // TODO: Should actually be user-only, but we don't have that yet
     lock_id: Uuid,
 ) -> Result<(), AppError> {
     db.unlock_lock(lock_id).await?;

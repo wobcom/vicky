@@ -4430,6 +4430,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "crossterm",
+ "delegate",
  "log",
  "ratatui 0.26.3",
  "ratatui-widgets",
