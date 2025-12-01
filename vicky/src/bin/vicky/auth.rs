@@ -11,8 +11,8 @@ use vickylib::database::entities::Database;
 
 use vickylib::database::entities::user::db_impl::{DbUser, UserDatabase};
 
+use crate::config::{Config, OIDCConfigResolved};
 use crate::errors::AppError;
-use crate::{Config, OIDCConfigResolved};
 
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "lowercase")]

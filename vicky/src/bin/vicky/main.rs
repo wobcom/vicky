@@ -1,21 +1,4 @@
-use std::time::Duration;
-
-use aws_sdk_s3::config::{BehaviorVersion, Credentials, Region};
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-use jwtk::jwk::RemoteJwksVerifier;
-use rocket::fairing::AdHoc;
-use rocket::figment::providers::{Env, Format, Toml};
-use rocket::figment::{Figment, Profile};
-use rocket::{routes, Build, Rocket};
-use serde::{Deserialize, Serialize};
-use snafu::ResultExt;
-use tokio::sync::broadcast;
-
-use errors::AppError;
-use vickylib::database::entities::Database;
-use vickylib::logs::LogDrain;
-use vickylib::s3::client::S3Client;
-
+use crate::config::{build_rocket_config, Config, OIDCConfigResolved};
 use crate::events::{get_global_events, GlobalEvent};
 use crate::locks::{
     locks_get_active_machine, locks_get_active_user, locks_get_detailed_poisoned_machine,
@@ -30,8 +13,20 @@ use crate::tasks::{
 };
 use crate::user::get_user;
 use crate::webconfig::get_web_config;
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use errors::AppError;
+use jwtk::jwk::RemoteJwksVerifier;
+use rocket::fairing::AdHoc;
+use rocket::{routes, Build, Rocket};
+use snafu::ResultExt;
+use tokio::sync::broadcast;
+use tokio::sync::broadcast::Sender;
+use vickylib::database::entities::Database;
+use vickylib::logs::LogDrain;
+use vickylib::s3::client::S3Client;
 
 mod auth;
+mod config;
 mod errors;
 mod events;
 mod locks;
@@ -39,44 +34,6 @@ mod startup;
 mod tasks;
 mod user;
 mod webconfig;
-
-#[derive(Deserialize)]
-pub struct S3Config {
-    endpoint: String,
-    access_key_id: String,
-    secret_access_key: String,
-    region: String,
-
-    log_bucket: String,
-}
-
-#[derive(Deserialize)]
-pub struct OIDCConfig {
-    well_known_uri: String,
-}
-
-#[derive(Deserialize)]
-pub struct OIDCConfigResolved {
-    userinfo_endpoint: String,
-    jwks_uri: String,
-}
-
-#[derive(Deserialize, Serialize, Clone)]
-pub struct WebConfig {
-    authority: String,
-    client_id: String,
-}
-
-#[derive(Deserialize)]
-pub struct Config {
-    machines: Vec<String>,
-
-    s3_config: S3Config,
-
-    oidc_config: OIDCConfig,
-
-    web_config: WebConfig,
-}
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
@@ -120,27 +77,12 @@ async fn inner_main() -> Result<()> {
         .init();
     log::info!("vicky starting...");
 
-    // Took from rocket source code and added .split("__") to be able to add keys in nested structures.
-    let rocket_config_figment = Figment::from(rocket::Config::default())
-        .merge(Toml::file(Env::var_or("ROCKET_CONFIG", "config.toml")).nested())
-        .merge(
-            Env::prefixed("ROCKET_")
-                .ignore(&["PROFILE"])
-                .split("__")
-                .global(),
-        )
-        .select(Profile::from_env_or(
-            "ROCKET_PROFILE",
-            rocket::Config::DEFAULT_PROFILE,
-        ));
-
-    let build_rocket = rocket::custom(rocket_config_figment);
-
     log::info!("loading service config...");
-    let app_config = build_rocket
-        .figment()
+    let rocket_config = build_rocket_config();
+    let app_config = rocket_config
         .extract::<Config>()
         .context(startup::ConfigErr)?;
+    let build_rocket = rocket::custom(build_rocket_config());
 
     log::info!(
         "fetching OIDC discovery from {}",
@@ -154,46 +96,43 @@ async fn inner_main() -> Result<()> {
         oidc_config_resolved.jwks_uri
     );
 
-    let jwks_verifier = RemoteJwksVerifier::new(
-        oidc_config_resolved.jwks_uri.clone(),
-        None,
-        Duration::from_secs(300),
-    );
+    let jwks_verifier = oidc_config_resolved.jwks_verifier();
 
-    let env_aws_cfg = app_config.s3_config;
-
-    let creds = Credentials::new(
-        env_aws_cfg.access_key_id,
-        env_aws_cfg.secret_access_key,
-        None,
-        None,
-        "static",
-    );
-
-    log::info!("building s3 client");
-    let s3_conf = aws_sdk_s3::Config::builder()
-        .behavior_version(BehaviorVersion::v2024_03_28())
-        .force_path_style(true)
-        .endpoint_url(env_aws_cfg.endpoint)
-        .credentials_provider(creds)
-        .region(Region::new(env_aws_cfg.region))
-        .build();
-
+    let s3_conf = app_config.s3_config.build_config();
     let s3_client = aws_sdk_s3::Client::from_conf(s3_conf);
+    startup::ensure_bucket(&s3_client, &app_config.s3_config.log_bucket).await?;
 
-    log::info!("ensuring log bucket {}", env_aws_cfg.log_bucket);
-    startup::ensure_bucket(&s3_client, &env_aws_cfg.log_bucket).await?;
-
-    let s3_ext_client_drain = S3Client::new(s3_client.clone(), env_aws_cfg.log_bucket.clone());
-    let s3_ext_client = S3Client::new(s3_client, env_aws_cfg.log_bucket.clone());
-
-    let log_drain = LogDrain::new(s3_ext_client_drain);
+    let s3_log_bucket_client = app_config.s3_config.create_bucket_client();
+    let log_drain = LogDrain::new(s3_log_bucket_client.clone());
 
     let (tx_global_events, _rx_task_events) = broadcast::channel::<GlobalEvent>(5);
 
+    serve_web_api(
+        app_config,
+        build_rocket,
+        oidc_config_resolved,
+        jwks_verifier,
+        s3_log_bucket_client,
+        log_drain,
+        tx_global_events,
+    )
+    .await?;
+
+    Ok(())
+}
+
+async fn serve_web_api(
+    app_config: Config,
+    build_rocket: Rocket<Build>,
+    oidc_config_resolved: OIDCConfigResolved,
+    jwks_verifier: RemoteJwksVerifier,
+    s3_log_bucket_client: S3Client,
+    log_drain: LogDrain,
+    tx_global_events: Sender<GlobalEvent>,
+) -> Result<()> {
     log::info!("starting web api");
     build_rocket
-        .manage(s3_ext_client)
+        .manage(s3_log_bucket_client)
         .manage(log_drain)
         .manage(jwks_verifier)
         .manage(tx_global_events)

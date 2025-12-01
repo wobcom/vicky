@@ -1,8 +1,7 @@
+use crate::config::OIDCConfigResolved;
 use aws_sdk_s3::{error::SdkError, operation::create_bucket::CreateBucketError, Client};
 use rocket::figment;
 use snafu::{ResultExt, Snafu};
-
-use crate::OIDCConfigResolved;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -47,6 +46,7 @@ pub async fn fetch_oidc_config(uri: &str) -> Result<OIDCConfigResolved> {
 }
 
 pub async fn ensure_bucket(client: &Client, bucket: &str) -> Result<()> {
+    log::info!("ensuring log bucket {}", bucket);
     match client.create_bucket().bucket(bucket).send().await {
         Ok(b) => {
             log::info!(
