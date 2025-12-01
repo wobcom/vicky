@@ -205,10 +205,9 @@ pub mod db_impl {
     use crate::errors::VickyError;
     use crate::query::FilterParams;
     use chrono::NaiveDateTime;
-    
+
     use diesel::{
-        AsChangeset, Connection, ExpressionMethods, Insertable, QueryDsl, Queryable,
-        RunQueryDsl,
+        AsChangeset, Connection, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl,
     };
     use std::collections::HashMap;
     use std::fmt::Display;

@@ -2,7 +2,8 @@ use rocket::State;
 use rocket::{get, serde::json::Json};
 use serde::{Deserialize, Serialize};
 
-use crate::{errors::AppError, WebConfig};
+use crate::config::WebConfig;
+use crate::errors::AppError;
 
 #[allow(unused)]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]

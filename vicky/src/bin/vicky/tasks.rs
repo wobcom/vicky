@@ -153,7 +153,7 @@ pub async fn tasks_get_logs<'a>(
     db: Database,
     s3: &'a State<S3Client>,
     _user: User,
-    log_drain: &'a State<&'_ LogDrain>,
+    log_drain: &'a State<LogDrain>,
     start: Option<i32>,
 ) -> EventStream![Event + 'a] {
     let setup = match db.run(move |conn| conn.get_task(id)).await {
@@ -262,7 +262,7 @@ pub async fn tasks_put_logs(
     db: Database,
     logs: Json<LogLines>,
     _machine: Machine,
-    log_drain: &State<&LogDrain>,
+    log_drain: &State<LogDrain>,
 ) -> Result<Json<()>, AppError> {
     let task = db
         .run(move |conn| conn.get_task(id))
@@ -316,7 +316,7 @@ pub async fn tasks_finish(
     db: Database,
     global_events: &State<broadcast::Sender<GlobalEvent>>,
     _machine: Machine,
-    log_drain: &State<&LogDrain>,
+    log_drain: &State<LogDrain>,
 ) -> Result<Json<Task>, AppError> {
     let mut task = db
         .run(move |conn| conn.get_task(id))

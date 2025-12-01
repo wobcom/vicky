@@ -1,4 +1,5 @@
 use std::collections::{HashMap, VecDeque};
+use std::sync::Arc;
 use std::time;
 
 use crate::{errors::VickyError, s3::client::S3Client};
@@ -9,39 +10,37 @@ use uuid::Uuid;
 
 const LOG_BUFFER: usize = 10000;
 
+#[derive(Clone)]
 pub struct LogDrain {
     pub send_handle: Sender<(Uuid, String)>,
 
-    live_log_buffers: Mutex<HashMap<Uuid, VecDeque<String>>>,
-    push_log_buffers: Mutex<HashMap<Uuid, Vec<String>>>,
+    live_log_buffers: Arc<Mutex<HashMap<Uuid, VecDeque<String>>>>,
+    push_log_buffers: Arc<Mutex<HashMap<Uuid, Vec<String>>>>,
 
     s3_client: S3Client,
 }
 
 impl LogDrain {
-    pub fn new(s3_client: S3Client) -> &'static LogDrain {
-        let (tx, rx1) = broadcast::channel(1000);
-        let s3_client_m = Box::leak(Box::new(s3_client.clone()));
-
-        let ld: LogDrain = LogDrain {
-            send_handle: tx,
-            live_log_buffers: Mutex::new(HashMap::new()),
-            push_log_buffers: Mutex::new(HashMap::new()),
+    pub fn new(s3_client: S3Client) -> LogDrain {
+        let (log_tx, mut log_rx) = broadcast::channel(1000);
+        let log_drain: LogDrain = LogDrain {
+            send_handle: log_tx,
+            live_log_buffers: Arc::new(Mutex::new(HashMap::new())),
+            push_log_buffers: Arc::new(Mutex::new(HashMap::new())),
 
             s3_client,
         };
 
-        let ldr = Box::leak(Box::new(ld));
-        let rx1r = Box::leak(Box::new(rx1));
+        let log_drain_2 = log_drain.clone();
 
-        tokio::spawn(async {
+        tokio::spawn(async move {
             loop {
-                let read_val = rx1r.try_recv();
+                let read_val = log_rx.try_recv();
 
                 match read_val {
                     Ok((task_id, log_text)) => {
                         {
-                            let mut llb = ldr.live_log_buffers.lock().await;
+                            let mut llb = log_drain.live_log_buffers.lock().await;
 
                             let live_log_buffer = llb.entry(task_id).or_insert_with(VecDeque::new);
                             if live_log_buffer.len() == LOG_BUFFER {
@@ -51,7 +50,7 @@ impl LogDrain {
                         }
 
                         {
-                            let mut push_log_buffers = ldr.push_log_buffers.lock().await;
+                            let mut push_log_buffers = log_drain.push_log_buffers.lock().await;
 
                             let push_log_buffer =
                                 push_log_buffers.entry(task_id).or_insert_with(Vec::new);
@@ -61,7 +60,8 @@ impl LogDrain {
                             if push_log_buffer.len() > 16 {
                                 // Push buffer to S3
 
-                                match s3_client_m
+                                match log_drain
+                                    .s3_client
                                     .upload_log_parts(task_id, push_log_buffer.to_vec())
                                     .await
                                 {
@@ -78,7 +78,7 @@ impl LogDrain {
                         // Technically, this should not happen, because we control all of the send handles.
                     }
                     Err(TryRecvError::Lagged(_)) => {
-                        // Immediate Retry, doing our best effort here.
+                        // Immediate Retry, doing our best effort here. (Not yet)
                     }
                     Err(TryRecvError::Empty) => {
                         tokio::time::sleep(time::Duration::from_millis(10)).await;
@@ -87,7 +87,7 @@ impl LogDrain {
             }
         });
 
-        ldr
+        log_drain_2
     }
 
     pub fn push_logs(&self, task_id: Uuid, logs: Vec<String>) -> Result<(), VickyError> {
