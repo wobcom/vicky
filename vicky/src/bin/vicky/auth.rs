@@ -9,7 +9,7 @@ use serde_json::{Map, Value};
 use uuid::Uuid;
 use vickylib::database::entities::Database;
 
-use vickylib::database::entities::user::db_impl::{DbUser, UserDatabase};
+use vickylib::database::entities::user::db_impl::DbUser;
 
 use crate::config::{Config, OIDCConfigResolved};
 use crate::errors::AppError;
@@ -45,7 +45,7 @@ async fn extract_user_from_token(
         .ok_or_else(|| AppError::JWTFormatError("JWT must contain sub".to_string()))?;
     let sub = Uuid::from_str(sub)?;
 
-    let user = db.run(move |conn| conn.get_user(sub)).await?;
+    let user = db.get_user(sub).await?;
 
     match user {
         Some(user) => Ok(user),
@@ -72,9 +72,7 @@ async fn extract_user_from_token(
                 role: "ADMIN".to_string(),
             };
 
-            let new_user_create = new_user.clone();
-            db.run(move |conn| conn.upsert_user(new_user_create))
-                .await?;
+            db.upsert_user(new_user.clone()).await?;
             Ok(new_user)
         }
     }

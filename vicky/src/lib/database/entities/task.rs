@@ -4,17 +4,18 @@ use crate::database::entities::task::db_impl::DbTask;
 use chrono::naive::serde::ts_seconds;
 use chrono::naive::serde::ts_seconds_option;
 use chrono::{NaiveDateTime, Utc};
+use delegate::delegate;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, clap::ValueEnum)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, clap::ValueEnum)]
 #[serde(tag = "result", rename_all = "UPPERCASE")]
 pub enum TaskResult {
     Success,
     Error,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "UPPERCASE")]
 pub enum TaskStatus {
     New,
@@ -44,6 +45,12 @@ pub struct Task {
     pub claimed_at: Option<NaiveDateTime>,
     #[serde(with = "ts_seconds_option")]
     pub finished_at: Option<NaiveDateTime>,
+}
+
+impl AsRef<Task> for Task {
+    fn as_ref(&self) -> &Task {
+        self
+    }
 }
 
 impl Task {
@@ -139,28 +146,22 @@ impl TaskBuilder {
         self
     }
 
-    pub fn id(&self) -> Option<Uuid> {
-        self.id
-    }
-
-    pub fn display_name(&self) -> &Option<String> {
-        &self.display_name
-    }
-
-    pub fn status(&self) -> &TaskStatus {
-        &self.status
-    }
-
-    pub fn locks(&self) -> &Vec<Lock> {
-        &self.locks
-    }
-
-    pub fn flake_ref(&self) -> &FlakeRef {
-        &self.flake_ref
-    }
-
-    pub fn features(&self) -> &Vec<String> {
-        &self.features
+    delegate! {
+        to self {
+            #[field]
+            pub fn id(&self) -> Option<Uuid>;
+            #[field]
+            #[expr($.as_ref())]
+            pub fn display_name(&self) -> Option<&String>;
+            #[field]
+            pub fn status(&self) -> TaskStatus;
+            #[field(&)]
+            pub fn locks(&self) -> &[Lock];
+            #[field(&)]
+            pub fn flake_ref(&self) -> &FlakeRef;
+            #[field(&)]
+            pub fn features(&self) -> &[String];
+        }
     }
 
     pub fn build(self) -> Task {
@@ -206,18 +207,18 @@ pub mod db_impl {
     use crate::query::FilterParams;
     use chrono::NaiveDateTime;
 
-    use diesel::{
-        AsChangeset, Connection, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl,
-    };
-    use std::collections::HashMap;
-    use std::fmt::Display;
-    use uuid::Uuid;
     // these here are evil >:(
     use crate::database::entities::lock::db_impl::{DbLock, NewDbLock};
     use crate::database::schema::locks;
     use crate::database::schema::tasks;
+    use diesel::{
+        AsChangeset, Connection, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl,
+    };
     use itertools::Itertools;
     use serde::Serialize;
+    use std::collections::HashMap;
+    use std::fmt::Display;
+    use uuid::Uuid;
 
     #[derive(Insertable, Queryable, AsChangeset, Debug, Serialize)]
     #[diesel(table_name = tasks)]

@@ -64,7 +64,7 @@ pub fn resolve_lock(resolve_args: &ResolveArgs) -> Result<(), Error> {
             resolve_args,
             &mut locks,
         )?;
-        terminal.draw(|f| ui(f, &locks, &mut state, &selected_task, &mut selected_button))?;
+        terminal.draw(|f| ui(f, &locks, &mut state, selected_task, &mut selected_button))?;
     }
 
     disable_raw_mode()?;
@@ -242,12 +242,12 @@ pub fn ui(
     f: &mut Frame,
     locks: &[PoisonedLock],
     state: &mut TableState,
-    selected_task: &Option<usize>,
+    selected_task: Option<usize>,
     button_select: &mut bool,
 ) {
     draw_task_picker(f, locks, state);
     if let Some(selected) = selected_task {
-        draw_confirm_clear(f, locks, *selected, button_select);
+        draw_confirm_clear(f, locks, selected, button_select);
     }
 }
 

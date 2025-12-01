@@ -7,8 +7,6 @@ use serde::{Deserialize, Serialize};
 use std::time;
 use tokio::sync::broadcast::{self, error::TryRecvError};
 use uuid::Uuid;
-use vickylib::database::entities::lock::db_impl::LockDatabase;
-use vickylib::database::entities::task::db_impl::TaskDatabase;
 use vickylib::database::entities::task::{FlakeRef, TaskResult, TaskStatus};
 use vickylib::database::entities::{Database, Lock, Task};
 use vickylib::query::FilterParams;
@@ -67,7 +65,7 @@ pub async fn tasks_count_user(
         .map(TaskStatus::try_from)
         .transpose()
         .map_err(|_| AppError::HttpError(Status::BadRequest))?;
-    let tasks_count = db.run(|conn| conn.count_all_tasks(task_status)).await?;
+    let tasks_count = db.count_all_tasks(task_status).await?;
     let c: Count = Count { count: tasks_count };
     Ok(Json(c))
 }
@@ -83,7 +81,7 @@ pub async fn tasks_count_machine(
         .map(TaskStatus::try_from)
         .transpose()
         .map_err(|_| AppError::HttpError(Status::BadRequest))?;
-    let tasks_count = db.run(|conn| conn.count_all_tasks(task_status)).await?;
+    let tasks_count = db.count_all_tasks(task_status).await?;
     let c: Count = Count { count: tasks_count };
     Ok(Json(c))
 }
@@ -101,7 +99,7 @@ pub async fn tasks_get_user(
         .transpose()
         .map_err(|_| AppError::HttpError(Status::BadRequest))?;
     let tasks: Vec<Task> = db
-        .run(|conn| conn.get_all_tasks_filtered(task_status, filter_params))
+        .get_all_tasks_filtered(task_status, filter_params)
         .await?;
     Ok(Json(tasks))
 }
@@ -119,13 +117,13 @@ pub async fn tasks_get_machine(
         .transpose()
         .map_err(|_| AppError::HttpError(Status::BadRequest))?;
     let tasks: Vec<Task> = db
-        .run(|conn| conn.get_all_tasks_filtered(task_status, filter_params))
+        .get_all_tasks_filtered(task_status, filter_params)
         .await?;
     Ok(Json(tasks))
 }
 
 async fn tasks_specific_get(id: Uuid, db: &Database) -> Result<Json<Option<Task>>, AppError> {
-    let tasks: Option<Task> = db.run(move |conn| conn.get_task(id)).await?;
+    let tasks: Option<Task> = db.get_task(id).await?;
     Ok(Json(tasks))
 }
 
@@ -156,7 +154,7 @@ pub async fn tasks_get_logs<'a>(
     log_drain: &'a State<LogDrain>,
     start: Option<i32>,
 ) -> EventStream![Event + 'a] {
-    let setup = match db.run(move |conn| conn.get_task(id)).await {
+    let setup = match db.get_task(id).await {
         Ok(Some(task)) => Some((id, task)),
         Ok(None) => {
             warn!("task {id} not found");
@@ -245,7 +243,7 @@ pub async fn tasks_download_logs(
 ) -> Result<Json<LogLines>, AppError> {
     // Note: We still need to verify the existence of the task before accessing S3 with an abitrary string..
     let _task = db
-        .run(move |conn| conn.get_task(id))
+        .get_task(id)
         .await
         .map_err(AppError::from)?
         .ok_or(AppError::HttpError(Status::NotFound))?;
@@ -265,7 +263,7 @@ pub async fn tasks_put_logs(
     log_drain: &State<LogDrain>,
 ) -> Result<Json<()>, AppError> {
     let task = db
-        .run(move |conn| conn.get_task(id))
+        .get_task(id)
         .await?
         .ok_or(AppError::HttpError(Status::NotFound))?;
 
@@ -285,8 +283,8 @@ pub async fn tasks_claim(
     global_events: &State<broadcast::Sender<GlobalEvent>>,
     _machine: Machine,
 ) -> Result<Json<Option<Task>>, AppError> {
-    let tasks = db.run(|conn| conn.get_all_tasks()).await?;
-    let poisoned_locks = db.run(|conn| conn.get_poisoned_locks()).await?;
+    let tasks = db.get_all_tasks().await?;
+    let poisoned_locks = db.get_poisoned_locks().await?;
     let scheduler = Scheduler::new(&tasks, &poisoned_locks, &features.features)
         .map_err(|x| VickyError::Scheduler { source: x })?;
     let next_task = scheduler.get_next_task();
@@ -294,14 +292,13 @@ pub async fn tasks_claim(
     match next_task {
         Some(next_task) => {
             let mut task = db
-                .run(move |conn| conn.get_task(next_task.id))
+                .get_task(next_task.id)
                 .await?
                 .ok_or(AppError::HttpError(Status::NotFound))?;
             task.status = TaskStatus::Running;
             task.claimed_at = Some(Utc::now().naive_utc());
 
-            let task2 = task.clone();
-            db.run(move |conn| conn.update_task(&task2)).await?;
+            db.update_task(task.clone()).await?;
             global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
             Ok(Json(Some(task)))
         }
@@ -319,21 +316,20 @@ pub async fn tasks_finish(
     log_drain: &State<LogDrain>,
 ) -> Result<Json<Task>, AppError> {
     let mut task = db
-        .run(move |conn| conn.get_task(id))
+        .get_task(id)
         .await?
         .ok_or(AppError::HttpError(Status::NotFound))?;
 
     log_drain.finish_logs(id).await?;
 
-    task.status = TaskStatus::Finished(finish.result.clone());
+    task.status = TaskStatus::Finished(finish.result);
     task.finished_at = Some(Utc::now().naive_utc());
 
     if finish.result == TaskResult::Error {
         task.locks.iter_mut().for_each(|lock| lock.poison(&task.id));
     }
 
-    let task2 = task.clone();
-    db.run(move |conn| conn.update_task(&task2)).await?;
+    db.update_task(task.clone()).await?;
     global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
 
     Ok(Json(task))
@@ -371,7 +367,7 @@ pub async fn tasks_add(
         return Err(AppError::HttpError(Status::Conflict));
     }
 
-    db.run(move |conn| conn.put_task(task)).await?;
+    db.put_task(task).await?;
     global_events.send(GlobalEvent::TaskAdd)?;
 
     let ro_task = RoTask {
