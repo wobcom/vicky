@@ -1,3 +1,18 @@
+use rocket::serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, strum::Display)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum Role {
+    Admin,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct Me {
+    pub full_name: String,
+    pub role: Role,
+}
+
 pub mod db_impl {
     use crate::{database::schema::users, errors::VickyError};
     use diesel::{AsChangeset, Identifiable, Insertable, OptionalExtension, Queryable, Selectable};

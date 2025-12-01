@@ -10,15 +10,10 @@ use uuid::Uuid;
 use vickylib::database::entities::Database;
 
 use vickylib::database::entities::user::db_impl::DbUser;
-
+use vickylib::database::entities::user::Role;
 use crate::config::{Config, OIDCConfigResolved};
 use crate::errors::AppError;
 
-#[derive(Deserialize, Clone)]
-#[serde(rename_all = "lowercase")]
-pub enum Role {
-    Admin,
-}
 
 #[allow(dead_code)]
 #[derive(Deserialize)]

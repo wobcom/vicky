@@ -19,6 +19,7 @@ tokio-util = { version = "0.7.9", features = ["codec"] }
 uuid = { version = "1.4.1", features = ["serde"] }
 rocket = { version="0.5.0", features = ["json", "secrets"] }
 which = "6.0.1"
+vicky = { path = "../vicky" }
 
 [features]
 nixless-test-mode = []
