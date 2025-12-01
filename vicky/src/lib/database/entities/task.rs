@@ -7,7 +7,7 @@ use chrono::{NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, clap::ValueEnum)]
 #[serde(tag = "result", rename_all = "UPPERCASE")]
 pub enum TaskResult {
     Success,
@@ -100,18 +100,12 @@ impl TaskBuilder {
     }
 
     pub fn with_read_lock<S: Into<String>>(mut self, name: S) -> Self {
-        self.locks.push(Lock::Read {
-            name: name.into(),
-            poisoned: None,
-        });
+        self.locks.push(Lock::read(name));
         self
     }
 
     pub fn with_write_lock<S: Into<String>>(mut self, name: S) -> Self {
-        self.locks.push(Lock::Write {
-            name: name.into(),
-            poisoned: None,
-        });
+        self.locks.push(Lock::write(name));
         self
     }
 
@@ -220,7 +214,7 @@ pub mod db_impl {
     use std::fmt::Display;
     use uuid::Uuid;
     // these here are evil >:(
-    use crate::database::entities::lock::db_impl::DbLock;
+    use crate::database::entities::lock::db_impl::{DbLock, NewDbLock};
     use crate::database::schema::locks;
     use crate::database::schema::tasks;
     use itertools::Itertools;
@@ -376,22 +370,19 @@ pub mod db_impl {
 
         fn put_task(&mut self, task: Task) -> Result<(), VickyError> {
             self.transaction(|conn| {
-                let db_locks: Vec<DbLock> = task
+                let db_locks: Vec<NewDbLock> = task
                     .locks
                     .iter()
-                    .map(|l| DbLock::from_lock(l, task.id))
+                    .map(|l| NewDbLock::from_lock(l, task.id))
                     .collect();
                 let db_task: DbTask = task.into();
 
                 diesel::insert_into(tasks::table)
                     .values(db_task)
                     .execute(conn)?;
-                for mut db_lock in db_locks {
-                    db_lock.id = None;
-                    diesel::insert_into(locks::table)
-                        .values(db_lock)
-                        .execute(conn)?;
-                }
+                diesel::insert_into(locks::table)
+                    .values(db_locks)
+                    .execute(conn)?;
                 Ok(())
             })
         }
