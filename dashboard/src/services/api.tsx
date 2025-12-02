@@ -35,21 +35,35 @@ const useAPI = () => {
 
     const auth = useAuth();
 
-    const fetchJSON = async (url: string) => {
+    const fetchJSON = async (url: string, init?: RequestInit) => {
         const authToken = auth.user?.access_token;
 
         if(!authToken) {
             throw Error("Using useAPI without an authenticated user is not possible")
         }
 
-        return fetch(
+        const response = await fetch(
             url, 
             {
+                method: init?.method ?? "GET",
+                body: init?.body,
                 headers: {
-                    "Authorization": `Bearer ${authToken}`
-                }
+                    "Authorization": `Bearer ${authToken}`,
+                    ...init?.headers,
+                },
             }
-        ).then(x => x.json());
+        );
+
+        if (!response.ok) {
+            throw Error(`Request to "${response.url}" failed with status ${response.status}`);
+        }
+
+        const text = await response.text();
+        if (!text) {
+            return null;
+        }
+
+        return JSON.parse(text);
     }
 
     const getTasks = (filter: string | null, limit?: number, offset?: number): Promise<ITask[]> => {
@@ -75,6 +89,12 @@ const useAPI = () => {
         return fetchJSON(`${BASE_URL}/tasks/${id}`);
     }
 
+    const confirmTask = (id: string): Promise<ITask | null> => {
+        return fetchJSON(`${BASE_URL}/tasks/${id}/confirm`, {
+            method: "POST",
+        });
+    }
+
     const getTaskLogs = (id: string) => {
         return fetchJSON(`${BASE_URL}/tasks/${id}/logs`);
     }
@@ -88,6 +108,7 @@ const useAPI = () => {
         getTasks,
         getTasksCount,
         getTask,
+        confirmTask,
         getTaskLogs,
         getUser,
     }
