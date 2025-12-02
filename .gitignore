@@ -1,5 +1,7 @@
 /target
 deployment/data
+deployment/data/keycloak/*
+!deployment/data/keycloak/realm-export.json
 Rocket.toml
 config.toml
 result
@@ -17,4 +19,3 @@ devenv.local.nix
 
 # pre-commit
 .pre-commit-config.yaml
-
