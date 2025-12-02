@@ -195,14 +195,13 @@ pub async fn tasks_download_logs(
     s3: &'_ State<S3Client>,
     _machine: MachineGuard,
 ) -> Result<Json<LogLines>, AppError> {
-    // Note: We still need to verify the existence of the task before accessing S3 with an abitrary string..
-    let _task = db
-        .get_task(id)
-        .await
-        .map_err(AppError::from)?
-        .ok_or(AppError::HttpError(Status::NotFound))?;
+    let exists = db.has_task(id).await?;
 
-    let logs = s3.get_logs(&id.to_string()).await.map_err(AppError::from)?;
+    if !exists {
+        return Err(AppError::HttpError(Status::NotFound));
+    }
+
+    let logs = s3.get_logs(&id.to_string()).await?;
     let log_lines = LogLines { lines: logs };
 
     Ok(Json(log_lines))

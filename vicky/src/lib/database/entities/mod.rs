@@ -35,6 +35,7 @@ impl Database {
             pub async fn get_task(&self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
             pub async fn put_task(&self, task: Task) -> Result<(), VickyError>;
             pub async fn update_task(&self, #[as_ref] task: Task) -> Result<(), VickyError>;
+            pub async fn has_task(&self, task_id: Uuid) -> Result<bool, VickyError>;
         }
 
         #[await(false)]

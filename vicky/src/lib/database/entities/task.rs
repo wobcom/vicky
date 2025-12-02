@@ -200,7 +200,6 @@ impl TaskBuilder {
         }
     }
 
-
     fn _build_unchecked(self) -> Task {
         Task {
             id: self.id.unwrap_or_else(Uuid::new_v4),
@@ -355,6 +354,7 @@ pub mod db_impl {
         fn put_task(&mut self, task: Task) -> Result<(), VickyError>;
         fn update_task(&mut self, task: &Task) -> Result<(), VickyError>;
         fn confirm_task(&mut self, task_id: Uuid) -> Result<(), VickyError>;
+        fn has_task(&mut self, task_id: Uuid) -> Result<bool, VickyError>;
     }
 
     impl TaskDatabase for diesel::pg::PgConnection {
@@ -486,6 +486,15 @@ pub mod db_impl {
             .execute(self)?;
 
             Ok(())
+        }
+
+        fn has_task(&mut self, tid: Uuid) -> Result<bool, VickyError> {
+            let task_count: i64 = tasks::table
+                .filter(tasks::id.eq(tid))
+                .count()
+                .get_result(self)?;
+
+            Ok(task_count > 0)
         }
     }
 }
