@@ -7,7 +7,7 @@ mod tasks;
 mod tui;
 
 use crate::cli::{Cli, TaskCommands};
-use crate::tasks::{claim_task, create_task, finish_task};
+use crate::tasks::{claim_task, confirm_task, create_task, finish_task};
 use clap::Parser;
 
 fn main() {
@@ -18,6 +18,7 @@ fn main() {
             TaskCommands::Create(task_data) => create_task(&task_data, &task_args.ctx),
             TaskCommands::Claim { features } => claim_task(&features, &task_args.ctx),
             TaskCommands::Finish { id, status } => finish_task(&id, status, &task_args.ctx),
+            TaskCommands::Confirm { id } => confirm_task(&id, &task_args.ctx),
         },
         Cli::Tasks(tasks_args) => tasks::show_tasks(&tasks_args),
         Cli::Locks(locks_args) => tui::show_locks(&locks_args),

@@ -177,12 +177,8 @@ fn minimal_widths(locks: &[PoisonedLock]) -> [Constraint; 4] {
         Constraint::Max(get_longest_len(locks.iter().map(|l| l.name()))),
         Constraint::Max(5),
         Constraint::Max(
-            get_longest_len(
-                locks
-                    .iter()
-                    .map(|l| l.poisoned_by().display_name.as_str()),
-            )
-            .max("Failed Task Name".len() as u16),
+            get_longest_len(locks.iter().map(|l| l.poisoned_by().display_name.as_str()))
+                .max("Failed Task Name".len() as u16),
         ),
         Constraint::Min(
             get_longest_len(

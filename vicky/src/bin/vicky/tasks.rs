@@ -23,6 +23,7 @@ use crate::{
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct RoTaskNew {
+    needs_confirmation: bool,
     display_name: String,
     flake_ref: FlakeRef,
     locks: Vec<Lock>,
@@ -296,9 +297,15 @@ pub async fn tasks_add(
     _machine: MachineGuard,
 ) -> Result<Json<RoTask>, AppError> {
     let task_uuid = Uuid::new_v4();
+    let status = if task.needs_confirmation {
+        TaskStatus::NeedsUserValidation
+    } else {
+        TaskStatus::New
+    };
 
     let task = Task::builder()
         .with_id(task_uuid)
+        .with_status(status)
         .with_display_name(&task.display_name)
         .with_flake(&task.flake_ref.flake)
         .with_flake_args(task.flake_ref.args.clone())
@@ -315,10 +322,35 @@ pub async fn tasks_add(
 
     let ro_task = RoTask {
         id: task_uuid,
-        status: TaskStatus::New,
+        status,
     };
 
     Ok(Json(ro_task))
+}
+
+#[post("/<id>/confirm")]
+pub async fn tasks_confirm(
+    id: Uuid,
+    db: Database,
+    global_events: &State<broadcast::Sender<GlobalEvent>>,
+    _auth: AnyAuthGuard,
+) -> Result<Json<Task>, AppError> {
+    let mut task = db
+        .get_task(id)
+        .await?
+        .ok_or_else(|| AppError::HttpError(Status::NotFound))?;
+
+    if task.status == TaskStatus::New {
+        return Err(AppError::TaskAlreadyConfirmed);
+    } else if task.status != TaskStatus::NeedsUserValidation {
+        return Err(AppError::HttpError(Status::PreconditionFailed));
+    }
+
+    task.status = TaskStatus::New;
+    db.update_task(task.clone()).await?;
+    global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
+
+    Ok(Json(task))
 }
 
 #[cfg(test)]

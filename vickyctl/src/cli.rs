@@ -30,6 +30,8 @@ pub struct TaskData {
     pub flake_arg: Vec<String>,
     #[clap(long)]
     pub features: Vec<String>,
+    #[clap(long)]
+    pub needs_confirmation: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -38,6 +40,7 @@ pub enum TaskCommands {
     // TODO: Logs
     Claim { features: Vec<String> },
     Finish { id: Uuid, status: TaskResult },
+    Confirm { id: Uuid },
 }
 
 #[derive(Args, Debug)]
