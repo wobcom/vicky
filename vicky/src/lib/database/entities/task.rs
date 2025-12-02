@@ -6,6 +6,7 @@ use chrono::naive::serde::ts_seconds_option;
 use chrono::{NaiveDateTime, Utc};
 use delegate::delegate;
 use diesel::{AsExpression, FromSqlRow};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -62,12 +63,15 @@ impl Task {
     }
 }
 
-impl From<TaskBuilder> for Task {
-    fn from(builder: TaskBuilder) -> Self {
-        builder.build()
+impl TryFrom<TaskBuilder> for Task {
+    type Error = TaskBuilder;
+
+    fn try_from(value: TaskBuilder) -> Result<Self, Self::Error> {
+        value.build()
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct TaskBuilder {
     id: Option<Uuid>,
     display_name: Option<String>,
@@ -167,7 +171,37 @@ impl TaskBuilder {
         }
     }
 
-    pub fn build(self) -> Task {
+    pub fn check_lock_conflict(&self) -> bool {
+        self.locks
+            .iter()
+            .tuple_combinations()
+            .any(|(a, b)| a.is_conflicting(b))
+    }
+
+    #[allow(clippy::result_large_err)]
+    pub fn build(self) -> Result<Task, Self> {
+        if self.check_lock_conflict() {
+            return Err(self);
+        }
+
+        Ok(self._build_unchecked())
+    }
+
+    #[cfg(test)]
+    pub fn build_unchecked(self) -> Task {
+        self._build_unchecked()
+    }
+
+    #[cfg(test)]
+    pub fn build_expect(self) -> Task {
+        match self.build() {
+            Ok(task) => task,
+            Err(builder) => panic!("TaskBuilder::build() failed while building: {builder:?}"),
+        }
+    }
+
+
+    fn _build_unchecked(self) -> Task {
         Task {
             id: self.id.unwrap_or_else(Uuid::new_v4),
             display_name: self.display_name.unwrap_or_else(|| "Task".to_string()),

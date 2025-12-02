@@ -335,16 +335,6 @@ pub async fn tasks_finish(
     Ok(Json(task))
 }
 
-// TODO: Move into Task Builder
-fn check_lock_conflict(task: &Task) -> bool {
-    task.locks.iter().enumerate().any(|(i, lock)| {
-        task.locks
-            .iter()
-            .enumerate()
-            .any(|(j, lock2)| i < j && lock.is_conflicting(lock2))
-    })
-}
-
 #[post("/", data = "<task>")]
 pub async fn tasks_add(
     task: Json<RoTaskNew>,
@@ -363,9 +353,9 @@ pub async fn tasks_add(
         .requires_features(task.features.clone())
         .build();
 
-    if check_lock_conflict(&task) {
+    let Ok(task) = task else {
         return Err(AppError::HttpError(Status::Conflict));
-    }
+    };
 
     db.put_task(task).await?;
     global_events.send(GlobalEvent::TaskAdd)?;
@@ -380,7 +370,6 @@ pub async fn tasks_add(
 
 #[cfg(test)]
 mod tests {
-    use crate::tasks::check_lock_conflict;
     use vickylib::database::entities::Task;
 
     #[test]
@@ -390,7 +379,7 @@ mod tests {
             .with_read_lock("mauz")
             .with_write_lock("mauz")
             .build();
-        assert!(check_lock_conflict(&task))
+        assert!(task.is_err());
     }
 
     #[test]
@@ -401,6 +390,6 @@ mod tests {
             .with_read_lock("mauz")
             .with_write_lock("delete_everything")
             .build();
-        assert!(!check_lock_conflict(&task))
+        assert!(task.is_ok())
     }
 }
