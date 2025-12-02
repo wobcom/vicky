@@ -14,6 +14,7 @@ use vickylib::{
     errors::VickyError, logs::LogDrain, s3::client::S3Client, vicky::scheduler::Scheduler,
 };
 
+use crate::auth::AnyAuthGuard;
 use crate::{
     auth::{MachineGuard, UserGuard},
     errors::AppError,
@@ -55,25 +56,9 @@ pub struct Count {
 }
 
 #[get("/count?<status>")]
-pub async fn tasks_count_user(
+pub async fn tasks_count(
     db: Database,
-    _user: UserGuard,
-    status: Option<String>,
-) -> Result<Json<Count>, AppError> {
-    let task_status: Option<TaskStatus> = status
-        .as_deref()
-        .map(TaskStatus::try_from)
-        .transpose()
-        .map_err(|_| AppError::HttpError(Status::BadRequest))?;
-    let tasks_count = db.count_all_tasks(task_status).await?;
-    let c: Count = Count { count: tasks_count };
-    Ok(Json(c))
-}
-
-#[get("/count?<status>", rank = 2)]
-pub async fn tasks_count_machine(
-    db: Database,
-    _machine: MachineGuard,
+    _auth: AnyAuthGuard,
     status: Option<String>,
 ) -> Result<Json<Count>, AppError> {
     let task_status: Option<TaskStatus> = status
@@ -87,9 +72,9 @@ pub async fn tasks_count_machine(
 }
 
 #[get("/?<status>&<filter_params..>")]
-pub async fn tasks_get_user(
+pub async fn tasks_get(
     db: Database,
-    _user: UserGuard,
+    _auth: AnyAuthGuard,
     status: Option<String>,
     filter_params: Option<FilterParams>,
 ) -> Result<Json<Vec<Task>>, AppError> {
@@ -104,45 +89,14 @@ pub async fn tasks_get_user(
     Ok(Json(tasks))
 }
 
-#[get("/?<status>&<filter_params..>", rank = 2)]
-pub async fn tasks_get_machine(
+#[get("/<id>")]
+pub async fn tasks_get_specific(
+    id: Uuid,
     db: Database,
-    _machine: MachineGuard,
-    status: Option<String>,
-    filter_params: Option<FilterParams>,
-) -> Result<Json<Vec<Task>>, AppError> {
-    let task_status: Option<TaskStatus> = status
-        .as_deref()
-        .map(TaskStatus::try_from)
-        .transpose()
-        .map_err(|_| AppError::HttpError(Status::BadRequest))?;
-    let tasks: Vec<Task> = db
-        .get_all_tasks_filtered(task_status, filter_params)
-        .await?;
-    Ok(Json(tasks))
-}
-
-async fn tasks_specific_get(id: Uuid, db: &Database) -> Result<Json<Option<Task>>, AppError> {
+    _auth: AnyAuthGuard,
+) -> Result<Json<Option<Task>>, AppError> {
     let tasks: Option<Task> = db.get_task(id).await?;
     Ok(Json(tasks))
-}
-
-#[get("/<id>", rank = 10)]
-pub async fn tasks_specific_get_user(
-    id: Uuid,
-    db: Database,
-    _user: UserGuard,
-) -> Result<Json<Option<Task>>, AppError> {
-    tasks_specific_get(id, &db).await
-}
-
-#[get("/<id>", rank = 11)]
-pub async fn tasks_specific_get_machine(
-    id: Uuid,
-    db: Database,
-    _machine: MachineGuard,
-) -> Result<Json<Option<Task>>, AppError> {
-    tasks_specific_get(id, &db).await
 }
 
 #[get("/<id>/logs?<start>")]

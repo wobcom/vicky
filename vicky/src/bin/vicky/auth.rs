@@ -1,7 +1,7 @@
 use jwtk::jwk::RemoteJwksVerifier;
 use log::warn;
 use rocket::http::Status;
-use rocket::{request, State};
+use rocket::{request, Request, State};
 use serde_json::{Map, Value};
 use std::str::FromStr;
 use uuid::Uuid;
@@ -10,6 +10,32 @@ use vickylib::database::entities::Database;
 use crate::config::{Config, OIDCConfigResolved};
 use crate::errors::AppError;
 use vickylib::database::entities::user::{Role, User};
+
+#[allow(unused)]
+pub enum AnyAuthGuard {
+    User(UserGuard),
+    Machine(MachineGuard),
+}
+
+#[rocket::async_trait]
+impl<'r> request::FromRequest<'r> for AnyAuthGuard {
+    type Error = ();
+
+    async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
+        use request::Outcome;
+
+        match UserGuard::from_request(request).await {
+            Outcome::Success(s) => return Outcome::Success(AnyAuthGuard::User(s)),
+            Outcome::Error(e) => return Outcome::Error(e),
+            Outcome::Forward(_e) => (),
+        };
+        match MachineGuard::from_request(request).await {
+            Outcome::Success(s) => Outcome::Success(AnyAuthGuard::Machine(s)),
+            Outcome::Error(e) => Outcome::Error(e),
+            Outcome::Forward(e) => Outcome::Forward(e),
+        }
+    }
+}
 
 pub struct MachineGuard {}
 pub struct UserGuard(pub User);
