@@ -4,6 +4,10 @@ Rocket.toml
 config.toml
 result
 certs
+.idea
+.diesel_lock
+.env
+
 # Devenv
 .devenv*
 devenv.local.nix
