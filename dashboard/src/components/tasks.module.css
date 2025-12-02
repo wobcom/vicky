@@ -1,6 +1,6 @@
 
 .ListItemSelected {
-    background-color: var(--rs-list-hover-bg);
+    background-color: var(--rs-listbox-option-hover-bg);
 }
 
 
@@ -8,12 +8,30 @@
     margin-top: 1em;
 }
 
+.List > a:hover div:first-of-type > span {
+    text-decoration: underline;
+}
+
+.List > a:hover > div:not(.ListItemSelected) {
+    background-color: var(--rs-list-hover);
+}
+
 .Grid {
+    padding: 1em;
     height: 100%;
+    width: 100%;
+    overflow-x: hidden;
 }
 
 .GridElement {
     height: 100%;
+}
+
+.TasksPanel {
+    position: relative;
+    overflow-x: hidden;
+    overflow-y: visible;
+    min-height: 340px; /* because the dropdown needs some space */
 }
 
 .Pagination {
@@ -22,4 +40,140 @@
     display: flex;
     flex-flow: row;
     justify-content: end;
+}
+
+.FilterWrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 50%;
+}
+
+.FilterSlider {
+    position: relative;
+    border: 1px solid transparent;
+    padding: 6px 10px;
+    overflow: hidden;
+    background: var(--rs-bg-well);
+    cursor: grab;
+    user-select: none;
+    transition: box-shadow 160ms ease, border-color 180ms ease;
+}
+
+.FilterBorderOverlay {
+    position: absolute;
+    inset: 0;
+    border: 1px solid transparent;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease;
+}
+
+.FilterSlider:active {
+    cursor: grabbing;
+}
+
+.FilterSliderTrack {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+    will-change: transform;
+}
+
+.FilterSliderItem {
+    flex: 0 0 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.9rem;
+    color: var(--rs-text-secondary);
+    opacity: 0.5;
+    transition: opacity 200ms ease, transform 200ms ease, color 200ms ease;
+}
+
+.FilterSliderItemActive {
+    opacity: 1;
+    color: var(--rs-text-primary);
+    font-weight: 600;
+    transform: scale(1.02);
+}
+
+.FilterDropdown {
+    position: absolute;
+    top: 110%;
+    left: 0;
+    width: 100%;
+    z-index: 10;
+    background: var(--rs-bg-well);
+    border: 1px solid var(--rs-border-primary);
+    border-radius: 7px;
+    box-shadow: var(--rs-shadow-2);
+    padding: 6px 0;
+    transform-origin: top center;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-6px) scaleY(0.95);
+    transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.FilterDropdownOpen {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(6px) scaleY(1);
+}
+
+.FilterArrow {
+    position: absolute;
+    top: calc(50% - 2px);
+    transform: translateY(-50%);
+    border: none;
+    background: none;
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 1.4rem;
+    padding: 4px 6px;
+    cursor: pointer;
+    opacity: 0.2;
+    transition: opacity 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.FilterWrapper:hover .FilterArrow {
+    opacity: 0.55;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.FilterWrapper:hover .FilterSlider {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.FilterArrow:hover {
+    opacity: 0.8;
+    color: rgba(255, 255, 255, 0.9);
+    transform: translateY(-50%) scale(1.05);
+}
+
+.FilterArrowLeft {
+    left: 4px;
+    z-index: 10;
+}
+
+.FilterArrowRight {
+    right: 4px;
+    z-index: 10;
+}
+
+.FilterDropdownItem {
+    padding: 8px 12px;
+    cursor: pointer;
+    color: var(--rs-text-primary);
+}
+
+.FilterDropdownItem:hover {
+    background: var(--rs-list-hover-bg);
+}
+
+.FilterDropdownItemActive {
+    font-weight: 600;
+    color: var(--rs-color-primary);
 }
