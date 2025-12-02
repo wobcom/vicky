@@ -79,10 +79,11 @@ TODO @yu-re-ka: Add Information
 Usage: vickyctl <COMMAND>
 
 Commands:
-  task   Manage tasks on the vicky delegation server
-  tasks  Show all tasks vicky is managing
-  locks  Show all poisoned locks vicky is managing
-  help   Print this message or the help of the given subcommand(s)
+  task     Manage tasks on the vicky delegation server
+  tasks    Show all tasks vicky is managing
+  locks    Show all poisoned locks vicky is managing
+  resolve  Show all poisoned locks vicky is managing
+  help     Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help     Print help
