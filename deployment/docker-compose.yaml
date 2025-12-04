@@ -37,4 +37,4 @@ services:
       - "8080:8080"
     volumes:
       - "./data/keycloak:/opt/keycloak/data"
-      - "./data/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro"
+      - "./realm-export.json:/opt/keycloak/data/import/realm-export.json:ro"
