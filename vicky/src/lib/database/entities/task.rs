@@ -4,19 +4,24 @@ use crate::database::entities::task::db_impl::DbTask;
 use chrono::naive::serde::ts_seconds;
 use chrono::naive::serde::ts_seconds_option;
 use chrono::{NaiveDateTime, Utc};
+use delegate::delegate;
+use diesel::{AsExpression, FromSqlRow};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, clap::ValueEnum)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
 #[serde(tag = "result", rename_all = "UPPERCASE")]
 pub enum TaskResult {
     Success,
     Error,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, FromSqlRow, AsExpression)]
 #[serde(tag = "state", rename_all = "UPPERCASE")]
+#[diesel(sql_type = db_impl::TaskStatusSqlType)]
 pub enum TaskStatus {
+    NeedsUserValidation,
     New,
     Running,
     Finished(TaskResult),
@@ -46,18 +51,27 @@ pub struct Task {
     pub finished_at: Option<NaiveDateTime>,
 }
 
+impl AsRef<Task> for Task {
+    fn as_ref(&self) -> &Task {
+        self
+    }
+}
+
 impl Task {
     pub fn builder() -> TaskBuilder {
         TaskBuilder::default()
     }
 }
 
-impl From<TaskBuilder> for Task {
-    fn from(builder: TaskBuilder) -> Self {
-        builder.build()
+impl TryFrom<TaskBuilder> for Task {
+    type Error = TaskBuilder;
+
+    fn try_from(value: TaskBuilder) -> Result<Self, Self::Error> {
+        value.build()
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct TaskBuilder {
     id: Option<Uuid>,
     display_name: Option<String>,
@@ -139,31 +153,54 @@ impl TaskBuilder {
         self
     }
 
-    pub fn id(&self) -> Option<Uuid> {
-        self.id
+    delegate! {
+        to self {
+            #[field]
+            pub fn id(&self) -> Option<Uuid>;
+            #[field]
+            #[expr($.as_ref())]
+            pub fn display_name(&self) -> Option<&String>;
+            #[field]
+            pub fn status(&self) -> TaskStatus;
+            #[field(&)]
+            pub fn locks(&self) -> &[Lock];
+            #[field(&)]
+            pub fn flake_ref(&self) -> &FlakeRef;
+            #[field(&)]
+            pub fn features(&self) -> &[String];
+        }
     }
 
-    pub fn display_name(&self) -> &Option<String> {
-        &self.display_name
+    pub fn check_lock_conflict(&self) -> bool {
+        self.locks
+            .iter()
+            .tuple_combinations()
+            .any(|(a, b)| a.is_conflicting(b))
     }
 
-    pub fn status(&self) -> &TaskStatus {
-        &self.status
+    #[allow(clippy::result_large_err)]
+    pub fn build(self) -> Result<Task, Self> {
+        if self.check_lock_conflict() {
+            return Err(self);
+        }
+
+        Ok(self._build_unchecked())
     }
 
-    pub fn locks(&self) -> &Vec<Lock> {
-        &self.locks
+    #[cfg(test)]
+    pub fn build_unchecked(self) -> Task {
+        self._build_unchecked()
     }
 
-    pub fn flake_ref(&self) -> &FlakeRef {
-        &self.flake_ref
+    #[cfg(test)]
+    pub fn build_expect(self) -> Task {
+        match self.build() {
+            Ok(task) => task,
+            Err(builder) => panic!("TaskBuilder::build() failed while building: {builder:?}"),
+        }
     }
 
-    pub fn features(&self) -> &Vec<String> {
-        &self.features
-    }
-
-    pub fn build(self) -> Task {
+    fn _build_unchecked(self) -> Task {
         Task {
             id: self.id.unwrap_or_else(Uuid::new_v4),
             display_name: self.display_name.unwrap_or_else(|| "Task".to_string()),
@@ -184,7 +221,7 @@ impl From<(DbTask, Vec<DbLock>)> for Task {
         Task {
             id: task.id,
             display_name: task.display_name,
-            status: task.status.as_str().try_into().expect("Database corrupted"),
+            status: task.status,
             locks: locks.into_iter().map(Lock::from).collect(),
             flake_ref: FlakeRef {
                 flake: task.flake_ref_uri,
@@ -206,25 +243,51 @@ pub mod db_impl {
     use crate::query::FilterParams;
     use chrono::NaiveDateTime;
 
-    use diesel::{
-        AsChangeset, Connection, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl,
-    };
-    use std::collections::HashMap;
-    use std::fmt::Display;
-    use uuid::Uuid;
     // these here are evil >:(
     use crate::database::entities::lock::db_impl::{DbLock, NewDbLock};
     use crate::database::schema::locks;
     use crate::database::schema::tasks;
+    use diesel::deserialize::FromSql;
+    use diesel::pg::PgValue;
+    use diesel::serialize::{IsNull, Output, ToSql};
+    use diesel::{
+        AsChangeset, BoolExpressionMethods, Connection, ExpressionMethods, Insertable, QueryDsl,
+        QueryId, Queryable, RunQueryDsl, SqlType,
+    };
     use itertools::Itertools;
     use serde::Serialize;
+    use std::collections::HashMap;
+    use std::fmt::Display;
+    use std::io::Write;
+    use uuid::Uuid;
+
+    #[derive(SqlType, QueryId)]
+    #[diesel(postgres_type(name = "TaskStatus_Type"))]
+    pub struct TaskStatusSqlType;
+
+    impl ToSql<TaskStatusSqlType, diesel::pg::Pg> for TaskStatus {
+        fn to_sql<'b>(
+            &'b self,
+            out: &mut Output<'b, '_, diesel::pg::Pg>,
+        ) -> diesel::serialize::Result {
+            out.write_all(self.to_string().as_bytes())?;
+            Ok(IsNull::No)
+        }
+    }
+
+    impl FromSql<TaskStatusSqlType, diesel::pg::Pg> for TaskStatus {
+        fn from_sql(bytes: PgValue<'_>) -> diesel::deserialize::Result<Self> {
+            let task_status_str = String::from_utf8(bytes.as_bytes().to_vec())?;
+            Ok(Self::try_from(task_status_str.as_str()).map_err(|e| e.to_string())?)
+        }
+    }
 
     #[derive(Insertable, Queryable, AsChangeset, Debug, Serialize)]
     #[diesel(table_name = tasks)]
     pub struct DbTask {
         pub id: Uuid,
         pub display_name: String,
-        pub status: String,
+        pub status: TaskStatus,
         pub features: Vec<String>,
         pub flake_ref_uri: String,
         pub flake_ref_args: Vec<String>,
@@ -236,6 +299,7 @@ pub mod db_impl {
     impl Display for TaskStatus {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             let str = match self {
+                TaskStatus::NeedsUserValidation => "NEEDS_USER_VALIDATION",
                 TaskStatus::New => "NEW",
                 TaskStatus::Running => "RUNNING",
                 TaskStatus::Finished(r) => match r {
@@ -252,6 +316,7 @@ pub mod db_impl {
 
         fn try_from(str: &str) -> Result<Self, Self::Error> {
             match str {
+                "NEEDS_USER_VALIDATION" => Ok(TaskStatus::NeedsUserValidation),
                 "NEW" => Ok(TaskStatus::New),
                 "RUNNING" => Ok(TaskStatus::Running),
                 "FINISHED::SUCCESS" => Ok(TaskStatus::Finished(TaskResult::Success)),
@@ -266,7 +331,7 @@ pub mod db_impl {
             DbTask {
                 id: task.id,
                 display_name: task.display_name,
-                status: task.status.to_string(),
+                status: task.status,
                 features: task.features,
                 flake_ref_uri: task.flake_ref.flake,
                 flake_ref_args: task.flake_ref.args,
@@ -288,6 +353,8 @@ pub mod db_impl {
         fn get_task(&mut self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
         fn put_task(&mut self, task: Task) -> Result<(), VickyError>;
         fn update_task(&mut self, task: &Task) -> Result<(), VickyError>;
+        fn confirm_task(&mut self, task_id: Uuid) -> Result<(), VickyError>;
+        fn has_task(&mut self, task_id: Uuid) -> Result<bool, VickyError>;
     }
 
     impl TaskDatabase for diesel::pg::PgConnection {
@@ -295,7 +362,7 @@ pub mod db_impl {
             let mut tasks_count_b = tasks::table.into_boxed();
 
             if let Some(task_status) = task_status {
-                tasks_count_b = tasks_count_b.filter(tasks::status.eq(task_status.to_string()))
+                tasks_count_b = tasks_count_b.filter(tasks::status.eq(task_status))
             }
 
             let tasks_count: i64 = tasks_count_b.count().first(self)?;
@@ -311,7 +378,7 @@ pub mod db_impl {
             let mut db_tasks_build = tasks::table.into_boxed();
 
             if let Some(task_status) = task_status {
-                db_tasks_build = db_tasks_build.filter(tasks::status.eq(task_status.to_string()))
+                db_tasks_build = db_tasks_build.filter(tasks::status.eq(task_status))
             }
 
             let limit = filter_params.clone().and_then(|x| x.limit);
@@ -389,7 +456,7 @@ pub mod db_impl {
         fn update_task(&mut self, task: &Task) -> Result<(), VickyError> {
             diesel::update(tasks::table.filter(tasks::id.eq(task.id)))
                 .set((
-                    tasks::status.eq(task.status.clone().to_string()),
+                    tasks::status.eq(task.status),
                     tasks::claimed_at.eq(task.claimed_at),
                     tasks::finished_at.eq(task.finished_at),
                 ))
@@ -405,6 +472,29 @@ pub mod db_impl {
             }
 
             Ok(())
+        }
+
+        fn confirm_task(&mut self, task_id: Uuid) -> Result<(), VickyError> {
+            diesel::update(
+                tasks::table.filter(
+                    tasks::id
+                        .eq(task_id)
+                        .and(tasks::status.eq(TaskStatus::NeedsUserValidation)),
+                ),
+            )
+            .set(tasks::status.eq(TaskStatus::New))
+            .execute(self)?;
+
+            Ok(())
+        }
+
+        fn has_task(&mut self, tid: Uuid) -> Result<bool, VickyError> {
+            let task_count: i64 = tasks::table
+                .filter(tasks::id.eq(tid))
+                .count()
+                .get_result(self)?;
+
+            Ok(task_count > 0)
         }
     }
 }

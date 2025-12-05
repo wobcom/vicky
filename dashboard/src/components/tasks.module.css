@@ -1,6 +1,6 @@
 
 .ListItemSelected {
-    background-color: var(--rs-list-hover-bg);
+    background-color: var(--rs-listbox-option-hover-bg);
 }
 
 
@@ -8,12 +8,30 @@
     margin-top: 1em;
 }
 
+.List > a:hover div:first-of-type > span {
+    text-decoration: underline;
+}
+
+.List > a:hover > div:not(.ListItemSelected) {
+    background-color: var(--rs-list-hover);
+}
+
 .Grid {
+    padding: 1em;
     height: 100%;
+    width: 100%;
+    overflow-x: hidden;
 }
 
 .GridElement {
     height: 100%;
+}
+
+.TasksPanel {
+    position: relative;
+    overflow-x: hidden;
+    overflow-y: visible;
+    min-height: 340px; /* because the dropdown needs some space */
 }
 
 .Pagination {

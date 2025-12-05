@@ -21,12 +21,12 @@ impl PoisonedLock {
         &self.name
     }
 
-    pub fn get_poisoned_by(&self) -> &Task {
+    pub fn poisoned_by(&self) -> &Task {
         &self.poisoned
     }
 
-    pub fn get_type(&self) -> &'static str {
-        self.kind.as_str()
+    pub fn kind(&self) -> LockKind {
+        self.kind
     }
 }
 

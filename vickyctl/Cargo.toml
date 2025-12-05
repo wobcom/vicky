@@ -16,3 +16,4 @@ ratatui = { version = "0.26.3", features = ["serde"] }
 ratatui-widgets = "0.1.6"
 crossterm = "0.27.0"
 vicky = { path = "../vicky" }
+delegate = "0.13.5"

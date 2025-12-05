@@ -1,3 +1,4 @@
+use diesel::{AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -5,21 +6,29 @@ use crate::database::entities::lock::db_impl::DbLock;
 use crate::database::entities::task::db_impl::DbTask;
 use crate::database::entities::Task;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    clap::ValueEnum,
+    strum::Display,
+    strum::IntoStaticStr,
+    FromSqlRow,
+    AsExpression,
+)]
 #[serde(rename_all = "UPPERCASE")]
+#[strum(serialize_all = "UPPERCASE")]
+#[diesel(sql_type = db_impl::LockKindSqlType)]
 pub enum LockKind {
     Read,
     Write,
 }
 
 impl LockKind {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            LockKind::Read => "READ",
-            LockKind::Write => "WRITE",
-        }
-    }
-
     pub fn is_write(&self) -> bool {
         matches!(self, LockKind::Write)
     }
@@ -100,22 +109,25 @@ pub struct PoisonedLock {
 impl From<(DbLock, DbTask)> for PoisonedLock {
     fn from(value: (DbLock, DbTask)) -> Self {
         let (lock, task) = value;
-        let kind =
-            LockKind::try_from(lock.lock_type.as_str()).expect("Unexpected lock type received.");
 
         PoisonedLock {
             id: lock.id,
             name: lock.name,
-            kind,
+            kind: lock.lock_type,
             poisoned: Task::from((task, vec![])),
         }
     }
 }
 
 pub mod db_impl {
+    use clap::ValueEnum;
+    use diesel::deserialize::FromSql;
+    use diesel::pg::PgValue;
     use diesel::prelude::*;
-    use diesel::update;
+    use diesel::serialize::{IsNull, Output, ToSql};
+    use diesel::{update, SqlType};
     use serde::Serialize;
+    use std::io::Write;
     use uuid::Uuid;
 
     use crate::database::entities::lock::{Lock, LockKind, PoisonedLock};
@@ -124,13 +136,34 @@ pub mod db_impl {
     use crate::database::schema::{locks, tasks};
     use crate::errors::VickyError;
 
+    #[derive(SqlType)]
+    #[diesel(postgres_type(name = "LockKind_Type"))]
+    pub struct LockKindSqlType;
+
+    impl ToSql<LockKindSqlType, diesel::pg::Pg> for LockKind {
+        fn to_sql<'b>(
+            &'b self,
+            out: &mut Output<'b, '_, diesel::pg::Pg>,
+        ) -> diesel::serialize::Result {
+            out.write_all(self.to_string().as_bytes())?;
+            Ok(IsNull::No)
+        }
+    }
+
+    impl FromSql<LockKindSqlType, diesel::pg::Pg> for LockKind {
+        fn from_sql(bytes: PgValue<'_>) -> diesel::deserialize::Result<Self> {
+            let lock_kind_str = String::from_utf8(bytes.as_bytes().to_vec())?;
+            LockKind::from_str(&lock_kind_str, true).map_err(|e| e.into())
+        }
+    }
+
     #[derive(Selectable, Identifiable, Queryable, Debug, Serialize)]
     #[diesel(table_name = locks)]
     pub struct DbLock {
         pub id: Uuid,
         pub task_id: Uuid,
         pub name: String,
-        pub lock_type: String,
+        pub lock_type: LockKind,
         pub poisoned_by_task: Option<Uuid>,
     }
 
@@ -139,7 +172,7 @@ pub mod db_impl {
     pub struct NewDbLock {
         pub task_id: Uuid,
         pub name: String,
-        pub lock_type: String,
+        pub lock_type: LockKind,
         pub poisoned_by_task: Option<Uuid>,
     }
 
@@ -148,7 +181,7 @@ pub mod db_impl {
             NewDbLock {
                 task_id,
                 name: lock.name.clone(),
-                lock_type: lock.kind.as_str().to_string(),
+                lock_type: lock.kind,
                 poisoned_by_task: lock.poisoned_by,
             }
         }
@@ -156,17 +189,9 @@ pub mod db_impl {
 
     impl From<DbLock> for Lock {
         fn from(lock: DbLock) -> Lock {
-            let kind = LockKind::try_from(lock.lock_type.as_str()).unwrap_or_else(|_| {
-                panic!(
-                    "Can't parse lock from database lock. Database corrupted? \
-                Expected READ or WRITE but found {} as type at key {}.",
-                    lock.lock_type, lock.id
-                )
-            });
-
             Lock {
                 name: lock.name,
-                kind,
+                kind: lock.lock_type,
                 poisoned_by: lock.poisoned_by_task,
             }
         }
@@ -214,7 +239,7 @@ pub mod db_impl {
                     .filter(
                         locks::poisoned_by_task
                             .is_not_null()
-                            .or(tasks::status.eq(TaskStatus::Running.to_string())),
+                            .or(tasks::status.eq(TaskStatus::Running)),
                     )
                     .load(self)?;
                 db_locks.into_iter().map(Lock::from).collect()

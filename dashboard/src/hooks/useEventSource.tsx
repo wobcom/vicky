@@ -50,8 +50,7 @@ const useEventSource = (url: string, callback: (evt: string) => void, allowStart
             controller.abort()
             openEventSource.current = null;
         }
-    }, [url, allowStart, auth.user])
-
+    }, [url, allowStart, auth.user, onMessage])
     
 }
 

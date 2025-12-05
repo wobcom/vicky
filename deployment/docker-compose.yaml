@@ -26,3 +26,15 @@ services:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: aichudiKohr6aithi4ahh3aeng2eL7xo
     command: server --console-address ":9001" /data
+
+  oidc:
+    image: quay.io/keycloak/keycloak:24.0.1
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - "./data/keycloak:/opt/keycloak/data"
+      - "./realm-export.json:/opt/keycloak/data/import/realm-export.json:ro"

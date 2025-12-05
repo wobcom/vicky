@@ -42,6 +42,11 @@ const TaskTag = (props: TaskTagProps) => {
                 tagDisplay = "New";
                 break;
             }
+            case "NEEDSUSERVALIDATION": {
+                tagColor = "orange";
+                tagDisplay = "Validation";
+                break;
+            }
             default: {
                 tagColor = "";
                 tagDisplay = "-"

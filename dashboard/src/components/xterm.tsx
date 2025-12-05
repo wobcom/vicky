@@ -56,7 +56,7 @@ const Terminal = (props: TerminalProps) => {
 
 
     return (
-        <div style={{width: "100%", height: "calc( 100% - 48px )"}} id={name} ref={(ref) => setRef(ref)}></div>
+        <div style={{width: "100%", height: "calc( 100% - 104px )"}} id={name} ref={(ref) => setRef(ref)}></div>
     )
 
 }

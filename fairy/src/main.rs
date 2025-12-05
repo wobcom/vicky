@@ -11,6 +11,8 @@ use snafu::{ensure, ResultExt};
 use tokio::process::Command;
 use tokio_util::codec::{FramedRead, LinesCodec};
 use uuid::Uuid;
+use vickylib::database::entities::task::TaskResult;
+use vickylib::database::entities::Task;
 use which::which;
 
 mod error;
@@ -95,35 +97,6 @@ async fn api<BODY: Serialize, RESPONSE: DeserializeOwned>(
         .await
         .context(error::ReadBodyErr)?;
     serde_json::from_slice(&resp_data).context(error::DecodeResponseErr)
-}
-
-#[derive(Debug, Deserialize)]
-pub struct FlakeRef {
-    pub flake: String,
-    pub args: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "result", rename_all = "UPPERCASE")]
-pub enum TaskResult {
-    Success,
-    Error,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(tag = "state", rename_all = "UPPERCASE")]
-pub enum TaskStatus {
-    New,
-    Running,
-    Finished(TaskResult),
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Task {
-    pub id: Uuid,
-    pub display_name: String,
-    pub status: TaskStatus,
-    pub flake_ref: FlakeRef,
 }
 
 fn log_sink(cfg: Arc<AppConfig>, task_id: Uuid) -> impl Sink<Vec<String>, Error = Error> + Send {

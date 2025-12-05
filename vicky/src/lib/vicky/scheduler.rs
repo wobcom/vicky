@@ -128,11 +128,11 @@ mod tests {
             Task::builder()
                 .with_display_name("Test 1")
                 .with_status(TaskStatus::Running)
-                .build(),
+                .build_expect(),
             Task::builder()
                 .with_display_name("Test 2")
                 .with_status(TaskStatus::Running)
-                .build(),
+                .build_expect(),
         ];
 
         Scheduler::new(&tasks, &[], &[]).unwrap();
@@ -145,12 +145,12 @@ mod tests {
                 .with_display_name("Test 1")
                 .with_status(TaskStatus::Running)
                 .with_read_lock("foo 1")
-                .build(),
+                .build_expect(),
             Task::builder()
                 .with_display_name("Test 2")
                 .with_status(TaskStatus::Running)
                 .with_read_lock("foo 1")
-                .build(),
+                .build_expect(),
         ];
 
         Scheduler::new(&tasks, &[], &[]).unwrap();
@@ -163,12 +163,12 @@ mod tests {
                 .with_display_name("Test 1")
                 .with_status(TaskStatus::Running)
                 .with_write_lock("foo1")
-                .build(),
+                .build_expect(),
             Task::builder()
                 .with_display_name("Test 2")
                 .with_status(TaskStatus::Running)
                 .with_write_lock("foo2")
-                .build(),
+                .build_expect(),
         ];
 
         Scheduler::new(&tasks, &[], &[]).unwrap();
@@ -181,12 +181,12 @@ mod tests {
                 .with_display_name("Test 1")
                 .with_status(TaskStatus::Running)
                 .with_write_lock("foo1")
-                .build(),
+                .build_expect(),
             Task::builder()
                 .with_display_name("Test 2")
                 .with_status(TaskStatus::Running)
                 .with_write_lock("foo1")
-                .build(),
+                .build_expect(),
         ];
 
         let res = Scheduler::new(&tasks, &[], &[]);
@@ -200,12 +200,12 @@ mod tests {
                 .with_display_name("Test 1")
                 .with_status(TaskStatus::Running)
                 .with_write_lock("foo1")
-                .build(),
+                .build_expect(),
             Task::builder()
                 .with_display_name("Test 2")
                 .with_status(TaskStatus::New)
                 .with_write_lock("foo1")
-                .build(),
+                .build_expect(),
         ];
 
         let res = Scheduler::new(&tasks, &[], &[]).unwrap();
@@ -220,12 +220,12 @@ mod tests {
                 .with_display_name("Test 1")
                 .with_status(TaskStatus::New)
                 .requires_feature("huge_cpu")
-                .build(),
+                .build_expect(),
             Task::builder()
                 .with_display_name("Test 2")
                 .with_status(TaskStatus::New)
                 .requires_feature("huge_cpu")
-                .build(),
+                .build_expect(),
         ];
 
         let res = Scheduler::new(&tasks, &[], &[]).unwrap();
@@ -240,12 +240,12 @@ mod tests {
                 .with_display_name("Test 1")
                 .with_status(TaskStatus::New)
                 .requires_feature("huge_cpu")
-                .build(),
+                .build_expect(),
             Task::builder()
                 .with_display_name("Test 2")
                 .with_status(TaskStatus::New)
                 .requires_feature("huge_cpu")
-                .build(),
+                .build_expect(),
         ];
 
         let features = &["huge_cpu".to_string()];
@@ -261,12 +261,12 @@ mod tests {
                 .with_display_name("Test 1")
                 .with_status(TaskStatus::Running)
                 .with_write_lock("foo1")
-                .build(),
+                .build_expect(),
             Task::builder()
                 .with_display_name("Test 2")
                 .with_status(TaskStatus::New)
                 .with_write_lock("foo2")
-                .build(),
+                .build_expect(),
         ];
 
         let res = Scheduler::new(&tasks, &[], &[]).unwrap();
@@ -281,12 +281,12 @@ mod tests {
                 .with_display_name("Test 1")
                 .with_status(TaskStatus::Running)
                 .with_read_lock("foo1")
-                .build(),
+                .build_expect(),
             Task::builder()
                 .with_display_name("Test 2")
                 .with_status(TaskStatus::New)
                 .with_read_lock("foo1")
-                .build(),
+                .build_expect(),
         ];
 
         let res = Scheduler::new(&tasks, &[], &[]).unwrap();
@@ -301,12 +301,12 @@ mod tests {
                 .with_display_name("Test 1")
                 .with_status(TaskStatus::Running)
                 .with_write_lock("foo1")
-                .build(),
+                .build_expect(),
             Task::builder()
                 .with_display_name("Test 2")
                 .with_status(TaskStatus::New)
                 .with_read_lock("foo1")
-                .build(),
+                .build_expect(),
         ];
 
         let res = Scheduler::new(&tasks, &[], &[]).unwrap();
@@ -319,7 +319,7 @@ mod tests {
         let tasks = vec![Task::builder()
             .with_display_name("I need to do something")
             .with_write_lock("Entire Prod Cluster")
-            .build()];
+            .build_expect()];
         let mut poisoned_lock = Lock::write("Entire Prod Cluster");
         poisoned_lock.poison(&Uuid::new_v4());
         let poisoned_locks = vec![poisoned_lock];
@@ -335,11 +335,11 @@ mod tests {
             Task::builder()
                 .with_display_name("I need to do something")
                 .with_write_lock("Entire Prod Cluster")
-                .build(),
+                .build_expect(),
             Task::builder()
                 .with_display_name("I need to test something")
                 .with_write_lock("Entire Staging Cluster")
-                .build(),
+                .build_expect(),
         ];
         let mut poisoned_lock = Lock::write("Entire Prod Cluster");
         poisoned_lock.poison(&Uuid::new_v4());
@@ -358,7 +358,7 @@ mod tests {
         let tasks = vec![Task::builder()
             .with_display_name("I need to do something")
             .with_read_lock("Entire Prod Cluster")
-            .build()];
+            .build_expect()];
         let mut poisoned_lock = Lock::read("Entire Prod Cluster");
         poisoned_lock.poison(&Uuid::new_v4());
         let poisoned_locks = vec![poisoned_lock];
