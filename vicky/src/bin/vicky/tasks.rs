@@ -23,6 +23,7 @@ use crate::{
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct RoTaskNew {
+    #[serde(default)] // This will be false, if not given.
     needs_confirmation: bool,
     display_name: String,
     flake_ref: FlakeRef,
