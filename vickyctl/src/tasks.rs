@@ -38,7 +38,7 @@ pub fn show_tasks(tasks_args: &TasksArgs) -> Result<(), Error> {
 }
 
 impl TaskData {
-    fn to_json(&self) -> serde_json::Value {
+    pub fn to_json(&self) -> serde_json::Value {
         let locks: serde_json::Value = self
             .lock_name
             .iter()
@@ -50,6 +50,7 @@ impl TaskData {
                 })
             })
             .collect();
+
         json!({
             "display_name": self.name,
             "flake_ref": {
@@ -57,7 +58,8 @@ impl TaskData {
                 "args": self.flake_arg
             },
             "locks": locks,
-            "features": self.features
+            "features": self.features,
+            "needs_confirmation": self.needs_confirmation,
         })
     }
 }
@@ -166,6 +168,70 @@ pub fn finish_task(id: &Uuid, status: TaskResult, ctx: &AppContext) -> Result<()
     Ok(())
 }
 
+pub fn confirm_task(id: &Uuid, ctx: &AppContext) -> Result<(), Error> {
+    let client = prepare_client(ctx)?;
+    let request = client
+        .post(format!("{}/api/v1/tasks/{id}/confirm", ctx.vicky_url))
+        .build()?;
+
+    let response = client
+        .execute(request)?
+        .error_for_status()
+        .map_err(|e| (e, "Task couldn't be confirmed".to_string()))?;
+
+    let status = response.status();
+    let text = response.text()?;
+
+    if text.trim().is_empty() {
+        if ctx.humanize {
+            print_http(Some(status), &format!("Task {id} confirmed."));
+        } else {
+            println!();
+        }
+        return Ok(());
+    }
+
+    if ctx.humanize {
+        if let Ok(task) = serde_json::de::from_str::<Task>(&text) {
+            print_http(
+                Some(status),
+                &format!(
+                    "Task {} confirmed. New status: {:?}",
+                    task.id.to_string().bright_blue(),
+                    task.status
+                ),
+            );
+            return Ok(());
+        }
+    }
+
+    match serde_json::de::from_str::<serde_json::Value>(&text) {
+        Ok(pretty_json) => {
+            let pretty_data = serde_json::ser::to_string(&pretty_json)?;
+            if ctx.humanize {
+                print_http(
+                    Some(status),
+                    &format!("Task was confirmed: {}", pretty_data.bright_blue()),
+                );
+            } else {
+                println!("{pretty_data}");
+            }
+        }
+        Err(_) => {
+            if ctx.humanize {
+                print_http(
+                    Some(status),
+                    &format!("Task was confirmed: {}", text.bright_blue()),
+                );
+            } else {
+                println!("{text}");
+            }
+        }
+    };
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::cli::TaskData;
@@ -181,6 +247,7 @@ mod tests {
             flake_url: "".to_string(),
             flake_arg: vec![],
             features: vec![],
+            needs_confirmation: false,
         };
 
         let should_be = json!({
@@ -190,7 +257,8 @@ mod tests {
                 "flake": "",
                 "args": []
             },
-            "features": []
+            "features": [],
+            "needs_confirmation": false,
         });
 
         assert_eq!(data.to_json(), should_be);
@@ -214,6 +282,7 @@ mod tests {
                 "huge_cpu".to_string(),
                 "gigantonormous_gpu".to_string(),
             ],
+            needs_confirmation: true,
         };
 
         let should_be = json!({
@@ -236,7 +305,8 @@ mod tests {
                 "flake": "github:wobcom/vicky",
                 "args": [ "flaked", "really!" ]
             },
-            "features": [ "feat1", "big_cpu", "huge_cpu", "gigantonormous_gpu" ]
+            "features": [ "feat1", "big_cpu", "huge_cpu", "gigantonormous_gpu" ],
+            "needs_confirmation": true,
         });
 
         assert_eq!(data.to_json(), should_be);

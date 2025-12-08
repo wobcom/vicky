@@ -1,15 +1,12 @@
 use crate::config::{build_rocket_config, Config, OIDCConfigResolved};
 use crate::events::{get_global_events, GlobalEvent};
 use crate::locks::{
-    locks_get_active_machine, locks_get_active_user, locks_get_detailed_poisoned_machine,
-    locks_get_detailed_poisoned_user, locks_get_poisoned_machine, locks_get_poisoned_user,
-    locks_unlock,
+    locks_get_active, locks_get_detailed_poisoned, locks_get_poisoned, locks_unlock,
 };
 use crate::startup::Result;
 use crate::tasks::{
-    tasks_add, tasks_claim, tasks_count_machine, tasks_count_user, tasks_download_logs,
-    tasks_finish, tasks_get_logs, tasks_get_machine, tasks_get_user, tasks_put_logs,
-    tasks_specific_get_machine, tasks_specific_get_user,
+    tasks_add, tasks_claim, tasks_confirm, tasks_count, tasks_download_logs, tasks_finish,
+    tasks_get, tasks_get_logs, tasks_get_specific, tasks_put_logs,
 };
 use crate::user::get_user;
 use crate::webconfig::get_web_config;
@@ -150,29 +147,24 @@ async fn serve_web_api(
         .mount(
             "/api/v1/tasks",
             routes![
-                tasks_count_user,
-                tasks_count_machine,
-                tasks_get_machine,
-                tasks_get_user,
-                tasks_specific_get_machine,
-                tasks_specific_get_user,
+                tasks_count,
+                tasks_get,
+                tasks_get_specific,
                 tasks_claim,
                 tasks_finish,
                 tasks_add,
                 tasks_get_logs,
                 tasks_put_logs,
                 tasks_download_logs,
+                tasks_confirm
             ],
         )
         .mount(
             "/api/v1/locks",
             routes![
-                locks_get_poisoned_user,
-                locks_get_poisoned_machine,
-                locks_get_detailed_poisoned_user,
-                locks_get_detailed_poisoned_machine,
-                locks_get_active_user,
-                locks_get_active_machine,
+                locks_get_poisoned,
+                locks_get_detailed_poisoned,
+                locks_get_active,
                 locks_unlock
             ],
         )

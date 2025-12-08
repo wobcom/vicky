@@ -1,9 +1,14 @@
 /target
 deployment/data
+!deployment/realm-export.json
 Rocket.toml
 config.toml
 result
 certs
+.idea
+.diesel_lock
+.env
+
 # Devenv
 .devenv*
 devenv.local.nix
@@ -13,4 +18,3 @@ devenv.local.nix
 
 # pre-commit
 .pre-commit-config.yaml
-

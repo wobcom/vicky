@@ -1,20 +1,13 @@
+use crate::auth::UserGuard;
+use crate::errors::AppError;
 use rocket::{get, serde::json::Json};
-use serde::{Deserialize, Serialize};
-
-use crate::{auth::User, errors::AppError};
-
-#[allow(unused)]
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct Me {
-    full_name: String,
-    role: String,
-}
+use vickylib::database::entities::user::Me;
 
 #[get("/")]
-pub fn get_user(user: User) -> Result<Json<Me>, AppError> {
+pub fn get_user(user: UserGuard) -> Result<Json<Me>, AppError> {
     let me = Me {
-        full_name: user.full_name,
-        role: String::from("admin"),
+        full_name: user.0.name,
+        role: user.0.role,
     };
 
     Ok(Json(me))

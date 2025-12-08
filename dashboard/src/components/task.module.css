@@ -10,3 +10,34 @@
 .Panel > * {
     height: 100%;
 }
+
+.TitleRow {
+    width: 100%;
+}
+
+.TitleLeft {
+    flex-wrap: wrap;
+}
+
+.TitleText {
+    margin: 0;
+}
+
+.TaskActions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.LockRow {
+    flex-wrap: wrap;
+    margin-top: 0.5em;
+}
+
+.LockTag {
+    padding: 2px 6px;
+    min-width: 4em;
+    text-align: center;
+}

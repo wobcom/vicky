@@ -15,12 +15,12 @@ use std::io;
 
 impl<'a> From<&'a PoisonedLock> for Row<'a> {
     fn from(value: &'a PoisonedLock) -> Self {
-        let poisoned_by = value.get_poisoned_by();
+        let poisoned_by = value.poisoned_by();
         let task_name = poisoned_by.display_name.as_str();
         let name = value.name();
-        let ty = value.get_type();
+        let ty = value.kind();
         let uri = poisoned_by.flake_ref.flake.as_str();
-        Row::new(vec![name, ty, task_name, uri])
+        Row::new(vec![name, ty.into(), task_name, uri])
     }
 }
 
@@ -64,7 +64,7 @@ pub fn resolve_lock(resolve_args: &ResolveArgs) -> Result<(), Error> {
             resolve_args,
             &mut locks,
         )?;
-        terminal.draw(|f| ui(f, &locks, &mut state, &selected_task, &mut selected_button))?;
+        terminal.draw(|f| ui(f, &locks, &mut state, selected_task, &mut selected_button))?;
     }
 
     disable_raw_mode()?;
@@ -177,18 +177,14 @@ fn minimal_widths(locks: &[PoisonedLock]) -> [Constraint; 4] {
         Constraint::Max(get_longest_len(locks.iter().map(|l| l.name()))),
         Constraint::Max(5),
         Constraint::Max(
-            get_longest_len(
-                locks
-                    .iter()
-                    .map(|l| l.get_poisoned_by().display_name.as_str()),
-            )
-            .max("Failed Task Name".len() as u16),
+            get_longest_len(locks.iter().map(|l| l.poisoned_by().display_name.as_str()))
+                .max("Failed Task Name".len() as u16),
         ),
         Constraint::Min(
             get_longest_len(
                 locks
                     .iter()
-                    .map(|l| l.get_poisoned_by().flake_ref.flake.as_str()),
+                    .map(|l| l.poisoned_by().flake_ref.flake.as_str()),
             )
             .max("Task Flake URI".len() as u16),
         ),
@@ -242,12 +238,12 @@ pub fn ui(
     f: &mut Frame,
     locks: &[PoisonedLock],
     state: &mut TableState,
-    selected_task: &Option<usize>,
+    selected_task: Option<usize>,
     button_select: &mut bool,
 ) {
     draw_task_picker(f, locks, state);
     if let Some(selected) = selected_task {
-        draw_confirm_clear(f, locks, *selected, button_select);
+        draw_confirm_clear(f, locks, selected, button_select);
     }
 }
 
