@@ -1,7 +1,7 @@
 {
   description = "vicky";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/staging-next";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
   inputs.flake-utils.url = "github:numtide/flake-utils";
 
   outputs = { self, nixpkgs, flake-utils }: {
