@@ -7,7 +7,16 @@
   outputs = { self, nixpkgs, flake-utils }: {
     overlays.default = final: prev: {
       vicky = final.callPackage (
-        { lib, stdenv, rustPlatform, pkg-config, openssl, protobuf, postgresql, jless }:
+        { lib,
+          stdenv,
+          rustPlatform,
+          pkg-config,
+          openssl,
+          protobuf,
+          postgresql,
+          jless,
+          crates ? ["vicky"],
+        }:
 
         rustPlatform.buildRustPackage {
           pname = "vicky";
@@ -15,16 +24,18 @@
             self.shortRev or "dirty-${toString self.lastModifiedDate}";
           src = self;
 
-          cargoBuildFlags = lib.optionals (stdenv.hostPlatform.isMusl && stdenv.hostPlatform.isStatic) [ "--features" "mimalloc" ];
           cargoLock = {
             lockFile = ./Cargo.lock;
             allowBuiltinFetchGit = true;
           };
 
+          cargoBuildFlags = lib.concatMapStrings (c: "-p ${c} ") crates;
+          cargoTestFlags = lib.concatMapStrings (c: "-p ${c} ") crates;
           nativeBuildInputs = [ pkg-config protobuf ];
           buildInputs = [ openssl postgresql jless ];
         }
       ) { };
+      vickyctl = final.vicky.override { crates = [ "vickyctl" ]; };
       vicky-dashboard = final.callPackage (
         { lib, stdenv, buildNpmPackage}:
 
@@ -55,7 +66,7 @@
     };
   in {
     packages = {
-      inherit (pkgs) vicky vicky-dashboard;
+      inherit (pkgs) vicky vickyctl vicky-dashboard;
       default = pkgs.vicky;
     };
     legacyPackages = pkgs;
