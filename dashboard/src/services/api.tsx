@@ -16,6 +16,7 @@ type ITask = {
     created_at: number,
     claimed_at: number | null,
     finished_at: number | null,
+    group: string | null
 }
 
 type IUser = {

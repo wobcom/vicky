@@ -29,6 +29,7 @@ pub struct RoTaskNew {
     flake_ref: FlakeRef,
     locks: Vec<Lock>,
     features: Vec<String>,
+    group: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -297,34 +298,35 @@ pub async fn tasks_add(
     global_events: &State<broadcast::Sender<GlobalEvent>>,
     _machine: MachineGuard,
 ) -> Result<Json<RoTask>, AppError> {
-    let task_uuid = Uuid::new_v4();
     let status = if task.needs_confirmation {
         TaskStatus::NeedsUserValidation
     } else {
         TaskStatus::New
     };
 
+    let task = task.into_inner();
+
     let task = Task::builder()
-        .with_id(task_uuid)
-        .with_status(status)
-        .with_display_name(&task.display_name)
-        .with_flake(&task.flake_ref.flake)
-        .with_flake_args(task.flake_ref.args.clone())
-        .with_locks(task.locks.clone())
-        .requires_features(task.features.clone())
+        .status(status)
+        .display_name(task.display_name)
+        .flake(task.flake_ref.flake)
+        .flake_args(task.flake_ref.args)
+        .locks(task.locks)
+        .requires_features(task.features)
+        .maybe_group(task.group)
         .build();
 
     let Ok(task) = task else {
         return Err(AppError::HttpError(Status::Conflict));
     };
 
-    db.put_task(task).await?;
-    global_events.send(GlobalEvent::TaskAdd)?;
-
     let ro_task = RoTask {
-        id: task_uuid,
+        id: task.id,
         status,
     };
+
+    db.put_task(task).await?;
+    global_events.send(GlobalEvent::TaskAdd)?;
 
     Ok(Json(ro_task))
 }
@@ -361,9 +363,9 @@ mod tests {
     #[test]
     fn add_new_conflicting_task() {
         let task = Task::builder()
-            .with_display_name("Test 1")
-            .with_read_lock("mauz")
-            .with_write_lock("mauz")
+            .display_name("Test 1")
+            .read_lock("mauz")
+            .write_lock("mauz")
             .build();
         assert!(task.is_err());
     }
@@ -371,10 +373,10 @@ mod tests {
     #[test]
     fn add_new_not_conflicting_task() {
         let task = Task::builder()
-            .with_display_name("Test 1")
-            .with_read_lock("mauz")
-            .with_read_lock("mauz")
-            .with_write_lock("delete_everything")
+            .display_name("Test 1")
+            .read_lock("mauz")
+            .read_lock("mauz")
+            .write_lock("delete_everything")
             .build();
         assert!(task.is_ok())
     }

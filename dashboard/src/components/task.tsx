@@ -38,39 +38,48 @@ const Task = (props: TaskProps) => {
 
     return (
         <Panel shaded bordered className={s.Panel}>
-            <VStack spacing={10} className={s.TitleStack}>
-                <HStack justifyContent="space-between" alignItems="center" spacing={14} className={s.TitleRow}>
-                    <HStack spacing={12} alignItems="center" className={s.TitleLeft}>
-                        <h4 className={s.TitleText}>{task.display_name}</h4>
-                        <TaskTag size="lg" task={task}/>
+            <HStack alignItems={"flex-start"} justifyContent="space-between">
+                <VStack spacing={10} className={s.TitleStack}>
+                    <HStack justifyContent="space-between" alignItems="center" spacing={14} className={s.TitleRow}>
+                        <HStack spacing={12} alignItems="center" className={s.TitleLeft}>
+                            <h4 className={s.TitleText}>{task.display_name}</h4>
+                            <TaskTag size="lg" task={task}/>
+                        </HStack>
                     </HStack>
+
+                    <VStack>
+                        <HStack spacing={4}>
+                            <CalendarIcon></CalendarIcon><Text muted>{dayjs.unix(task.created_at).toNow(true)} ago</Text>
+                            {duration != null ? <Fragment>&mdash;</Fragment> : null}
+                            {duration != null ? <Fragment><TimeIcon></TimeIcon><Text muted>{duration}s</Text></Fragment> : null}
+                        </HStack>
+                        {task.locks.length ? (
+                            <HStack spacing={8} className={s.LockRow}>
+                                {task.locks.map(lock => {
+                                    return (
+                                        <Badge key={`${task.id}-${lock.name}`} color={lock.type === "WRITE" ? "red" : "green"} content={lock.type === "WRITE" ? "W" : "R"}>
+                                            <Tag size="md" className={s.LockTag}>{lock.name}</Tag>
+                                        </Badge>
+                                    )
+                                })}
+                            </HStack>
+                        ) : null}
+
+                    </VStack>
+                </VStack>
+                <VStack spacing={10} alignItems="flex-end" justify="space-between">
+                    {
+                        task.group != null ?
+                            <Text muted>Group: {task.group}</Text>
+                            : null
+                    }
                     {needsValidation ? (
-                        <Button size="sm" appearance="primary" onClick={onConfirm} loading={confirming}>
+                        <Button justifySelf="flex-end" size="sm" appearance="primary" onClick={onConfirm} loading={confirming}>
                             Confirm
                         </Button>
                     ) : null}
-                </HStack>
-
-                <VStack>
-                    <HStack spacing={4}>
-                        <CalendarIcon></CalendarIcon><Text muted>{dayjs.unix(task.created_at).toNow(true)} ago</Text>
-                        {duration != null ? <Fragment>&mdash;</Fragment> : null}
-                        {duration != null ? <Fragment><TimeIcon></TimeIcon><Text muted>{duration}s</Text></Fragment> : null}
-                    </HStack>
-                    {task.locks.length ? (
-                        <HStack spacing={8} className={s.LockRow}>
-                            {task.locks.map(lock => {
-                                return (
-                                    <Badge key={`${task.id}-${lock.name}`} color={lock.type === "WRITE" ? "red" : "green"} content={lock.type === "WRITE" ? "W" : "R"}>
-                                        <Tag size="md" className={s.LockTag}>{lock.name}</Tag>
-                                    </Badge>
-                                )
-                            })}
-                        </HStack>
-                    ) : null}
-
                 </VStack>
-            </VStack>
+            </HStack>
             {confirmError ? <Text color="red">{confirmError}</Text> : null}
             <Terminal key={task.id} taskId={task.id} />
         </Panel>
