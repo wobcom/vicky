@@ -126,12 +126,12 @@ mod tests {
     fn scheduler_creation_no_constraints() {
         let tasks = vec![
             Task::builder()
-                .with_display_name("Test 1")
-                .with_status(TaskStatus::Running)
+                .display_name("Test 1")
+                .status(TaskStatus::Running)
                 .build_expect(),
             Task::builder()
-                .with_display_name("Test 2")
-                .with_status(TaskStatus::Running)
+                .display_name("Test 2")
+                .status(TaskStatus::Running)
                 .build_expect(),
         ];
 
@@ -142,14 +142,14 @@ mod tests {
     fn scheduler_creation_multiple_read_constraints() {
         let tasks = vec![
             Task::builder()
-                .with_display_name("Test 1")
-                .with_status(TaskStatus::Running)
-                .with_read_lock("foo 1")
+                .display_name("Test 1")
+                .status(TaskStatus::Running)
+                .read_lock("foo 1")
                 .build_expect(),
             Task::builder()
-                .with_display_name("Test 2")
-                .with_status(TaskStatus::Running)
-                .with_read_lock("foo 1")
+                .display_name("Test 2")
+                .status(TaskStatus::Running)
+                .read_lock("foo 1")
                 .build_expect(),
         ];
 
@@ -160,14 +160,14 @@ mod tests {
     fn scheduler_creation_single_write_constraints() {
         let tasks = vec![
             Task::builder()
-                .with_display_name("Test 1")
-                .with_status(TaskStatus::Running)
-                .with_write_lock("foo1")
+                .display_name("Test 1")
+                .status(TaskStatus::Running)
+                .write_lock("foo1")
                 .build_expect(),
             Task::builder()
-                .with_display_name("Test 2")
-                .with_status(TaskStatus::Running)
-                .with_write_lock("foo2")
+                .display_name("Test 2")
+                .status(TaskStatus::Running)
+                .write_lock("foo2")
                 .build_expect(),
         ];
 
@@ -178,14 +178,14 @@ mod tests {
     fn scheduler_creation_multiple_write_constraints() {
         let tasks = vec![
             Task::builder()
-                .with_display_name("Test 1")
-                .with_status(TaskStatus::Running)
-                .with_write_lock("foo1")
+                .display_name("Test 1")
+                .status(TaskStatus::Running)
+                .write_lock("foo1")
                 .build_expect(),
             Task::builder()
-                .with_display_name("Test 2")
-                .with_status(TaskStatus::Running)
-                .with_write_lock("foo1")
+                .display_name("Test 2")
+                .status(TaskStatus::Running)
+                .write_lock("foo1")
                 .build_expect(),
         ];
 
@@ -197,14 +197,14 @@ mod tests {
     fn scheduler_no_new_task() {
         let tasks = vec![
             Task::builder()
-                .with_display_name("Test 1")
-                .with_status(TaskStatus::Running)
-                .with_write_lock("foo1")
+                .display_name("Test 1")
+                .status(TaskStatus::Running)
+                .write_lock("foo1")
                 .build_expect(),
             Task::builder()
-                .with_display_name("Test 2")
-                .with_status(TaskStatus::New)
-                .with_write_lock("foo1")
+                .display_name("Test 2")
+                .status(TaskStatus::New)
+                .write_lock("foo1")
                 .build_expect(),
         ];
 
@@ -217,13 +217,13 @@ mod tests {
     fn scheduler_no_new_task_with_feature() {
         let tasks = vec![
             Task::builder()
-                .with_display_name("Test 1")
-                .with_status(TaskStatus::New)
+                .display_name("Test 1")
+                .status(TaskStatus::New)
                 .requires_feature("huge_cpu")
                 .build_expect(),
             Task::builder()
-                .with_display_name("Test 2")
-                .with_status(TaskStatus::New)
+                .display_name("Test 2")
+                .status(TaskStatus::New)
                 .requires_feature("huge_cpu")
                 .build_expect(),
         ];
@@ -237,13 +237,13 @@ mod tests {
     fn scheduler_new_task_with_specific_feature() {
         let tasks = vec![
             Task::builder()
-                .with_display_name("Test 1")
-                .with_status(TaskStatus::New)
+                .display_name("Test 1")
+                .status(TaskStatus::New)
                 .requires_feature("huge_cpu")
                 .build_expect(),
             Task::builder()
-                .with_display_name("Test 2")
-                .with_status(TaskStatus::New)
+                .display_name("Test 2")
+                .status(TaskStatus::New)
                 .requires_feature("huge_cpu")
                 .build_expect(),
         ];
@@ -258,14 +258,14 @@ mod tests {
     fn scheduler_new_task() {
         let tasks = vec![
             Task::builder()
-                .with_display_name("Test 1")
-                .with_status(TaskStatus::Running)
-                .with_write_lock("foo1")
+                .display_name("Test 1")
+                .status(TaskStatus::Running)
+                .write_lock("foo1")
                 .build_expect(),
             Task::builder()
-                .with_display_name("Test 2")
-                .with_status(TaskStatus::New)
-                .with_write_lock("foo2")
+                .display_name("Test 2")
+                .status(TaskStatus::New)
+                .write_lock("foo2")
                 .build_expect(),
         ];
 
@@ -278,14 +278,14 @@ mod tests {
     fn scheduler_new_task_ro() {
         let tasks = vec![
             Task::builder()
-                .with_display_name("Test 1")
-                .with_status(TaskStatus::Running)
-                .with_read_lock("foo1")
+                .display_name("Test 1")
+                .status(TaskStatus::Running)
+                .read_lock("foo1")
                 .build_expect(),
             Task::builder()
-                .with_display_name("Test 2")
-                .with_status(TaskStatus::New)
-                .with_read_lock("foo1")
+                .display_name("Test 2")
+                .status(TaskStatus::New)
+                .read_lock("foo1")
                 .build_expect(),
         ];
 
@@ -298,14 +298,14 @@ mod tests {
     fn scheduler_new_task_rw_ro() {
         let tasks = vec![
             Task::builder()
-                .with_display_name("Test 1")
-                .with_status(TaskStatus::Running)
-                .with_write_lock("foo1")
+                .display_name("Test 1")
+                .status(TaskStatus::Running)
+                .write_lock("foo1")
                 .build_expect(),
             Task::builder()
-                .with_display_name("Test 2")
-                .with_status(TaskStatus::New)
-                .with_read_lock("foo1")
+                .display_name("Test 2")
+                .status(TaskStatus::New)
+                .read_lock("foo1")
                 .build_expect(),
         ];
 
@@ -317,8 +317,8 @@ mod tests {
     #[test]
     fn schedule_with_poisoned_lock() {
         let tasks = vec![Task::builder()
-            .with_display_name("I need to do something")
-            .with_write_lock("Entire Prod Cluster")
+            .display_name("I need to do something")
+            .write_lock("Entire Prod Cluster")
             .build_expect()];
         let mut poisoned_lock = Lock::write("Entire Prod Cluster");
         poisoned_lock.poison(&Uuid::new_v4());
@@ -333,12 +333,12 @@ mod tests {
     fn schedule_different_tasks_with_poisoned_lock() {
         let tasks = vec![
             Task::builder()
-                .with_display_name("I need to do something")
-                .with_write_lock("Entire Prod Cluster")
+                .display_name("I need to do something")
+                .write_lock("Entire Prod Cluster")
                 .build_expect(),
             Task::builder()
-                .with_display_name("I need to test something")
-                .with_write_lock("Entire Staging Cluster")
+                .display_name("I need to test something")
+                .write_lock("Entire Staging Cluster")
                 .build_expect(),
         ];
         let mut poisoned_lock = Lock::write("Entire Prod Cluster");
@@ -356,8 +356,8 @@ mod tests {
     #[test]
     fn schedule_different_tasks_with_poisoned_lock_ro() {
         let tasks = vec![Task::builder()
-            .with_display_name("I need to do something")
-            .with_read_lock("Entire Prod Cluster")
+            .display_name("I need to do something")
+            .read_lock("Entire Prod Cluster")
             .build_expect()];
         let mut poisoned_lock = Lock::read("Entire Prod Cluster");
         poisoned_lock.poison(&Uuid::new_v4());

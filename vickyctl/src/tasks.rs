@@ -60,6 +60,7 @@ impl TaskData {
             "locks": locks,
             "features": self.features,
             "needs_confirmation": self.needs_confirmation,
+            "group": self.group,
         })
     }
 }
@@ -247,6 +248,7 @@ mod tests {
             flake_url: "".to_string(),
             flake_arg: vec![],
             features: vec![],
+            group: None,
             needs_confirmation: false,
         };
 
@@ -259,6 +261,7 @@ mod tests {
             },
             "features": [],
             "needs_confirmation": false,
+            "group": null,
         });
 
         assert_eq!(data.to_json(), should_be);
@@ -282,6 +285,7 @@ mod tests {
                 "huge_cpu".to_string(),
                 "gigantonormous_gpu".to_string(),
             ],
+            group: None,
             needs_confirmation: true,
         };
 
@@ -307,6 +311,7 @@ mod tests {
             },
             "features": [ "feat1", "big_cpu", "huge_cpu", "gigantonormous_gpu" ],
             "needs_confirmation": true,
+            "group": null,
         });
 
         assert_eq!(data.to_json(), should_be);
