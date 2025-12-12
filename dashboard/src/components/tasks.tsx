@@ -6,11 +6,11 @@ import TimeIcon from '@rsuite/icons/Time';
 import { Col, Grid, HStack, List, Pagination, Panel, Text, VStack } from "rsuite"
 import { TaskTag } from "./tag";
 import { Task } from "./task";
+import { FilterSlider } from "./filter-slider";
 import * as dayjs from "dayjs"
 
 import * as s from "./tasks.module.css";
 import { useTask, useTasks, useTasksCount } from "../hooks/useTasks";
-import { FilterSlider } from "./filter-slider";
 
 const FILTERS: { label: string; value: string | null; color: string }[] = [
     { label: "All", value: null, color: "#6b7280"},
