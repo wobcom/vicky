@@ -283,10 +283,10 @@ pub mod db_impl {
 
     pub trait TaskDatabase {
         fn count_all_tasks(&mut self, task_status: Option<TaskStatus>) -> Result<i64, VickyError>;
-        fn get_all_tasks_filtered(
+        fn get_all_tasks_filtered<F: Into<FilterParams>>(
             &mut self,
             task_status: Option<TaskStatus>,
-            filter_params: Option<FilterParams>,
+            filters: F,
         ) -> Result<Vec<Task>, VickyError>;
         fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError>;
         fn get_task(&mut self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
@@ -309,25 +309,27 @@ pub mod db_impl {
             Ok(tasks_count)
         }
 
-        fn get_all_tasks_filtered(
+        fn get_all_tasks_filtered<F: Into<FilterParams>>(
             &mut self,
             task_status: Option<TaskStatus>,
-            filter_params: Option<FilterParams>,
+            filters: F,
         ) -> Result<Vec<Task>, VickyError> {
+            let filters = filters.into();
+
             let mut db_tasks_build = tasks::table.into_boxed();
 
             if let Some(task_status) = task_status {
                 db_tasks_build = db_tasks_build.filter(tasks::status.eq(task_status))
             }
 
-            let limit = filter_params.clone().and_then(|x| x.limit);
-            let offset = filter_params.clone().and_then(|x| x.offset);
-
-            if let Some(r_limit) = limit {
+            if let Some(r_limit) = filters.limit {
                 db_tasks_build = db_tasks_build.limit(r_limit)
             }
-            if let Some(r_offset) = offset {
+            if let Some(r_offset) = filters.offset {
                 db_tasks_build = db_tasks_build.offset(r_offset)
+            }
+            if let Some(group) = filters.group {
+                db_tasks_build = db_tasks_build.filter(tasks::group.eq(group))
             }
 
             let db_tasks = db_tasks_build
