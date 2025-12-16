@@ -83,8 +83,6 @@ export const FilterSlider = ({ options, value, onChange }: FilterSliderProps) =>
     };
 
     const borderOverlayStyle = useMemo<CSSProperties>(() => {
-        const maxIndex = Math.max(1, options.length - 1);
-        const pos = Math.max(0, Math.min(1, (selectedIndex - dragOffset) / maxIndex));
         const nextIdx = Math.max(0, Math.min(colors.length - 1, Math.ceil(selectedIndex - dragOffset)));
         const prevIdx = Math.max(0, Math.min(colors.length - 1, Math.floor(selectedIndex - dragOffset)));
         const fallbackColor = colors[0] ?? "#6b7280";
@@ -102,12 +100,11 @@ export const FilterSlider = ({ options, value, onChange }: FilterSliderProps) =>
         }
 
         return {
-            borderImage: `${gradient} 1`,
+            borderImageSource: gradient,
             borderImageSlice: 1,
             opacity: 1,
-            backgroundPosition: `${pos * 100}% 50%`,
         };
-    }, [hovering, dragState, selectedIndex, dragOffset, options.length, colors]);
+    }, [hovering, dragState, selectedIndex, dragOffset, colors]);
 
     return (
         <div className={s.FilterWrapper} ref={wrapperRef}>

@@ -1,10 +1,10 @@
 use crate::database::entities::lock::db_impl::DbLock;
 use crate::database::entities::lock::Lock;
 use crate::database::entities::task::db_impl::DbTask;
+use bon::Builder;
 use chrono::naive::serde::ts_seconds;
 use chrono::naive::serde::ts_seconds_option;
 use chrono::{NaiveDateTime, Utc};
-use delegate::delegate;
 use diesel::{AsExpression, FromSqlRow};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -35,20 +35,41 @@ pub struct FlakeRef {
     pub args: Vec<String>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+impl FlakeRef {
+    pub fn empty() -> Self {
+        FlakeRef {
+            flake: "".to_string(),
+            args: vec![],
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Builder)]
+#[builder(finish_fn(name = _build_unchecked))]
+#[builder(derive(Debug, Clone))]
+#[builder(on(String, into))]
 pub struct Task {
-    pub id: Uuid,
-    pub display_name: String,
-    pub status: TaskStatus,
+    #[builder(field)]
     pub locks: Vec<Lock>,
+    #[builder(field = FlakeRef::empty())]
     pub flake_ref: FlakeRef,
+    #[builder(field)]
     pub features: Vec<String>,
+
+    #[builder(default = Uuid::new_v4())]
+    pub id: Uuid,
+    #[builder(default = "Task")]
+    pub display_name: String,
+    #[builder(default = TaskStatus::New)]
+    pub status: TaskStatus,
     #[serde(with = "ts_seconds")]
+    #[builder(skip = Utc::now().naive_utc())]
     pub created_at: NaiveDateTime,
     #[serde(with = "ts_seconds_option")]
     pub claimed_at: Option<NaiveDateTime>,
     #[serde(with = "ts_seconds_option")]
     pub finished_at: Option<NaiveDateTime>,
+    pub group: Option<String>,
 }
 
 impl AsRef<Task> for Task {
@@ -57,88 +78,33 @@ impl AsRef<Task> for Task {
     }
 }
 
-impl Task {
-    pub fn builder() -> TaskBuilder {
-        TaskBuilder::default()
-    }
-}
-
-impl TryFrom<TaskBuilder> for Task {
-    type Error = TaskBuilder;
-
-    fn try_from(value: TaskBuilder) -> Result<Self, Self::Error> {
-        value.build()
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct TaskBuilder {
-    id: Option<Uuid>,
-    display_name: Option<String>,
-    status: TaskStatus,
-    locks: Vec<Lock>,
-    flake_ref: FlakeRef,
-    features: Vec<String>,
-}
-
-impl Default for TaskBuilder {
-    fn default() -> Self {
-        TaskBuilder {
-            id: None,
-            display_name: None,
-            status: TaskStatus::New,
-            locks: Vec::new(),
-            flake_ref: FlakeRef {
-                flake: "".to_string(),
-                args: Vec::new(),
-            },
-            features: Vec::new(),
-        }
-    }
-}
-
-impl TaskBuilder {
-    pub fn with_id(mut self, id: Uuid) -> Self {
-        self.id = Some(id);
-        self
-    }
-
-    pub fn with_display_name<S: Into<String>>(mut self, display_name: S) -> Self {
-        self.display_name = Some(display_name.into());
-        self
-    }
-
-    pub fn with_status(mut self, status: TaskStatus) -> Self {
-        self.status = status;
-        self
-    }
-
-    pub fn with_read_lock<S: Into<String>>(mut self, name: S) -> Self {
+impl<T: task_builder::State> TaskBuilder<T> {
+    pub fn read_lock<S: Into<String>>(mut self, name: S) -> Self {
         self.locks.push(Lock::read(name));
         self
     }
 
-    pub fn with_write_lock<S: Into<String>>(mut self, name: S) -> Self {
+    pub fn write_lock<S: Into<String>>(mut self, name: S) -> Self {
         self.locks.push(Lock::write(name));
         self
     }
 
-    pub fn with_locks(mut self, locks: Vec<Lock>) -> Self {
+    pub fn locks(mut self, locks: Vec<Lock>) -> Self {
         self.locks = locks;
         self
     }
 
-    pub fn with_flake<S: Into<FlakeURI>>(mut self, flake_uri: S) -> Self {
+    pub fn flake<S: Into<FlakeURI>>(mut self, flake_uri: S) -> Self {
         self.flake_ref.flake = flake_uri.into();
         self
     }
 
-    pub fn with_flake_arg<S: Into<String>>(mut self, flake_arg: S) -> Self {
+    pub fn flake_arg<S: Into<String>>(mut self, flake_arg: S) -> Self {
         self.flake_ref.args.push(flake_arg.into());
         self
     }
 
-    pub fn with_flake_args(mut self, args: Vec<String>) -> Self {
+    pub fn flake_args(mut self, args: Vec<String>) -> Self {
         self.flake_ref.args = args;
         self
     }
@@ -153,31 +119,15 @@ impl TaskBuilder {
         self
     }
 
-    delegate! {
-        to self {
-            #[field]
-            pub fn id(&self) -> Option<Uuid>;
-            #[field]
-            #[expr($.as_ref())]
-            pub fn display_name(&self) -> Option<&String>;
-            #[field]
-            pub fn status(&self) -> TaskStatus;
-            #[field(&)]
-            pub fn locks(&self) -> &[Lock];
-            #[field(&)]
-            pub fn flake_ref(&self) -> &FlakeRef;
-            #[field(&)]
-            pub fn features(&self) -> &[String];
-        }
-    }
-
     pub fn check_lock_conflict(&self) -> bool {
         self.locks
             .iter()
             .tuple_combinations()
             .any(|(a, b)| a.is_conflicting(b))
     }
+}
 
+impl<T: task_builder::IsComplete> TaskBuilder<T> {
     #[allow(clippy::result_large_err)]
     pub fn build(self) -> Result<Task, Self> {
         if self.check_lock_conflict() {
@@ -199,20 +149,6 @@ impl TaskBuilder {
             Err(builder) => panic!("TaskBuilder::build() failed while building: {builder:?}"),
         }
     }
-
-    fn _build_unchecked(self) -> Task {
-        Task {
-            id: self.id.unwrap_or_else(Uuid::new_v4),
-            display_name: self.display_name.unwrap_or_else(|| "Task".to_string()),
-            features: self.features,
-            status: self.status,
-            locks: self.locks,
-            flake_ref: self.flake_ref,
-            created_at: Utc::now().naive_utc(),
-            claimed_at: None,
-            finished_at: None,
-        }
-    }
 }
 
 impl From<(DbTask, Vec<DbLock>)> for Task {
@@ -231,6 +167,7 @@ impl From<(DbTask, Vec<DbLock>)> for Task {
             created_at: task.created_at,
             claimed_at: task.claimed_at,
             finished_at: task.finished_at,
+            group: task.group,
         }
     }
 }
@@ -294,17 +231,24 @@ pub mod db_impl {
         pub created_at: NaiveDateTime,
         pub claimed_at: Option<NaiveDateTime>,
         pub finished_at: Option<NaiveDateTime>,
+        pub group: Option<String>,
     }
+
+    pub const STATE_NEEDS_USER_VALIDATION_STR: &str = "NEEDS_USER_VALIDATION";
+    pub const STATE_NEW_STR: &str = "NEW";
+    pub const STATE_RUNNING_STR: &str = "RUNNING";
+    pub const STATE_FINISHED_SUCCESS_STR: &str = "FINISHED::SUCCESS";
+    pub const STATE_FINISHED_ERROR_STR: &str = "FINISHED::ERROR";
 
     impl Display for TaskStatus {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             let str = match self {
-                TaskStatus::NeedsUserValidation => "NEEDS_USER_VALIDATION",
-                TaskStatus::New => "NEW",
-                TaskStatus::Running => "RUNNING",
+                TaskStatus::NeedsUserValidation => STATE_NEEDS_USER_VALIDATION_STR,
+                TaskStatus::New => STATE_NEW_STR,
+                TaskStatus::Running => STATE_RUNNING_STR,
                 TaskStatus::Finished(r) => match r {
-                    TaskResult::Success => "FINISHED::SUCCESS",
-                    TaskResult::Error => "FINISHED::ERROR",
+                    TaskResult::Success => STATE_FINISHED_SUCCESS_STR,
+                    TaskResult::Error => STATE_FINISHED_ERROR_STR,
                 },
             };
             write!(f, "{str}")
@@ -316,11 +260,11 @@ pub mod db_impl {
 
         fn try_from(str: &str) -> Result<Self, Self::Error> {
             match str {
-                "NEEDS_USER_VALIDATION" => Ok(TaskStatus::NeedsUserValidation),
-                "NEW" => Ok(TaskStatus::New),
-                "RUNNING" => Ok(TaskStatus::Running),
-                "FINISHED::SUCCESS" => Ok(TaskStatus::Finished(TaskResult::Success)),
-                "FINISHED::ERROR" => Ok(TaskStatus::Finished(TaskResult::Error)),
+                STATE_NEEDS_USER_VALIDATION_STR => Ok(TaskStatus::NeedsUserValidation),
+                STATE_NEW_STR => Ok(TaskStatus::New),
+                STATE_RUNNING_STR => Ok(TaskStatus::Running),
+                STATE_FINISHED_SUCCESS_STR => Ok(TaskStatus::Finished(TaskResult::Success)),
+                STATE_FINISHED_ERROR_STR => Ok(TaskStatus::Finished(TaskResult::Error)),
                 _ => Err("Could not deserialize to TaskStatus"),
             }
         }
@@ -338,16 +282,21 @@ pub mod db_impl {
                 created_at: task.created_at,
                 claimed_at: task.claimed_at,
                 finished_at: task.finished_at,
+                group: task.group,
             }
         }
     }
 
     pub trait TaskDatabase {
-        fn count_all_tasks(&mut self, task_status: Option<TaskStatus>) -> Result<i64, VickyError>;
-        fn get_all_tasks_filtered(
+        fn count_all_tasks<F: Into<FilterParams>>(
             &mut self,
             task_status: Option<TaskStatus>,
-            filter_params: Option<FilterParams>,
+            filters: F,
+        ) -> Result<i64, VickyError>;
+        fn get_all_tasks_filtered<F: Into<FilterParams>>(
+            &mut self,
+            task_status: Option<TaskStatus>,
+            filters: F,
         ) -> Result<Vec<Task>, VickyError>;
         fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError>;
         fn get_task(&mut self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
@@ -358,11 +307,20 @@ pub mod db_impl {
     }
 
     impl TaskDatabase for diesel::pg::PgConnection {
-        fn count_all_tasks(&mut self, task_status: Option<TaskStatus>) -> Result<i64, VickyError> {
+        fn count_all_tasks<F: Into<FilterParams>>(
+            &mut self,
+            task_status: Option<TaskStatus>,
+            filters: F,
+        ) -> Result<i64, VickyError> {
+            let filters = filters.into();
             let mut tasks_count_b = tasks::table.into_boxed();
 
             if let Some(task_status) = task_status {
                 tasks_count_b = tasks_count_b.filter(tasks::status.eq(task_status))
+            }
+
+            if let Some(group) = filters.group {
+                tasks_count_b = tasks_count_b.filter(tasks::group.eq(group))
             }
 
             let tasks_count: i64 = tasks_count_b.count().first(self)?;
@@ -370,25 +328,27 @@ pub mod db_impl {
             Ok(tasks_count)
         }
 
-        fn get_all_tasks_filtered(
+        fn get_all_tasks_filtered<F: Into<FilterParams>>(
             &mut self,
             task_status: Option<TaskStatus>,
-            filter_params: Option<FilterParams>,
+            filters: F,
         ) -> Result<Vec<Task>, VickyError> {
+            let filters = filters.into();
+
             let mut db_tasks_build = tasks::table.into_boxed();
 
             if let Some(task_status) = task_status {
                 db_tasks_build = db_tasks_build.filter(tasks::status.eq(task_status))
             }
 
-            let limit = filter_params.clone().and_then(|x| x.limit);
-            let offset = filter_params.clone().and_then(|x| x.offset);
-
-            if let Some(r_limit) = limit {
+            if let Some(r_limit) = filters.limit {
                 db_tasks_build = db_tasks_build.limit(r_limit)
             }
-            if let Some(r_offset) = offset {
+            if let Some(r_offset) = filters.offset {
                 db_tasks_build = db_tasks_build.offset(r_offset)
+            }
+            if let Some(group) = filters.group {
+                db_tasks_build = db_tasks_build.filter(tasks::group.eq(group))
             }
 
             let db_tasks = db_tasks_build
