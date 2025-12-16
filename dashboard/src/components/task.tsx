@@ -74,7 +74,7 @@ const Task = (props: TaskProps) => {
                             : null
                     }
                     {needsValidation ? (
-                        <Button justifySelf="flex-end" size="sm" appearance="primary" onClick={onConfirm} loading={confirming}>
+                        <Button size="sm" appearance="primary" onClick={onConfirm} loading={confirming}>
                             Confirm
                         </Button>
                     ) : null}
