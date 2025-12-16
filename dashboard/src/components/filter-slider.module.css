@@ -64,7 +64,7 @@
     z-index: 10;
     background: var(--rs-bg-well);
     border: 1px solid var(--rs-border-primary);
-    border-radius: 7px;
+    border-radius: 5px;
     box-shadow: var(--rs-shadow-2);
     padding: 6px 0;
     transform-origin: top center;
