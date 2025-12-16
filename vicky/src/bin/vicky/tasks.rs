@@ -58,18 +58,19 @@ pub struct Count {
     count: i64,
 }
 
-#[get("/count?<status>")]
+#[get("/count?<status>&<filter_params..>")]
 pub async fn tasks_count(
     db: Database,
     _auth: AnyAuthGuard,
     status: Option<String>,
+    filter_params: Option<FilterParams>,
 ) -> Result<Json<Count>, AppError> {
     let task_status: Option<TaskStatus> = status
         .as_deref()
         .map(TaskStatus::try_from)
         .transpose()
         .map_err(|_| AppError::HttpError(Status::BadRequest))?;
-    let tasks_count = db.count_all_tasks(task_status).await?;
+    let tasks_count = db.count_all_tasks(task_status, filter_params).await?;
     let c: Count = Count { count: tasks_count };
     Ok(Json(c))
 }

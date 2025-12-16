@@ -288,7 +288,11 @@ pub mod db_impl {
     }
 
     pub trait TaskDatabase {
-        fn count_all_tasks(&mut self, task_status: Option<TaskStatus>) -> Result<i64, VickyError>;
+        fn count_all_tasks<F: Into<FilterParams>>(
+            &mut self,
+            task_status: Option<TaskStatus>,
+            filters: F,
+        ) -> Result<i64, VickyError>;
         fn get_all_tasks_filtered<F: Into<FilterParams>>(
             &mut self,
             task_status: Option<TaskStatus>,
@@ -303,11 +307,20 @@ pub mod db_impl {
     }
 
     impl TaskDatabase for diesel::pg::PgConnection {
-        fn count_all_tasks(&mut self, task_status: Option<TaskStatus>) -> Result<i64, VickyError> {
+        fn count_all_tasks<F: Into<FilterParams>>(
+            &mut self,
+            task_status: Option<TaskStatus>,
+            filters: F,
+        ) -> Result<i64, VickyError> {
+            let filters = filters.into();
             let mut tasks_count_b = tasks::table.into_boxed();
 
             if let Some(task_status) = task_status {
                 tasks_count_b = tasks_count_b.filter(tasks::status.eq(task_status))
+            }
+
+            if let Some(group) = filters.group {
+                tasks_count_b = tasks_count_b.filter(tasks::group.eq(group))
             }
 
             let tasks_count: i64 = tasks_count_b.count().first(self)?;

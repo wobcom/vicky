@@ -25,7 +25,11 @@ impl Database {
         #[expr(self.run(move |conn| $).await)]
         #[through(TaskDatabase)]
         to conn {
-            pub async fn count_all_tasks(&self, task_status: Option<TaskStatus>) -> Result<i64, VickyError>;
+            pub async fn count_all_tasks<F: Into<FilterParams> + Send + 'static>(
+                &self,
+                task_status: Option<TaskStatus>,
+                filters: F,
+            ) -> Result<i64, VickyError>;
             pub async fn get_all_tasks_filtered<F: Into<FilterParams> + Send + 'static>(
                 &self,
                 task_status: Option<TaskStatus>,
