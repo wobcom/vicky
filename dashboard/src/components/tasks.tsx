@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom"
 import CalendarIcon from '@rsuite/icons/Calendar';
 import TimeIcon from '@rsuite/icons/Time';
@@ -11,6 +11,8 @@ import * as dayjs from "dayjs"
 
 import * as s from "./tasks.module.css";
 import { useTask, useTasks, useTasksCount } from "../hooks/useTasks";
+import { useTaskGroups } from "../hooks/useTaskGroups";
+import { GroupFilter } from "./group-filter";
 
 const FILTERS: { label: string; value: string | null; color: string }[] = [
     { label: "All", value: null, color: "#6b7280"},
@@ -25,15 +27,16 @@ const Tasks = () => {
 
     const { taskId } = useParams();
 
-    const [filter, setFilter] = useState<string | null>(null);
+    const [status, setStatus] = useState<string | null>(null);
+    const [group, setGroup] = useState<string | null>(null);
     const [page, setPage] = useState<number>(1);
 
     const groups = useTaskGroups();
 
     const NUM_PER_PAGE = 10;
 
-    const tasks = useTasks(filter, null, NUM_PER_PAGE, (page - 1) * NUM_PER_PAGE);
-    const tasksCount = useTasksCount(status, null);
+    const tasks = useTasks(status, group, NUM_PER_PAGE, (page - 1) * NUM_PER_PAGE);
+    const tasksCount = useTasksCount(status, group);
     const task = useTask(taskId);
 
     useEffect(() => {
@@ -44,13 +47,20 @@ const Tasks = () => {
         <Grid fluid className={s.Grid}>
             <Col xs={task ? "8" : "24"}>
                 <Panel shaded bordered className={s.TasksPanel}>
-                    <HStack justifyContent="space-between" spacing={8}>
+                    <HStack justifyContent="space-between" spacing={8} className={s.HeaderRow}>
                         <h4>Tasks</h4>
-                        <FilterSlider
-                            options={FILTERS}
-                            value={filter}
-                            onChange={setFilter}
-                        />
+                        <HStack spacing={8} alignItems="center" className={s.Filters}>
+                            <FilterSlider
+                                options={FILTERS}
+                                value={status}
+                                onChange={setStatus}
+                            />
+                            <GroupFilter
+                                groups={groups}
+                                value={group}
+                                onChange={setGroup}
+                            />
+                        </HStack>
                     </HStack>
 
 
