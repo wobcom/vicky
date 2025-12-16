@@ -1,7 +1,7 @@
-use bon::Builder;
 use crate::database::entities::lock::db_impl::DbLock;
 use crate::database::entities::lock::Lock;
 use crate::database::entities::task::db_impl::DbTask;
+use bon::Builder;
 use chrono::naive::serde::ts_seconds;
 use chrono::naive::serde::ts_seconds_option;
 use chrono::{NaiveDateTime, Utc};
@@ -234,15 +234,21 @@ pub mod db_impl {
         pub group: Option<String>,
     }
 
+    pub const STATE_NEEDS_USER_VALIDATION_STR: &str = "NEEDS_USER_VALIDATION";
+    pub const STATE_NEW_STR: &str = "NEW";
+    pub const STATE_RUNNING_STR: &str = "RUNNING";
+    pub const STATE_FINISHED_SUCCESS_STR: &str = "FINISHED::SUCCESS";
+    pub const STATE_FINISHED_ERROR_STR: &str = "FINISHED::ERROR";
+
     impl Display for TaskStatus {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             let str = match self {
-                TaskStatus::NeedsUserValidation => "NEEDS_USER_VALIDATION",
-                TaskStatus::New => "NEW",
-                TaskStatus::Running => "RUNNING",
+                TaskStatus::NeedsUserValidation => STATE_NEEDS_USER_VALIDATION_STR,
+                TaskStatus::New => STATE_NEW_STR,
+                TaskStatus::Running => STATE_RUNNING_STR,
                 TaskStatus::Finished(r) => match r {
-                    TaskResult::Success => "FINISHED::SUCCESS",
-                    TaskResult::Error => "FINISHED::ERROR",
+                    TaskResult::Success => STATE_FINISHED_SUCCESS_STR,
+                    TaskResult::Error => STATE_FINISHED_ERROR_STR,
                 },
             };
             write!(f, "{str}")
@@ -254,11 +260,11 @@ pub mod db_impl {
 
         fn try_from(str: &str) -> Result<Self, Self::Error> {
             match str {
-                "NEEDS_USER_VALIDATION" => Ok(TaskStatus::NeedsUserValidation),
-                "NEW" => Ok(TaskStatus::New),
-                "RUNNING" => Ok(TaskStatus::Running),
-                "FINISHED::SUCCESS" => Ok(TaskStatus::Finished(TaskResult::Success)),
-                "FINISHED::ERROR" => Ok(TaskStatus::Finished(TaskResult::Error)),
+                STATE_NEEDS_USER_VALIDATION_STR => Ok(TaskStatus::NeedsUserValidation),
+                STATE_NEW_STR => Ok(TaskStatus::New),
+                STATE_RUNNING_STR => Ok(TaskStatus::Running),
+                STATE_FINISHED_SUCCESS_STR => Ok(TaskStatus::Finished(TaskResult::Success)),
+                STATE_FINISHED_ERROR_STR => Ok(TaskStatus::Finished(TaskResult::Error)),
                 _ => Err("Could not deserialize to TaskStatus"),
             }
         }
