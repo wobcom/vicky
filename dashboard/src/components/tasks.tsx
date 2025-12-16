@@ -28,11 +28,17 @@ const Tasks = () => {
     const [filter, setFilter] = useState<string | null>(null);
     const [page, setPage] = useState<number>(1);
 
+    const groups = useTaskGroups();
+
     const NUM_PER_PAGE = 10;
 
-    const tasks = useTasks(filter, NUM_PER_PAGE, (page - 1) * NUM_PER_PAGE);
-    const tasksCount = useTasksCount(filter);
+    const tasks = useTasks(filter, null, NUM_PER_PAGE, (page - 1) * NUM_PER_PAGE);
+    const tasksCount = useTasksCount(status, null);
     const task = useTask(taskId);
+
+    useEffect(() => {
+        setPage(1);
+    }, [status, group]);
 
     return (
         <Grid fluid className={s.Grid}>

@@ -1,39 +1,43 @@
 import { useCallback, useEffect, useState } from "react"
 import { ITask, useAPI } from "../services/api"
-import { GlobalEvent, TaskUpdateEvent, useEventSource, useEventSourceJSON } from "./useEventSource";
+import { GlobalEvent, TaskUpdateEvent, useEventSourceJSON } from "./useEventSource";
 
-const useTasksCount = (filter: string | null) => {
+const useTasksCount = (status: string | null, group: string | null) => {
     const api = useAPI();
     const [tasksCount, setTasksCount] = useState<number | null>(null)
-    
+
+    const refreshCount = useCallback(() => {
+        api.getTasksCount({ status, group }).then((r) => setTasksCount(r.count));
+    }, [api, status, group]);
+
     const eventCallback = useCallback((evt: GlobalEvent) => {
         switch (evt.type) {
             case "TaskAdd": {
-                api.getTasksCount(filter).then((r) => setTasksCount(r.count)); 
+                refreshCount();
                 break;  
             }
             default: {
                 break;
             }
         }
-    }, [api])
+    }, [refreshCount])
 
     useEventSourceJSON<GlobalEvent>(`/api/events`, eventCallback)
 
     useEffect(() => {
-        api.getTasksCount(filter).then((r) => setTasksCount(r.count));   
-    }, [filter])
+        refreshCount();
+    }, [refreshCount])
 
     return tasksCount;
 }
 
-const useTasks = (filter: string | null, limit?: number, offset?: number) => {
+const useTasks = (status: string | null, group: string | null, limit?: number, offset?: number) => {
     const api = useAPI();
     const [tasks, setTasks] = useState<ITask[] | null>(null)
-    
-    const fetchTasks = async () => {
-        api.getTasks(filter, limit, offset).then((tasks) => setTasks(tasks)); 
-    }
+
+    const fetchTasks = useCallback(() => {
+        api.getTasks({ status, group, limit, offset }).then((tasks) => setTasks(tasks));
+    }, [api, status, group, limit, offset]);
     
     const eventCallback = useCallback((evt: GlobalEvent) => {
         switch (evt.type) {
@@ -65,13 +69,13 @@ const useTasks = (filter: string | null, limit?: number, offset?: number) => {
                 break;
             }
         }
-    }, [api])
+    }, [api, fetchTasks])
 
     useEventSourceJSON<GlobalEvent>(`/api/events`, eventCallback)
 
     useEffect(() => {
         fetchTasks()
-    }, [filter, limit, offset])
+    }, [fetchTasks])
 
     return tasks;
 }
@@ -94,7 +98,7 @@ const useTask = (id?: string | null) => {
                 break;
             }
         }
-    }, [id])
+    }, [api, id])
 
     useEffect(() => {
         if (!id) {
@@ -102,7 +106,7 @@ const useTask = (id?: string | null) => {
         }
 
         api.getTask(id).then((task) => setTask(task));   
-    }, [id])
+    }, [api, id])
 
     useEventSourceJSON<GlobalEvent>(`/api/events`, eventCallback)
 

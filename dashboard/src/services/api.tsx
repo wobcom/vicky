@@ -1,6 +1,5 @@
-import axios, { Axios } from "axios"
-import { useMemo } from "react"
-import { useAuth } from "react-oidc-context"
+import {useMemo} from "react"
+import {useAuth} from "react-oidc-context"
 
 type ITask = {
     id: string,
@@ -31,95 +30,112 @@ type IWebConfig = {
 
 const BASE_URL = "/api"
 
+type FilterParams = {
+    status?: string | null;
+    group?: string | null;
+    limit?: number;
+    offset?: number;
+}
+
 const useAPI = () => {
 
 
     const auth = useAuth();
 
-    const fetchJSON = async (url: string, init?: RequestInit) => {
-        const authToken = auth.user?.access_token;
+    return useMemo(() => {
+        const fetchJSON = async (url: string, init?: RequestInit) => {
+            const authToken = auth.user?.access_token;
 
-        if(!authToken) {
-            throw Error("Using useAPI without an authenticated user is not possible")
-        }
+            if (!authToken) {
+                throw Error("Using useAPI without an authenticated user is not possible");
+            }
 
-        const response = await fetch(
-            url, 
-            {
+            const response = await fetch(url, {
                 method: init?.method ?? "GET",
                 body: init?.body,
                 headers: {
-                    "Authorization": `Bearer ${authToken}`,
+                    Authorization: `Bearer ${authToken}`,
                     ...init?.headers,
                 },
+            });
+
+            if (!response.ok) {
+                throw Error(`Request to "${response.url}" failed with status ${response.status}`);
             }
-        );
 
-        if (!response.ok) {
-            throw Error(`Request to "${response.url}" failed with status ${response.status}`);
-        }
+            const text = await response.text();
+            if (!text) {
+                return null;
+            }
 
-        const text = await response.text();
-        if (!text) {
-            return null;
-        }
+            return JSON.parse(text);
+        };
 
-        return JSON.parse(text);
-    }
+        const buildTaskParams = ({status, group, limit, offset}: FilterParams) => {
+            const urlParams = new URLSearchParams();
+            if (status) {
+                urlParams.set("status", status);
+            }
+            if (group) {
+                urlParams.set("group", group);
+            }
+            if (limit !== undefined) {
+                urlParams.set("limit", limit.toString());
+            }
+            if (offset !== undefined) {
+                urlParams.set("offset", offset.toString());
+            }
+            return urlParams;
+        };
 
-    const getTasks = (filter: string | null, limit?: number, offset?: number): Promise<ITask[]> => {
-        const urlParams = new URLSearchParams();
-        if (filter) {
-            urlParams.set("status", filter)
-        }
-        if (limit) {
-            urlParams.set("limit", limit.toString())
-        }
-        if (offset) {
-            urlParams.set("offset", offset.toString())
-        }
+        const getTasks = (filter: FilterParams = {}): Promise<ITask[]> => {
+            const urlParams = buildTaskParams(filter);
+            const params = urlParams.toString();
+            const query = params ? `?${params}` : "";
 
-        return fetchJSON(`${BASE_URL}/tasks?${urlParams.toString()}`);
-    }
+            return fetchJSON(`${BASE_URL}/tasks${query}`);
+        };
 
-    const getTasksCount = (filter: string | null): Promise<{count: number}> => {
-        return fetchJSON(`${BASE_URL}/tasks/count${filter ? `?status=${filter}` : ''}`);
-    }
+        const getTasksCount = (filter: FilterParams = {}): Promise<{ count: number }> => {
+            const urlParams = buildTaskParams(filter);
+            const params = urlParams.toString();
+            const query = params ? `?${params}` : "";
+            return fetchJSON(`${BASE_URL}/tasks/count${query}`);
+        };
 
-    const getTask = (id: string): Promise<ITask> => {
-        return fetchJSON(`${BASE_URL}/tasks/${id}`);
-    }
+        const getTask = (id: string): Promise<ITask> => {
+            return fetchJSON(`${BASE_URL}/tasks/${id}`);
+        };
 
-    const confirmTask = (id: string): Promise<ITask | null> => {
-        return fetchJSON(`${BASE_URL}/tasks/${id}/confirm`, {
-            method: "POST",
-        });
-    }
+        const confirmTask = (id: string): Promise<ITask | null> => {
+            return fetchJSON(`${BASE_URL}/tasks/${id}/confirm`, {
+                method: "POST",
+            });
+        };
 
-    const getTaskLogs = (id: string) => {
-        return fetchJSON(`${BASE_URL}/tasks/${id}/logs`);
-    }
+        const getTaskLogs = (id: string) => {
+            return fetchJSON(`${BASE_URL}/tasks/${id}/logs`);
+        };
 
-    const getUser = (): Promise<IUser> => {
-        return fetchJSON(`${BASE_URL}/user`);
-    }
-    
-    
-    return {
-        getTasks,
-        getTasksCount,
-        getTask,
-        confirmTask,
-        getTaskLogs,
-        getUser,
-    }
+        const getUser = (): Promise<IUser> => {
+            return fetchJSON(`${BASE_URL}/user`);
+        };
 
-}
+        return {
+            getTasks,
+            getTasksCount,
+            getTask,
+            confirmTask,
+            getTaskLogs,
+            getUser,
+        };
+    }, [auth.user?.access_token]);
+};
 
 const useUnauthenticatedAPI = () => {
     const fetchJSON = async (url: string) => {
         return fetch(
-            url, 
+            url,
         ).then(x => x.json());
     }
 
@@ -138,4 +154,5 @@ export {
     ITask,
     IUser,
     IWebConfig,
+    FilterParams,
 }
