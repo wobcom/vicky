@@ -140,8 +140,8 @@ async fn try_run_task(cfg: Arc<AppConfig>, task: &Task) -> Result<()> {
 
     let mut child = Command::new("nix")
         .args(args)
-        .env("VICKY_API_URL", &cfg.vicky_external_url)
-        .env("VICKY_MACHINE_TOKEN", &cfg.machine_token)
+        .env("VICKY_URL", &cfg.vicky_external_url)
+        .env("VICKY_TOKEN", &cfg.machine_token)
         .kill_on_drop(true)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
