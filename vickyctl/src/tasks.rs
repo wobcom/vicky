@@ -25,9 +25,15 @@ pub fn show_tasks(tasks_args: &TasksArgs) -> Result<(), Error> {
         humanize::ensure_jless("tasks")?;
     }
 
+    let query: &[(_, _)] = match &tasks_args.group {
+        Some(group) => &[("group", group)],
+        None => &[],
+    };
+
     let client = prepare_client(&tasks_args.ctx)?;
     let request = client
         .get(format!("{}/api/v1/tasks", tasks_args.ctx.vicky_url))
+        .query(query)
         .build()?;
     let response = client.execute(request)?.error_for_status()?;
 

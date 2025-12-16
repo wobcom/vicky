@@ -60,6 +60,9 @@ pub struct TaskArgs {
 pub struct TasksArgs {
     #[command(flatten)]
     pub ctx: AppContext,
+    /// By which task group to filter
+    #[clap(short, long)]
+    pub group: Option<String>,
 }
 
 #[derive(Args, Debug)]
