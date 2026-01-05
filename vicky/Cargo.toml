@@ -30,6 +30,7 @@ diesel_migrations = { version = "2.2.0", features = ["postgres"] }
 chrono = { version= "0.4.39", features=["serde"] }
 delegate = "0.13.5"
 strum = { version = "0.27.2", features = ["derive"] }
+bon = "3.8"
 
 [[bin]]
 name = "vicky"

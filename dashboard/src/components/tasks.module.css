@@ -29,9 +29,19 @@
 
 .TasksPanel {
     position: relative;
-    overflow-x: hidden;
-    overflow-y: visible;
+    overflow: visible; /* because the popover needs some space outside */
     min-height: 340px; /* because the dropdown needs some space */
+}
+
+.HeaderRow {
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.Filters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .Pagination {

@@ -28,6 +28,7 @@ diesel::table! {
         created_at -> Timestamp,
         claimed_at -> Nullable<Timestamp>,
         finished_at -> Nullable<Timestamp>,
+        group -> Nullable<Varchar>,
     }
 }
 

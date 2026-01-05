@@ -30,6 +30,8 @@ pub struct TaskData {
     pub flake_arg: Vec<String>,
     #[clap(long)]
     pub features: Vec<String>,
+    #[clap(short, long)]
+    pub group: Option<String>,
     #[clap(long)]
     pub needs_confirmation: bool,
 }
@@ -58,6 +60,9 @@ pub struct TaskArgs {
 pub struct TasksArgs {
     #[command(flatten)]
     pub ctx: AppContext,
+    /// By which task group to filter
+    #[clap(short, long)]
+    pub group: Option<String>,
 }
 
 #[derive(Args, Debug)]

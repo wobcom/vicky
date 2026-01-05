@@ -1,0 +1,142 @@
+.Wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.Trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    border: 1px solid var(--rs-border-primary);
+    background: var(--rs-bg-well);
+    color: var(--rs-text-primary);
+    cursor: pointer;
+    transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.Trigger:hover {
+    border-color: var(--rs-color-primary);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
+    transform: translateY(-1px);
+}
+
+.TriggerOpen {
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.75);
+}
+
+.TriggerActive {
+    color: var(--rs-color-primary);
+    border-color: var(--rs-color-primary);
+}
+
+.TriggerText {
+    font-size: 0.9rem;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.Popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    background: var(--rs-bg-well);
+    border: 1px solid var(--rs-border-primary);
+    border-radius: 5px;
+    box-shadow: var(--rs-shadow-2);
+    padding: 10px;
+    z-index: 10;
+}
+
+.SearchRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.SearchInput {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 5px;
+    border: 1px solid var(--rs-border-primary);
+    background: var(--rs-input-bg, var(--rs-bg-well));
+    color: var(--rs-text-primary);
+}
+
+.SearchInput:focus {
+    outline: 1px solid var(--rs-color-primary);
+    border-color: var(--rs-color-primary);
+}
+
+.ClearButton {
+    border: none;
+    background: none;
+    color: var(--rs-text-secondary);
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 5px;
+    transition: color 140ms ease, background-color 140ms ease;
+}
+
+.ClearButton:hover {
+    color: var(--rs-color-primary);
+    background: var(--rs-list-hover-bg);
+}
+
+.GroupList {
+    margin-top: 8px;
+    border: 1px solid var(--rs-border-primary);
+    border-radius: 5px;
+    max-height: 220px;
+    overflow-y: auto;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.Option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 9px 10px;
+    border: none;
+    background: transparent;
+    color: var(--rs-text-primary);
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 140ms ease, color 140ms ease;
+}
+
+.Option:hover {
+    background: var(--rs-list-hover-bg);
+}
+
+.OptionActive {
+    background: var(--rs-list-hover-bg);
+    color: var(--rs-color-primary);
+    font-weight: 600;
+}
+
+.OptionLabel {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.EmptyState {
+    padding: 12px;
+    text-align: center;
+    color: var(--rs-text-secondary);
+    font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.HintText {
+    font-size: 0.82rem;
+    color: var(--rs-text-tertiary);
+}

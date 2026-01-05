@@ -1,5 +1,5 @@
 import { EventSourceMessage, fetchEventSource } from "@microsoft/fetch-event-source";
-import { MutableRefObject, Ref, RefCallback, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "react-oidc-context"
 
 export type LogEvent = String;
@@ -19,22 +19,26 @@ const useEventSource = (url: string, callback: (evt: string) => void, allowStart
 
     const auth = useAuth();
 
-    const openEventSource = useRef<Promise<void> | null>(null);
+    const callbackRef = useRef(callback);
+    useEffect(() => {
+        callbackRef.current = callback;
+    }, [callback]);
+
     const onMessage = useCallback((evt: EventSourceMessage) => {
         const x = evt.data;
-        return callback(x);
-    }, [callback])
+        return callbackRef.current(x);
+    }, [])
 
     useEffect(() => {
-        if (!allowStart || openEventSource.current != null || !auth.user) {
+        if (!allowStart || !auth.user) {
             return;
         }
 
         const controller = new AbortController()
 
-        let urlWithParam = params ? `${url}?start=${params.start}` : url
+        const urlWithParam = params ? `${url}?start=${params.start}` : url;
 
-        openEventSource.current = fetchEventSource(
+        fetchEventSource(
             urlWithParam,
             {
                 openWhenHidden: true,
@@ -48,9 +52,8 @@ const useEventSource = (url: string, callback: (evt: string) => void, allowStart
 
         return () => {
             controller.abort()
-            openEventSource.current = null;
         }
-    }, [url, allowStart, auth.user, onMessage])
+    }, [url, allowStart, auth.user, onMessage, params?.start])
     
 }
 
