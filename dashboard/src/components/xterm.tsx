@@ -1,24 +1,25 @@
 import { useWindowSize } from "@uidotdev/usehooks";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Terminal as XTerm } from "xterm"
+import "xterm/css/xterm.css";
 import { FitAddon } from 'xterm-addon-fit';
-import { useEventSource, useLogStream } from "../hooks/useEventSource";
-import { useAPI } from "../services/api";
+import { useLogStream } from "../hooks/useEventSource";
 
 type TerminalProps = {
     taskId: string,
 }
+
+const TERMINAL_FONT_FAMILY =
+    "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
 
 const Terminal = (props: TerminalProps) => {
     const name = useMemo(() => "terminal-" + Math.random().toString(36).substr(2, 8), [])
     const [ref, setRef] = useState<HTMLDivElement | null>(null);
     const fitRef = useRef<FitAddon | null>(null);
     const [termRef, setTermRef] = useState<XTerm | null>(null);
-    const openEventSource = useRef(false);
 
     const {taskId} = props;
 
-    const api = useAPI();
     const size = useWindowSize();
 
     const eventCallback = useCallback((logLine: string) => {
@@ -30,7 +31,7 @@ const Terminal = (props: TerminalProps) => {
     }, [termRef])
 
     useLogStream(`/api/tasks/${taskId}/logs`, eventCallback, termRef != null);
-    
+
     useEffect(() => {
         // Window Resizing takes some more time than JS execution...
         setTimeout(() => fitRef.current?.fit(), 0)
@@ -40,7 +41,9 @@ const Terminal = (props: TerminalProps) => {
         if (ref && !termRef) {
             const iTerm = new XTerm({
                 scrollback: 100000,
-                fontFamily: "Mono"
+                fontFamily: TERMINAL_FONT_FAMILY,
+                letterSpacing: 0,
+                disableStdin: true,
             })
             const fitAddon = new FitAddon();
             iTerm.loadAddon(fitAddon)
@@ -58,7 +61,6 @@ const Terminal = (props: TerminalProps) => {
     return (
         <div style={{width: "100%", height: "calc( 100% - 104px )"}} id={name} ref={(ref) => setRef(ref)}></div>
     )
-
 }
 
 export {
