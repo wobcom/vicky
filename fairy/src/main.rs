@@ -68,10 +68,20 @@ async fn api<BODY: Serialize, RESPONSE: DeserializeOwned>(
     cfg: &AppConfig,
     method: Method,
     endpoint: &str,
-    q: &BODY,
+    q: Option<&BODY>,
 ) -> Result<RESPONSE> {
     let client = Client::new();
-    let req_data = serde_json::to_vec(q).context(error::SerializeErr)?;
+    let req_data = q
+        .map(serde_json::to_vec)
+        .transpose()
+        .context(error::SerializeErr)?
+        .unwrap_or_default();
+    //
+    // let content_type = if req_data.is_empty() {
+    //     "text/plain"
+    // } else {
+    //     "application/json"
+    // };
 
     let request = Request::builder()
         .uri(format!("{}/{}", cfg.vicky_url, endpoint))
@@ -90,10 +100,14 @@ async fn api<BODY: Serialize, RESPONSE: DeserializeOwned>(
         }
     );
 
-    let resp_data = hyper::body::to_bytes(response.into_body())
-        .await
-        .context(error::ReadBodyErr)?;
-    serde_json::from_slice(&resp_data).context(error::DecodeResponseErr)
+    if size_of::<RESPONSE>() == 0 {
+        serde_json::from_str("null").context(error::DecodeResponseErr)
+    } else {
+        let resp_data = hyper::body::to_bytes(response.into_body())
+            .await
+            .context(error::ReadBodyErr)?;
+        serde_json::from_slice(&resp_data).context(error::DecodeResponseErr)
+    }
 }
 
 fn log_sink(cfg: Arc<AppConfig>, task_id: Uuid) -> impl Sink<Vec<String>, Error = Error> + Send {
@@ -104,7 +118,7 @@ fn log_sink(cfg: Arc<AppConfig>, task_id: Uuid) -> impl Sink<Vec<String>, Error 
                 &cfg,
                 Method::POST,
                 &format!("api/v1/tasks/{task_id}/logs"),
-                &serde_json::json!({ "lines": lines }),
+                Some(&serde_json::json!({ "lines": lines })),
             )
             .await;
 
@@ -201,7 +215,7 @@ async fn run_task(cfg: Arc<AppConfig>, task: Task) {
         &cfg,
         Method::POST,
         &format!("api/v1/tasks/{}/finish", task.id),
-        &serde_json::json!({ "result": result }),
+        Some(&serde_json::json!({ "result": result })),
     )
     .await;
 }
@@ -212,7 +226,7 @@ async fn try_claim(cfg: Arc<AppConfig>) -> Result<()> {
         &cfg,
         Method::POST,
         "api/v1/tasks/claim",
-        &serde_json::json!({ "features": cfg.features }),
+        Some(&serde_json::json!({ "features": cfg.features })),
     )
     .await?
     {
