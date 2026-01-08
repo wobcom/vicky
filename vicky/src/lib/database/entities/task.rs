@@ -305,9 +305,16 @@ pub mod db_impl {
         ) -> Result<Vec<Task>, VickyError>;
         fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError>;
         fn get_task(&mut self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
-        fn put_task(&mut self, task: Task) -> Result<(), VickyError>;
-        fn update_task(&mut self, task: &Task) -> Result<(), VickyError>;
-        fn confirm_task(&mut self, task_id: Uuid) -> Result<(), VickyError>;
+        fn put_task(&mut self, task: Task) -> Result<usize, VickyError>;
+        fn register_task_heartbeat(
+            &mut self,
+            task_id: Uuid,
+            heartbeat: NaiveDateTime,
+        ) -> Result<usize, VickyError>;
+        fn timeout_task(&mut self, task_id: Uuid) -> Result<usize, VickyError>;
+        fn perform_timeout_sweep(&mut self) -> Result<(usize, usize), VickyError>;
+        fn update_task(&mut self, task: &Task) -> Result<usize, VickyError>;
+        fn confirm_task(&mut self, task_id: Uuid) -> Result<usize, VickyError>;
         fn has_task(&mut self, task_id: Uuid) -> Result<bool, VickyError>;
     }
 
@@ -399,7 +406,7 @@ pub mod db_impl {
             Ok(Some(task))
         }
 
-        fn put_task(&mut self, task: Task) -> Result<(), VickyError> {
+        fn put_task(&mut self, task: Task) -> Result<usize, VickyError> {
             self.transaction(|conn| {
                 let db_locks: Vec<NewDbLock> = task
                     .locks
@@ -408,18 +415,18 @@ pub mod db_impl {
                     .collect();
                 let db_task: DbTask = task.into();
 
-                diesel::insert_into(tasks::table)
-                    .values(db_task)
+                let rows_updated = diesel::insert_into(tasks::table)
+                    .values(&db_task)
                     .execute(conn)?;
                 diesel::insert_into(locks::table)
-                    .values(db_locks)
+                    .values(&db_locks)
                     .execute(conn)?;
-                Ok(())
+                Ok(rows_updated)
             })
         }
 
-        fn update_task(&mut self, task: &Task) -> Result<(), VickyError> {
-            diesel::update(tasks::table.filter(tasks::id.eq(task.id)))
+        fn update_task(&mut self, task: &Task) -> Result<usize, VickyError> {
+            let affected = diesel::update(tasks::table.filter(tasks::id.eq(task.id)))
                 .set((
                     tasks::status.eq(task.status),
                     tasks::claimed_at.eq(task.claimed_at),
@@ -436,11 +443,11 @@ pub mod db_impl {
                     .execute(self)?;
             }
 
-            Ok(())
+            Ok(affected)
         }
 
-        fn confirm_task(&mut self, task_id: Uuid) -> Result<(), VickyError> {
-            diesel::update(
+        fn confirm_task(&mut self, task_id: Uuid) -> Result<usize, VickyError> {
+            let affected = diesel::update(
                 tasks::table.filter(
                     tasks::id
                         .eq(task_id)
@@ -450,7 +457,7 @@ pub mod db_impl {
             .set(tasks::status.eq(TaskStatus::New))
             .execute(self)?;
 
-            Ok(())
+            Ok(affected)
         }
 
         fn has_task(&mut self, tid: Uuid) -> Result<bool, VickyError> {
