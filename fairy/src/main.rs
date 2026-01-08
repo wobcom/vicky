@@ -1,10 +1,12 @@
 use futures_util::{Sink, StreamExt, TryStreamExt};
 use hyper::{Body, Client, Method, Request};
+use log::{debug, error, info, warn, LevelFilter};
 use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use snafu::{ensure, ResultExt};
+use std::time::Duration;
 use tokio::process::Command;
 use tokio_util::codec::{FramedRead, LinesCodec};
 use uuid::Uuid;
@@ -14,7 +16,7 @@ use which::which;
 
 mod error;
 
-use crate::error::{Error, Result};
+use crate::error::{Error, Result, TaskExitErr, WaitNixErr};
 
 #[derive(Deserialize)]
 pub(crate) struct AppConfig {
@@ -29,20 +31,20 @@ const CODE_NIX_NOT_INSTALLED: i32 = 1;
 
 fn ensure_nix() {
     if which("nix").is_err() {
-        log::error!("\"nix\" binary not found. Please install nix or run on a nix-os host.");
+        error!("\"nix\" binary not found. Please install nix or run on a nix-os host.");
         exit(CODE_NIX_NOT_INSTALLED);
     }
 }
 
 fn main() -> Result<()> {
     env_logger::builder()
-        .filter_level(log::LevelFilter::Debug)
+        .filter_level(LevelFilter::Debug)
         .init();
 
     #[cfg(not(feature = "nixless-test-mode"))]
     ensure_nix();
 
-    log::info!("Fairy starting up.");
+    info!("Fairy starting up.");
 
     // Took from rocket source code and added .split("__") to be able to add keys in nested structures.
     let rocket_config_figment = Figment::from(rocket::Config::default())
@@ -124,11 +126,11 @@ fn log_sink(cfg: Arc<AppConfig>, task_id: Uuid) -> impl Sink<Vec<String>, Error 
 
             match response {
                 Ok(_) => {
-                    log::info!("logged {} line(s) from task", lines.len());
+                    info!("logged {} line(s) from task", lines.len());
                     Ok(())
                 }
                 Err(e) => {
-                    log::error!(
+                    error!(
                         "could not log from task. {} lines were dropped",
                         lines.len()
                     );
@@ -201,7 +203,7 @@ async fn run_task(cfg: Arc<AppConfig>, task: Task) {
     #[cfg(not(feature = "nixless-test-mode"))]
     let result = match try_run_task(cfg.clone(), &task).await {
         Err(e) => {
-            log::info!("task failed: {} {} ({})", task.id, task.display_name, e);
+            info!("task failed: {} {} ({:?})", task.id, task.display_name, e);
             TaskResult::Error
         }
         Ok(_) => TaskResult::Success,
@@ -210,7 +212,7 @@ async fn run_task(cfg: Arc<AppConfig>, task: Task) {
     #[cfg(feature = "nixless-test-mode")]
     let result = TaskResult::Success;
 
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    tokio::time::sleep(Duration::from_secs(1)).await;
     let _ = api::<_, ()>(
         &cfg,
         Method::POST,
@@ -221,7 +223,7 @@ async fn run_task(cfg: Arc<AppConfig>, task: Task) {
 }
 
 async fn try_claim(cfg: Arc<AppConfig>) -> Result<()> {
-    log::debug!("trying to claim task...");
+    debug!("trying to claim task...");
     if let Some(task) = api::<_, Option<Task>>(
         &cfg,
         Method::POST,
@@ -230,12 +232,12 @@ async fn try_claim(cfg: Arc<AppConfig>) -> Result<()> {
     )
     .await?
     {
-        log::info!("task claimed: {} {} 🎉", task.id, task.display_name);
-        log::debug!("{:#?}", task);
+        info!("task claimed: {} {} 🎉", task.id, task.display_name);
+        debug!("{:#?}", task);
 
         tokio::task::spawn(run_task(cfg.clone(), task));
     } else {
-        log::debug!("no work available...");
+        debug!("no work available...");
     }
 
     Ok(())
@@ -243,15 +245,15 @@ async fn try_claim(cfg: Arc<AppConfig>) -> Result<()> {
 
 #[tokio::main(flavor = "current_thread")]
 async fn run(cfg: AppConfig) -> Result<()> {
-    log::info!("config valid, starting communication with vicky");
-    log::info!("waiting for tasks...");
+    info!("config valid, starting communication with vicky");
+    info!("waiting for tasks...");
 
     let cfg = Arc::new(cfg);
     loop {
         if let Err(e) = try_claim(cfg.clone()).await {
-            log::error!("{e}");
-            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            error!("{e}");
+            tokio::time::sleep(Duration::from_secs(5)).await;
         }
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        tokio::time::sleep(Duration::from_secs(1)).await;
     }
 }

@@ -183,7 +183,7 @@ pub async fn tasks_get_logs<'a>(
                         }
                     }
                     Err(err) => {
-                        log::error!("failed to load logs for {id}: {err}");
+                        error!("failed to load logs for {id}: {err}");
                     }
                 }
             },
