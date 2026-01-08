@@ -1,5 +1,6 @@
 use crate::config::OIDCConfigResolved;
 use aws_sdk_s3::{Client, error::SdkError, operation::create_bucket::CreateBucketError};
+use log::{error, info};
 use rocket::figment;
 use snafu::{ResultExt, Snafu};
 
@@ -46,10 +47,10 @@ pub async fn fetch_oidc_config(uri: &str) -> Result<OIDCConfigResolved> {
 }
 
 pub async fn ensure_bucket(client: &Client, bucket: &str) -> Result<()> {
-    log::info!("ensuring log bucket {}", bucket);
+    info!("ensuring log bucket {}", bucket);
     match client.create_bucket().bucket(bucket).send().await {
         Ok(b) => {
-            log::info!(
+            info!(
                 "Bucket \"{}\" was successfully created on the log drain.",
                 b.location().unwrap_or_default()
             );
@@ -61,16 +62,16 @@ pub async fn ensure_bucket(client: &Client, bucket: &str) -> Result<()> {
                     if c.err().is_bucket_already_exists()
                         || c.err().is_bucket_already_owned_by_you() =>
                 {
-                    log::info!("Bucket \"{bucket}\" is already present on the log drain.");
+                    info!("Bucket \"{bucket}\" is already present on the log drain.");
                     return Ok(());
                 }
                 SdkError::DispatchFailure(_) => {
-                    log::error!(
+                    error!(
                         "Failed to communicate with Log Drain / S3 Bucket Connector (is the bucket running and available?): {err:?}"
                     );
                 }
                 _ => {
-                    log::error!(
+                    error!(
                         "Log Drain / S3 Bucket Connector ran into an irrecoverable error: {err:?}"
                     );
                 }

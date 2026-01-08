@@ -1,4 +1,5 @@
 use aws_sdk_s3::config::{BehaviorVersion, Credentials, Region};
+use log::info;
 use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
 use rocket::serde::{Deserialize, Serialize};
@@ -66,7 +67,7 @@ impl S3Config {
     }
 
     pub fn build_config(&self) -> aws_sdk_s3::Config {
-        log::info!("building s3 client");
+        info!("building s3 client");
 
         aws_sdk_s3::Config::builder()
             .behavior_version(BehaviorVersion::v2024_03_28())

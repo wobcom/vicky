@@ -13,6 +13,7 @@ use crate::webconfig::get_web_config;
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use errors::AppError;
 use jwtk::jwk::RemoteJwksVerifier;
+use log::{error, info, trace, warn, LevelFilter};
 use rocket::fairing::AdHoc;
 use rocket::{routes, Build, Rocket};
 use snafu::ResultExt;
@@ -37,21 +38,21 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 fn run_migrations(connection: &mut impl MigrationHarness<diesel::pg::Pg>) -> Result<(), AppError> {
     match connection.run_pending_migrations(MIGRATIONS) {
         Ok(_) => {
-            log::info!("Migrations successfully completed");
+            info!("Migrations successfully completed");
             Ok(())
         }
         Err(e) => {
-            log::error!("Error running migrations {e}");
+            error!("Error running migrations {e}");
             Err(AppError::MigrationError(e.to_string()))
         }
     }
 }
 
 async fn run_rocket_migrations(rocket: Rocket<Build>) -> Result<Rocket<Build>, Rocket<Build>> {
-    log::info!("Running database migrations");
+    info!("Running database migrations");
 
     let Some(db) = Database::get_one(&rocket).await else {
-        log::error!("Failed to get a database connection");
+        error!("Failed to get a database connection");
         return Err(rocket);
     };
 
@@ -64,31 +65,31 @@ async fn run_rocket_migrations(rocket: Rocket<Build>) -> Result<Rocket<Build>, R
 #[tokio::main]
 async fn main() {
     if let Err(e) = inner_main().await {
-        log::error!("Fatal: {e}");
+        error!("Fatal: {e}");
     }
 }
 
 async fn inner_main() -> Result<()> {
     env_logger::builder()
-        .filter_module("vicky", log::LevelFilter::Debug)
+        .filter_module("vicky", LevelFilter::Debug)
         .init();
-    log::info!("vicky starting...");
+    info!("vicky starting...");
 
-    log::info!("loading service config...");
+    info!("loading service config...");
     let rocket_config = build_rocket_config();
     let app_config = rocket_config
         .extract::<Config>()
         .context(startup::ConfigErr)?;
     let build_rocket = rocket::custom(build_rocket_config());
 
-    log::info!(
+    info!(
         "fetching OIDC discovery from {}",
         app_config.oidc_config.well_known_uri
     );
     let oidc_config_resolved =
         startup::fetch_oidc_config(&app_config.oidc_config.well_known_uri).await?;
 
-    log::info!(
+    info!(
         "Fetched OIDC configuration, found jwks_uri={}",
         oidc_config_resolved.jwks_uri
     );
@@ -127,7 +128,8 @@ async fn serve_web_api(
     log_drain: LogDrain,
     tx_global_events: Sender<GlobalEvent>,
 ) -> Result<()> {
-    log::info!("starting web api");
+    info!("starting web api");
+
     build_rocket
         .manage(s3_log_bucket_client)
         .manage(log_drain)
