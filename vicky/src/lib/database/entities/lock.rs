@@ -233,18 +233,18 @@ pub mod db_impl {
         }
 
         fn get_active_locks(&mut self) -> Result<Vec<Lock>, VickyError> {
-            let locks = {
-                let db_locks: Vec<DbLock> = locks::table
-                    .select(locks::all_columns)
-                    .left_join(tasks::table.on(locks::task_id.eq(tasks::id)))
-                    .filter(
-                        locks::poisoned_by_task
-                            .is_not_null()
-                            .or(tasks::status.eq(TaskStatus::Running)),
-                    )
-                    .load(self)?;
-                db_locks.into_iter().map(Lock::from).collect()
-            };
+            let locks = locks::table
+                .select(locks::all_columns)
+                .left_join(tasks::table.on(locks::task_id.eq(tasks::id)))
+                .filter(
+                    locks::poisoned_by_task
+                        .is_not_null()
+                        .or(tasks::status.eq(TaskStatus::Running)),
+                )
+                .load::<DbLock>(self)?
+                .into_iter()
+                .map(Lock::from)
+                .collect();
 
             Ok(locks)
         }
