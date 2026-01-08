@@ -1,5 +1,5 @@
-use crate::database::entities::lock::db_impl::DbLock;
 use crate::database::entities::lock::Lock;
+use crate::database::entities::lock::db_impl::DbLock;
 use crate::database::entities::task::db_impl::DbTask;
 use bon::Builder;
 use chrono::naive::serde::ts_seconds;
@@ -51,17 +51,22 @@ impl FlakeRef {
 pub struct Task {
     #[builder(field)]
     pub locks: Vec<Lock>,
+
     #[builder(field = FlakeRef::empty())]
     pub flake_ref: FlakeRef,
+
     #[builder(field)]
     pub features: Vec<String>,
 
     #[builder(default = Uuid::new_v4())]
     pub id: Uuid,
+
     #[builder(default = "Task")]
     pub display_name: String,
+
     #[builder(default = TaskStatus::New)]
     pub status: TaskStatus,
+
     #[serde(with = "ts_seconds")]
     #[builder(skip = Utc::now().naive_utc())]
     pub created_at: NaiveDateTime,

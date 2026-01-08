@@ -1,5 +1,5 @@
 use log::error;
-use rocket::{http::Status, response::Responder, Request};
+use rocket::{Request, http::Status, response::Responder};
 use thiserror::Error;
 use tokio::sync::broadcast::error::SendError;
 use vickylib::errors::VickyError;

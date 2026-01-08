@@ -5,7 +5,7 @@ use std::time;
 use crate::{errors::VickyError, s3::client::S3Client};
 use log::error;
 use rocket::futures::lock::Mutex;
-use tokio::sync::broadcast::{self, error::TryRecvError, Sender};
+use tokio::sync::broadcast::{self, Sender, error::TryRecvError};
 use uuid::Uuid;
 
 const LOG_BUFFER: usize = 10000;

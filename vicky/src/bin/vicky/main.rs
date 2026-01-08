@@ -1,5 +1,5 @@
-use crate::config::{build_rocket_config, Config, OIDCConfigResolved};
-use crate::events::{get_global_events, GlobalEvent};
+use crate::config::{Config, OIDCConfigResolved, build_rocket_config};
+use crate::events::{GlobalEvent, get_global_events};
 use crate::locks::{
     locks_get_active, locks_get_detailed_poisoned, locks_get_poisoned, locks_unlock,
 };
@@ -10,7 +10,7 @@ use crate::tasks::{
 };
 use crate::user::get_user;
 use crate::webconfig::get_web_config;
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use errors::AppError;
 use jwtk::jwk::RemoteJwksVerifier;
 use rocket::fairing::AdHoc;
