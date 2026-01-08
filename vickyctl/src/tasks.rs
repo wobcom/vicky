@@ -6,8 +6,8 @@ use log::debug;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
-use vickylib::database::entities::task::{FlakeRef, TaskResult, TaskStatus};
 use vickylib::database::entities::Lock;
+use vickylib::database::entities::task::{FlakeRef, TaskResult, TaskStatus};
 use yansi::Paint;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -198,18 +198,18 @@ pub fn confirm_task(id: &Uuid, ctx: &AppContext) -> Result<(), Error> {
         return Ok(());
     }
 
-    if ctx.humanize {
-        if let Ok(task) = serde_json::de::from_str::<Task>(&text) {
-            print_http(
-                Some(status),
-                &format!(
-                    "Task {} confirmed. New status: {:?}",
-                    task.id.to_string().bright_blue(),
-                    task.status
-                ),
-            );
-            return Ok(());
-        }
+    if ctx.humanize
+        && let Ok(task) = serde_json::de::from_str::<Task>(&text)
+    {
+        print_http(
+            Some(status),
+            &format!(
+                "Task {} confirmed. New status: {:?}",
+                task.id.to_string().bright_blue(),
+                task.status
+            ),
+        );
+        return Ok(());
     }
 
     match serde_json::de::from_str::<serde_json::Value>(&text) {

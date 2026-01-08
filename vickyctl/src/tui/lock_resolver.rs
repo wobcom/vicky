@@ -6,7 +6,7 @@ use crate::locks::types::{LockType, PoisonedLock};
 use crate::tui::utils::{centered_rect, get_longest_len};
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
 use crossterm::{event, execute};
 use ratatui::prelude::*;
