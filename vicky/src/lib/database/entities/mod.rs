@@ -37,9 +37,9 @@ impl Database {
             ) -> Result<Vec<Task>, VickyError>;
             pub async fn get_all_tasks(&self) -> Result<Vec<Task>, VickyError>;
             pub async fn get_task(&self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
-            pub async fn put_task(&self, task: Task) -> Result<(), VickyError>;
-            pub async fn update_task(&self, #[as_ref] task: Task) -> Result<(), VickyError>;
-            pub async fn confirm_task(&self, uuid: Uuid) -> Result<(), VickyError>;
+            pub async fn put_task(&self, task: Task) -> Result<usize, VickyError>;
+            pub async fn update_task(&self, #[as_ref] task: Task) -> Result<usize, VickyError>;
+            pub async fn confirm_task(&self, uuid: Uuid) -> Result<usize, VickyError>;
             pub async fn has_task(&self, task_id: Uuid) -> Result<bool, VickyError>;
         }
 
@@ -50,7 +50,7 @@ impl Database {
             pub async fn get_poisoned_locks(&self) -> Result<Vec<Lock>, VickyError>;
             pub async fn get_poisoned_locks_with_tasks(&self) -> Result<Vec<PoisonedLock>, VickyError>;
             pub async fn get_active_locks(&self) -> Result<Vec<Lock>, VickyError>;
-            pub async fn unlock_lock(&self, #[as_ref] lock_uuid: Uuid) -> Result<(), VickyError>;
+            pub async fn unlock_lock(&self, #[as_ref] lock_uuid: Uuid) -> Result<usize, VickyError>;
         }
 
         #[await(false)]

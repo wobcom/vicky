@@ -201,7 +201,8 @@ pub mod db_impl {
         fn get_poisoned_locks(&mut self) -> Result<Vec<Lock>, VickyError>;
         fn get_poisoned_locks_with_tasks(&mut self) -> Result<Vec<PoisonedLock>, VickyError>;
         fn get_active_locks(&mut self) -> Result<Vec<Lock>, VickyError>;
-        fn unlock_lock(&mut self, lock_uuid: &Uuid) -> Result<(), VickyError>;
+        fn poison_all_locks_by_task(&mut self, task_id: Uuid) -> Result<usize, VickyError>;
+        fn unlock_lock(&mut self, lock_uuid: &Uuid) -> Result<usize, VickyError>;
     }
 
     impl LockDatabase for PgConnection {
@@ -248,11 +249,11 @@ pub mod db_impl {
             Ok(locks)
         }
 
-        fn unlock_lock(&mut self, lock_uuid: &Uuid) -> Result<(), VickyError> {
-            update(locks::table.filter(locks::id.eq(lock_uuid)))
+        fn unlock_lock(&mut self, lock_uuid: &Uuid) -> Result<usize, VickyError> {
+            let affected = update(locks::table.filter(locks::id.eq(lock_uuid)))
                 .set(locks::poisoned_by_task.eq(None::<Uuid>))
                 .execute(self)?;
-            Ok(())
+            Ok(affected)
         }
     }
 }
