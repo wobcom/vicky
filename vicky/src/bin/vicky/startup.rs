@@ -1,5 +1,5 @@
 use crate::config::OIDCConfigResolved;
-use aws_sdk_s3::{error::SdkError, operation::create_bucket::CreateBucketError, Client};
+use aws_sdk_s3::{Client, error::SdkError, operation::create_bucket::CreateBucketError};
 use rocket::figment;
 use snafu::{ResultExt, Snafu};
 

@@ -1,6 +1,3 @@
-use std::process::{exit, Stdio};
-use std::sync::Arc;
-
 use futures_util::{Sink, StreamExt, TryStreamExt};
 use hyper::{Body, Client, Method, Request};
 use rocket::figment::providers::{Env, Format, Toml};

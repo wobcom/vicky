@@ -1,7 +1,7 @@
 use jwtk::jwk::RemoteJwksVerifier;
 use log::warn;
 use rocket::http::Status;
-use rocket::{request, Request, State};
+use rocket::{Request, State, request};
 use serde_json::{Map, Value};
 use std::str::FromStr;
 use uuid::Uuid;

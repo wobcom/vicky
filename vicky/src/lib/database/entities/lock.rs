@@ -2,9 +2,9 @@ use diesel::{AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::database::entities::Task;
 use crate::database::entities::lock::db_impl::DbLock;
 use crate::database::entities::task::db_impl::DbTask;
-use crate::database::entities::Task;
 
 #[derive(
     Clone,
@@ -125,14 +125,14 @@ pub mod db_impl {
     use diesel::pg::PgValue;
     use diesel::prelude::*;
     use diesel::serialize::{IsNull, Output, ToSql};
-    use diesel::{update, SqlType};
+    use diesel::{SqlType, update};
     use serde::Serialize;
     use std::io::Write;
     use uuid::Uuid;
 
     use crate::database::entities::lock::{Lock, LockKind, PoisonedLock};
-    use crate::database::entities::task::db_impl::DbTask;
     use crate::database::entities::task::TaskStatus;
+    use crate::database::entities::task::db_impl::DbTask;
     use crate::database::schema::{locks, tasks};
     use crate::errors::VickyError;
 

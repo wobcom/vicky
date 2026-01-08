@@ -2,12 +2,12 @@ pub mod lock;
 pub mod task;
 pub mod user;
 
-use crate::database::entities::lock::db_impl::LockDatabase;
 use crate::database::entities::lock::PoisonedLock;
-use crate::database::entities::task::db_impl::TaskDatabase;
+use crate::database::entities::lock::db_impl::LockDatabase;
 use crate::database::entities::task::TaskStatus;
-use crate::database::entities::user::db_impl::UserDatabase;
+use crate::database::entities::task::db_impl::TaskDatabase;
 use crate::database::entities::user::User;
+use crate::database::entities::user::db_impl::UserDatabase;
 use crate::errors::VickyError;
 use crate::query::FilterParams;
 use delegate::delegate;
