@@ -5,15 +5,18 @@ use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use snafu::{ensure, ResultExt};
+use snafu::{ResultExt, ensure};
+use std::pin::pin;
 use std::process::{Stdio, exit};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::process::Command;
+use tokio::select;
+use tokio::time::interval;
 use tokio_util::codec::{FramedRead, LinesCodec};
 use uuid::Uuid;
-use vickylib::database::entities::task::TaskResult;
 use vickylib::database::entities::Task;
+use vickylib::database::entities::task::{EXPECTED_HEARTBEAT_INTERVAL_SEC, TaskResult};
 use which::which;
 
 mod error;
@@ -152,6 +155,9 @@ async fn try_run_task(cfg: Arc<AppConfig>, task: &Task) -> Result<()> {
 
     args.extend(vec!["-L".into(), task.flake_ref.flake.clone()]);
     args.extend(task.flake_ref.args.clone());
+    let cmd_str = format!("nix {}", args.join(" "));
+
+    info!("Executing `{cmd_str}`");
 
     let mut child = Command::new("nix")
         .args(args)
@@ -181,24 +187,62 @@ async fn try_run_task(cfg: Arc<AppConfig>, task: &Task) -> Result<()> {
                 .ok_or(Error::MissingPipe { which: "stderr" })?,
             LinesCodec::new(),
         ),
+    )
+    .ready_chunks(1024) // TODO switch to try_ready_chunks
+    .map(|v| v.into_iter().collect::<std::result::Result<Vec<_>, _>>())
+    .map_err(|source| Error::StreamLogs { source })
+    .forward(logger);
+
+    let mut sink = pin!(lines);
+    let mut tick = interval(Duration::from_secs(EXPECTED_HEARTBEAT_INTERVAL_SEC as u64));
+
+    let mut force_exit = false;
+    loop {
+        select! {
+            r = &mut sink => break r?,
+            _ = tick.tick() => {
+                if let Err(e) = heartbeat(&cfg, task).await {
+                    warn!("Received failure response when sending heartbeat. (Did I time out?): {e}");
+                    force_exit = true;
+                    break;
+                }
+            },
+        }
+    }
+
+    tick.reset_immediately(); // use as timeout
+
+    if force_exit {
+        select! {
+            _ = child.kill() => return Err(Error::Timeout),
+            _ = tick.tick() => return Err(Error::NixZombie),
+        }
+    }
+
+    let exit_status = select! {
+        result = child.wait() => result.context(WaitNixErr),
+        _ = tick.tick() => Err(Error::NixZombie),
+    }?;
+
+    ensure!(
+        exit_status.success(),
+        TaskExitErr {
+            code: exit_status.code(),
+        }
     );
 
-    lines
-        .ready_chunks(1024) // TODO switch to try_ready_chunks
-        .map(|v| v.into_iter().collect::<std::result::Result<Vec<_>, _>>())
-        .map_err(|source| Error::StreamLogs { source })
-        .forward(logger)
-        .await?;
-    let exit_status = child.wait().await.context(error::WaitNixErr)?;
+    Ok(())
+}
 
-    if exit_status.success() {
-        log::info!("task finished: {} {} 🎉", task.id, task.display_name);
-        Ok(())
-    } else {
-        Err(Error::TaskExit {
-            code: exit_status.code(),
-        })
-    }
+async fn heartbeat(cfg: &AppConfig, task: &Task) -> Result<()> {
+    debug!("Sending heartbeat");
+    api::<(), ()>(
+        cfg,
+        Method::POST,
+        &format!("api/v1/tasks/{}/heartbeat", task.id),
+        None::<&()>,
+    )
+    .await
 }
 
 async fn run_task(cfg: Arc<AppConfig>, task: Task) {
@@ -208,7 +252,10 @@ async fn run_task(cfg: Arc<AppConfig>, task: Task) {
             info!("task failed: {} {} ({:?})", task.id, task.display_name, e);
             TaskResult::Error
         }
-        Ok(_) => TaskResult::Success,
+        Ok(_) => {
+            info!("task finished: {} {} 🎉", task.id, task.display_name);
+            TaskResult::Success
+        }
     };
 
     #[cfg(feature = "nixless-test-mode")]

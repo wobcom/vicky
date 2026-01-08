@@ -6,7 +6,7 @@ use crate::locks::{
 use crate::startup::Result;
 use crate::tasks::{
     tasks_add, tasks_claim, tasks_confirm, tasks_count, tasks_download_logs, tasks_finish,
-    tasks_get, tasks_get_logs, tasks_get_specific, tasks_put_logs,
+    tasks_get, tasks_get_logs, tasks_get_specific, tasks_heartbeat, tasks_put_logs,
 };
 use crate::user::get_user;
 use crate::webconfig::get_web_config;
@@ -15,11 +15,14 @@ use errors::AppError;
 use jwtk::jwk::RemoteJwksVerifier;
 use log::{error, info, LevelFilter};
 use rocket::fairing::AdHoc;
-use rocket::{routes, Build, Rocket};
+use rocket::{Build, Ignite, Rocket, routes};
 use snafu::ResultExt;
+use std::time::Duration;
+use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::Sender;
 use vickylib::database::entities::Database;
+use vickylib::database::entities::task::HEARTBEAT_TIMEOUT_SEC;
 use vickylib::logs::LogDrain;
 use vickylib::s3::client::S3Client;
 
@@ -105,7 +108,7 @@ async fn inner_main() -> Result<()> {
 
     let (tx_global_events, _rx_task_events) = broadcast::channel::<GlobalEvent>(5);
 
-    serve_web_api(
+    let web_server = build_web_api(
         app_config,
         build_rocket,
         oidc_config_resolved,
@@ -116,10 +119,46 @@ async fn inner_main() -> Result<()> {
     )
     .await?;
 
+    let db_pool = Database::pool(&web_server)
+        .expect("Fairings succeeded. Database should exist as state unless not registered at all")
+        .clone();
+
+    let web_task =
+        tokio::task::spawn(async move { web_server.launch().await.context(startup::LaunchErr) });
+
+    let task_timeout_sweeper = tokio::task::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(10));
+
+        loop {
+            interval.tick().await;
+            let Some(db) = Database::get_one_from_pool(&db_pool).await else {
+                warn!(
+                    "Could not perform sweep as no database connection could be retrieved from the pool"
+                );
+                continue;
+            };
+
+            match db.perform_timeout_sweep().await {
+                Ok((0, 0)) => trace!("Performed timeout sweep"),
+                Ok((tasks_affected, locks_affected)) => warn!(
+                    "Timed out {tasks_affected} task(s) and poisoned {locks_affected} lock(s) after not receiving a heartbeat for {HEARTBEAT_TIMEOUT_SEC} seconds"
+                ),
+                Err(e) => warn!(
+                    "Could not perform sweep as the database could not be queried successfully: {e}"
+                ),
+            }
+        }
+    });
+
+    select! {
+        e = web_task => e.map(|_| ()).context(startup::JoinErr)?,
+        _ = task_timeout_sweeper => panic!("Task timeout sweeper shouldn't exit"),
+    }
+
     Ok(())
 }
 
-async fn serve_web_api(
+async fn build_web_api(
     app_config: Config,
     build_rocket: Rocket<Build>,
     oidc_config_resolved: OIDCConfigResolved,
@@ -127,7 +166,7 @@ async fn serve_web_api(
     s3_log_bucket_client: S3Client,
     log_drain: LogDrain,
     tx_global_events: Sender<GlobalEvent>,
-) -> Result<()> {
+) -> Result<Rocket<Ignite>> {
     info!("starting web api");
 
     build_rocket
@@ -153,6 +192,7 @@ async fn serve_web_api(
                 tasks_get,
                 tasks_get_specific,
                 tasks_claim,
+                tasks_heartbeat,
                 tasks_finish,
                 tasks_add,
                 tasks_get_logs,
@@ -170,9 +210,7 @@ async fn serve_web_api(
                 locks_unlock
             ],
         )
-        .launch()
+        .ignite()
         .await
-        .context(startup::LaunchErr)?;
-
-    Ok(())
+        .context(startup::IgniteErr)
 }

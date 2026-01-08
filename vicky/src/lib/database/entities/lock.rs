@@ -80,6 +80,10 @@ impl Lock {
         self.poisoned_by = Some(*by_task);
     }
 
+    pub fn clear_poison(&mut self) {
+        self.poisoned_by = None;
+    }
+
     pub fn name(&self) -> &str {
         self.name.as_str()
     }
@@ -246,6 +250,13 @@ pub mod db_impl {
                 .collect();
 
             Ok(locks)
+        }
+
+        fn poison_all_locks_by_task(&mut self, task_id: Uuid) -> Result<usize, VickyError> {
+            let affected = update(locks::table.filter(locks::task_id.eq(task_id)))
+                .set(locks::poisoned_by_task.eq(task_id))
+                .execute(self)?;
+            Ok(affected)
         }
 
         fn unlock_lock(&mut self, lock_uuid: &Uuid) -> Result<usize, VickyError> {
