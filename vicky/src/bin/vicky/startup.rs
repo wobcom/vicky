@@ -3,6 +3,7 @@ use aws_sdk_s3::{Client, error::SdkError, operation::create_bucket::CreateBucket
 use log::{error, info};
 use rocket::figment;
 use snafu::{ResultExt, Snafu};
+use tokio::task::JoinError;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -30,11 +31,20 @@ pub enum Error {
     #[snafu(display("connection to database failed"))]
     DatabaseConnect,
 
-    #[snafu(display("launch server: {source}"))]
+    #[snafu(display("prepare web server: {source}"))]
+    Ignite {
+        #[snafu(source(from(rocket::Error, Box::new)))]
+        source: Box<rocket::Error>,
+    },
+
+    #[snafu(display("launch web server: {source}"))]
     Launch {
         #[snafu(source(from(rocket::Error, Box::new)))]
         source: Box<rocket::Error>,
     },
+
+    #[snafu(display("failed to join asnyc thread: {source}"))]
+    Join { source: JoinError },
 }
 
 pub async fn fetch_oidc_config(uri: &str) -> Result<OIDCConfigResolved> {
