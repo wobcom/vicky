@@ -347,7 +347,7 @@ pub async fn tasks_confirm(
     if task.status == TaskStatus::New {
         return Err(AppError::TaskAlreadyConfirmed);
     } else if task.status != TaskStatus::NeedsUserValidation {
-        return Err(AppError::HttpError(Status::PreconditionFailed));
+        return Err(AppError::HttpError(Status::Conflict));
     }
 
     task.status = TaskStatus::New;
