@@ -19,7 +19,8 @@ const FILTERS: { label: string; value: string | null; color: string }[] = [
     { label: "Validation", value: "NEEDS_USER_VALIDATION", color: "#f59e0b" },
     { label: "New", value: "NEW", color: "#22d3ee" },
     { label: "Running", value: "RUNNING", color: "#7c3aed" },
-    { label: "Finished", value: "FINISHED::SUCCESS", color: "#22c55e" },
+    { label: "Success", value: "FINISHED::SUCCESS", color: "#22c55e" },
+    { label: "Timeout", value: "FINISHED::TIMEOUT", color: "#ff6200" },
     { label: "Error", value: "FINISHED::ERROR", color: "#ef4444" },
 ];
 
