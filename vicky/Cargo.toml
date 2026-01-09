@@ -16,7 +16,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 async-trait = "0.1"
 # https://github.com/awesomized/crc64fast-nvme/issues/5
-aws-sdk-s3 = "=1.34.0"
+aws-sdk-s3 = "1.119"
 uuid = { version = "1.19", features = ["fast-rng", "v4", "serde"] }
 rocket = { version = "0.5", features = ["json", "secrets", "uuid"] }
 rocket_sync_db_pools = { version = "0.1", features = ["diesel_postgres_pool"] }
