@@ -6,6 +6,9 @@
 
 .List {
     margin-top: 1em;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .List > a:hover div:first-of-type > span {
@@ -20,28 +23,55 @@
     padding: 1em;
     height: 100%;
     width: 100%;
+    box-sizing: border-box;
     overflow-x: hidden;
+    min-height: 0;
+}
+
+.Row {
+    margin-inline: 0;
+    height: 100%;
+}
+
+.TasksColumn {
+    height: 100%;
+    min-height: 0;
 }
 
 .GridElement {
     height: 100%;
+    min-height: 0;
 }
 
 .TasksPanel {
     position: relative;
     overflow: visible; /* because the popover needs some space outside */
     min-height: 340px; /* because the dropdown needs some space */
+    height: 100%;
+}
+
+.TasksPanel :global(.rs-panel-body) {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    box-sizing: border-box;
 }
 
 .HeaderRow {
     flex-wrap: wrap;
     gap: 12px;
+    width: 100%;
 }
 
 .Filters {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+.ListRow {
+    width: 100%;
 }
 
 .Pagination {
