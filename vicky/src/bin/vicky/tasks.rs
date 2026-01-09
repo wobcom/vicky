@@ -302,12 +302,16 @@ pub async fn tasks_finish(
 ) -> Result<Json<Task>, AppError> {
     let mut task: Task = task_or_not_found!(db, id)?;
 
-    log_drain.finish_logs(id).await?;
-
     task.finish(finish.result);
 
     db.update_task(task.clone()).await?;
+
+    let log_error = log_drain.finish_logs(id).await;
+
     global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
+
+    // only handle log error here so that the UI gets the event at the right time
+    log_error?;
 
     Ok(Json(task))
 }

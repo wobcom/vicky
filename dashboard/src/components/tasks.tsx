@@ -45,23 +45,24 @@ const Tasks = () => {
 
     return (
         <Grid fluid className={s.Grid}>
-            <Col xs={task ? "8" : "24"}>
-                <Panel shaded bordered className={s.TasksPanel}>
-                    <HStack justifyContent="space-between" spacing={8} className={s.HeaderRow}>
-                        <h4>Tasks</h4>
-                        <HStack spacing={8} alignItems="center" className={s.Filters}>
-                            <FilterSlider
-                                options={FILTERS}
-                                value={status}
-                                onChange={setStatus}
-                            />
-                            <GroupFilter
-                                groups={groups}
-                                value={group}
-                                onChange={setGroup}
-                            />
+            <Row className={s.Row}>
+                <Col span={{ xs: task ? 8 : 24 }} height="100%" className={s.TasksColumn}>
+                    <Panel shaded className={s.TasksPanel}>
+                        <HStack justifyContent="space-between" spacing={8} alignItems="center" className={s.HeaderRow}>
+                            <Heading>Tasks</Heading>
+                            <HStack spacing={8} alignItems="center" className={s.Filters}>
+                                <FilterSlider
+                                    options={FILTERS}
+                                    value={status}
+                                    onChange={setStatus}
+                                />
+                                <GroupFilter
+                                    groups={groups}
+                                    value={group}
+                                    onChange={setGroup}
+                                />
+                            </HStack>
                         </HStack>
-                    </HStack>
 
 
                     <List bordered className={s.List}>
