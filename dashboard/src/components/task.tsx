@@ -10,6 +10,7 @@ import * as s from "./task.module.css";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { TaskTag } from "./tag";
 import { useAPI } from "../services/api";
+import {FILTERS} from "./tasks";
 
 type TaskProps = {
     task: ITask
@@ -43,7 +44,7 @@ const Task = (props: TaskProps) => {
                     <HStack justifyContent="space-between" alignItems="center" spacing={14} className={s.TitleRow}>
                         <HStack spacing={12} alignItems="center" className={s.TitleLeft}>
                             <h4 className={s.TitleText}>{task.display_name}</h4>
-                            <TaskTag size="lg" task={task}/>
+                            <TaskTag size="lg" task={task} options={FILTERS}/>
                         </HStack>
                     </HStack>
 
