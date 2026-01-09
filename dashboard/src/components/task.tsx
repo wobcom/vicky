@@ -38,8 +38,8 @@ const Task = (props: TaskProps) => {
     }
 
     return (
-        <Panel shaded bordered className={s.Panel}>
-            <HStack alignItems={"flex-start"} justifyContent="space-between">
+        <Panel shaded borderLeft={"1px solid var(--rs-gray-700)"} className={s.Panel}>
+            <HStack alignItems={"flex-start"} justifyContent="space-between" className={s.TaskHeader}>
                 <VStack spacing={10} className={s.TitleStack}>
                     <HStack justifyContent="space-between" alignItems="center" spacing={14} className={s.TitleRow}>
                         <HStack spacing={12} alignItems="center" className={s.TitleLeft}>
