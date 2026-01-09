@@ -14,7 +14,11 @@ import { useTask, useTasks, useTasksCount } from "../hooks/useTasks";
 import { useTaskGroups } from "../hooks/useTaskGroups";
 import { GroupFilter } from "./group-filter";
 
-const FILTERS: { label: string; value: string | null; color: string }[] = [
+
+export type FilterValue = string | null;
+export type FilterOption = { label: string; value: FilterValue; color: string };
+
+export const FILTERS: FilterOption[] = [
     { label: "All", value: null, color: "#6b7280"},
     { label: "Validation", value: "NEEDS_USER_VALIDATION", color: "#f59e0b" },
     { label: "New", value: "NEW", color: "#22d3ee" },
