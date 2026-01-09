@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom"
 import CalendarIcon from '@rsuite/icons/Calendar';
 import TimeIcon from '@rsuite/icons/Time';
 
-import { Col, Grid, HStack, List, Pagination, Panel, Text, VStack } from "rsuite"
+import {Col, Grid, Heading, HStack, List, Pagination, Panel, Row, Text, VStack} from "rsuite"
 import { TaskTag } from "./tag";
 import { Task } from "./task";
 import { FilterSlider } from "./filter-slider";
@@ -70,52 +70,53 @@ const Tasks = () => {
                         </HStack>
 
 
-                    <List bordered className={s.List}>
+                        <List bordered className={s.List} scrollBehavior={"smooth"}>
+                            {
+                                tasks?.map((t) => {
+                                    const isSelected = t.id == task?.id;
+                                    const duration = t.finished_at && t.claimed_at ? Math.max(t.finished_at - t.claimed_at, 0) : null
+
+                                    return (
+                                        <Link key={t.id} to={`/tasks/${t.id}`} style={{textDecoration: "none"}}>
+                                            <List.Item key={t.id} className={isSelected ? s.ListItemSelected : ""}>
+                                                <HStack justifyContent="space-between" spacing={8} alignItems="center" className={s.ListRow}>
+                                                    <VStack spacing={2}>
+                                                        <span>{t.display_name}</span>
+                                                        <HStack spacing={4}>
+                                                            <CalendarIcon></CalendarIcon><Text muted>{dayjs.unix(t.created_at).toNow(true)} ago</Text>
+                                                            {duration != null ? <Fragment>&mdash;</Fragment> : null}
+                                                            {duration != null ? <Fragment><TimeIcon></TimeIcon><Text muted>{duration}s</Text></Fragment> : null}
+                                                        </HStack>
+
+                                                    </VStack>
+                                                    <TaskTag size="sm" task={t} options={FILTERS}></TaskTag>
+                                                </HStack>
+                                            </List.Item>
+                                        </Link>
+                                    )
+                                })
+                            }
+                        </List>
+                        <div className={s.Pagination}>
                         {
-                            tasks?.map((t) => {
-                                const isSelected = t.id == task?.id;
-                                const duration = t.finished_at && t.claimed_at ? Math.max(t.finished_at - t.claimed_at, 0) : null
-
-                                return (
-                                    <Link key={t.id} to={`/tasks/${t.id}`} style={{textDecoration: "none"}}>
-                                        <List.Item key={t.id} className={isSelected ? s.ListItemSelected : ""}>
-                                            <HStack justifyContent="space-between" spacing={8}>
-                                                <VStack spacing={2}>
-                                                    <span>{t.display_name}</span>
-                                                    <HStack spacing={4}>
-                                                        <CalendarIcon></CalendarIcon><Text muted>{dayjs.unix(t.created_at).toNow(true)} ago</Text>
-                                                        {duration != null ? <Fragment>&mdash;</Fragment> : null}
-                                                        {duration != null ? <Fragment><TimeIcon></TimeIcon><Text muted>{duration}s</Text></Fragment> : null}
-                                                    </HStack>
-
-                                                </VStack>
-                                                <TaskTag size="sm" task={t}></TaskTag>
-                                            </HStack>
-                                        </List.Item>
-                                    </Link>
-                                )
-                            })
+                            tasksCount ?
+                            (
+                                <Pagination next prev maxButtons={5} ellipsis boundaryLinks total={tasksCount} limit={NUM_PER_PAGE} activePage={page} onChangePage={(p: number) => setPage(p)} />
+                            )
+                            : null
                         }
-                    </List>
-                    <div className={s.Pagination}>
-                    {
-                        tasksCount ?
-                        (
-                            <Pagination bordered next prev maxButtons={10} total={tasksCount} limit={NUM_PER_PAGE} activePage={page} onChangePage={(p: number) => setPage(p)} />
-                        )
-                        : null
-                    }
-                    </div>
-                </Panel>
+                        </div>
+                    </Panel>
 
-            </Col>
-            {
-                task ? (
-                    <Col xs="16" className={s.GridElement}>
-                        <Task task={task} />
-                    </Col>
-                ) : null
-            }
+                </Col>
+                {
+                    task ? (
+                        <Col span={{ xs: 16 }} className={s.GridElement}>
+                            <Task task={task} />
+                        </Col>
+                    ) : null
+                }
+            </Row>
         </Grid>
     )
 }
