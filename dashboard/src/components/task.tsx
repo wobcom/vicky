@@ -56,6 +56,7 @@ const Task = (props: TaskProps) => {
                         </HStack>
                         {task.locks.length ? (
                             <HStack spacing={8} className={s.LockRow}>
+                                <Text muted>Locks:</Text>
                                 {task.locks.map(lock => {
                                     return (
                                         <Badge
