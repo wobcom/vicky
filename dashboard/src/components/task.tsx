@@ -58,8 +58,13 @@ const Task = (props: TaskProps) => {
                             <HStack spacing={8} className={s.LockRow}>
                                 {task.locks.map(lock => {
                                     return (
-                                        <Badge key={`${task.id}-${lock.name}`} color={lock.type === "WRITE" ? "red" : "green"} content={lock.type === "WRITE" ? "W" : "R"}>
-                                            <Tag size="md" className={s.LockTag}>{lock.name}</Tag>
+                                        <Badge
+                                            key={`${task.id}-${lock.name}`}
+                                            color={lock.type === "WRITE" ? "red" : "green"}
+                                            content={lock.type === "WRITE" ? "W" : "R"}
+                                            offset={[0, 0]}
+                                        >
+                                            <Tag size="md" className={s.LockTag} color={lock.poisoned ? "red" : null}>{lock.name}</Tag>
                                         </Badge>
                                     )
                                 })}
