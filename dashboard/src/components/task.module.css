@@ -3,12 +3,23 @@
     margin-bottom: 1em;
 }
 
+.TaskHeader {
+    width: 100%;
+}
+
 .Panel {
     height: 100%;
 }
 
 .Panel > * {
     height: 100%;
+}
+
+.Panel :global(.rs-panel-body) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    box-sizing: border-box;
 }
 
 .TitleRow {
@@ -40,4 +51,7 @@
     padding: 2px 6px;
     min-width: 4em;
     text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
