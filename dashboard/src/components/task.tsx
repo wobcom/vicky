@@ -10,6 +10,7 @@ import * as s from "./task.module.css";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { TaskTag } from "./tag";
 import { useAPI } from "../services/api";
+import {FILTERS} from "./tasks";
 
 type TaskProps = {
     task: ITask
@@ -37,13 +38,13 @@ const Task = (props: TaskProps) => {
     }
 
     return (
-        <Panel shaded bordered className={s.Panel}>
-            <HStack alignItems={"flex-start"} justifyContent="space-between">
+        <Panel shaded borderLeft={"1px solid var(--rs-gray-700)"} className={s.Panel}>
+            <HStack alignItems={"flex-start"} justifyContent="space-between" className={s.TaskHeader}>
                 <VStack spacing={10} className={s.TitleStack}>
                     <HStack justifyContent="space-between" alignItems="center" spacing={14} className={s.TitleRow}>
                         <HStack spacing={12} alignItems="center" className={s.TitleLeft}>
                             <h4 className={s.TitleText}>{task.display_name}</h4>
-                            <TaskTag size="lg" task={task}/>
+                            <TaskTag size="lg" task={task} options={FILTERS}/>
                         </HStack>
                     </HStack>
 
@@ -55,10 +56,16 @@ const Task = (props: TaskProps) => {
                         </HStack>
                         {task.locks.length ? (
                             <HStack spacing={8} className={s.LockRow}>
+                                <Text muted>Locks:</Text>
                                 {task.locks.map(lock => {
                                     return (
-                                        <Badge key={`${task.id}-${lock.name}`} color={lock.type === "WRITE" ? "red" : "green"} content={lock.type === "WRITE" ? "W" : "R"}>
-                                            <Tag size="md" className={s.LockTag}>{lock.name}</Tag>
+                                        <Badge
+                                            key={`${task.id}-${lock.name}`}
+                                            color={lock.type === "WRITE" ? "red" : "green"}
+                                            content={lock.type === "WRITE" ? "W" : "R"}
+                                            offset={[0, 0]}
+                                        >
+                                            <Tag size="md" className={s.LockTag} color={lock.poisoned ? "red" : null}>{lock.name}</Tag>
                                         </Badge>
                                     )
                                 })}

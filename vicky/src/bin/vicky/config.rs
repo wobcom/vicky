@@ -57,21 +57,18 @@ pub fn build_rocket_config() -> Figment {
 
 impl S3Config {
     pub fn credentials(&self) -> Credentials {
-        Credentials::new(
-            &self.access_key_id,
-            &self.secret_access_key,
-            None,
-            None,
-            "static",
-        )
+        Credentials::builder()
+            .access_key_id(&self.access_key_id)
+            .secret_access_key(&self.secret_access_key)
+            .provider_name("static")
+            .build()
     }
 
     pub fn build_config(&self) -> aws_sdk_s3::Config {
         info!("building s3 client");
 
         aws_sdk_s3::Config::builder()
-            .behavior_version(BehaviorVersion::v2024_03_28())
-            .force_path_style(true)
+            .behavior_version(BehaviorVersion::v2025_08_07())
             .endpoint_url(&self.endpoint)
             .credentials_provider(self.credentials())
             .region(Region::new(self.region.clone()))

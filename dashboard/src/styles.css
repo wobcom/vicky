@@ -1,5 +1,19 @@
 
-
 #root, html, body {
     height: 100%;
+}
+
+html,
+body {
+    overflow-x: hidden;
+}
+
+body {
+    margin: 0;
+}
+
+#root {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }

@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{TimeDelta, Utc};
 use log::{error, warn};
 use rocket::http::Status;
 use rocket::response::stream::{Event, EventStream};
@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::time;
 use tokio::sync::broadcast::{self, error::TryRecvError};
 use uuid::Uuid;
+use vickylib::database::entities::task::HEARTBEAT_TIMEOUT_SEC;
 use vickylib::database::entities::task::{FlakeRef, TaskResult, TaskStatus};
 use vickylib::database::entities::{Database, Lock, Task};
 use vickylib::query::FilterParams;
@@ -262,7 +263,8 @@ pub async fn tasks_claim(
         Some(next_task) => {
             let mut task: Task = task_or_not_found!(db, next_task.id)?;
             task.status = TaskStatus::Running;
-            task.claimed_at = Some(Utc::now().naive_utc());
+            task.claimed_at = Some(Utc::now());
+            task.last_heartbeat = task.claimed_at;
 
             db.update_task(task.clone()).await?;
             global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
@@ -270,6 +272,23 @@ pub async fn tasks_claim(
         }
         None => Ok(Json(None)),
     }
+}
+
+#[post("/<id>/heartbeat")]
+pub async fn tasks_heartbeat(id: Uuid, db: Database, _auth: AnyAuthGuard) -> Result<(), AppError> {
+    let task: Task = task_or_not_found!(db, id)?;
+
+    if task.status != TaskStatus::Running {
+        return Err(AppError::HttpError(Status::Conflict));
+    }
+
+    if db.register_task_heartbeat(id).await? == 0 {
+        return Err(AppError::HttpError(Status::Conflict));
+    }
+
+    // TODO: Consider sending a global event here
+
+    Ok(())
 }
 
 #[post("/<id>/finish", format = "json", data = "<finish>")]
@@ -283,17 +302,16 @@ pub async fn tasks_finish(
 ) -> Result<Json<Task>, AppError> {
     let mut task: Task = task_or_not_found!(db, id)?;
 
-    log_drain.finish_logs(id).await?;
-
-    task.status = TaskStatus::Finished(finish.result);
-    task.finished_at = Some(Utc::now().naive_utc());
-
-    if finish.result == TaskResult::Error {
-        task.locks.iter_mut().for_each(|lock| lock.poison(&task.id));
-    }
+    task.finish(finish.result);
 
     db.update_task(task.clone()).await?;
+
+    let log_error = log_drain.finish_logs(id).await;
+
     global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
+
+    // only handle log error here so that the UI gets the event at the right time
+    log_error?;
 
     Ok(Json(task))
 }
@@ -358,6 +376,29 @@ pub async fn tasks_confirm(
     global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
 
     Ok(Json(task))
+}
+
+// only returns the task back if the task is in a running state and not timed out or finished
+#[allow(unused)]
+async fn maybe_timeout_task(task: Task, db: &mut Database) -> Result<Option<Task>, AppError> {
+    if task.status != TaskStatus::Running {
+        return Ok(None);
+    }
+
+    let Some(last_heartbeat) = task.last_heartbeat else {
+        return Ok(Some(task)); // a running task should always have a last heartbeat from when it was claimed
+    };
+
+    if last_heartbeat + TimeDelta::seconds(HEARTBEAT_TIMEOUT_SEC) <= Utc::now() {
+        let affected = db.timeout_task(task.id).await?;
+        if cfg!(debug_assertions) && affected != 1 {
+            warn!("Expected to timeout 1 task, but timed out {affected}");
+        }
+
+        return Ok(None);
+    }
+
+    Ok(Some(task))
 }
 
 #[cfg(test)]

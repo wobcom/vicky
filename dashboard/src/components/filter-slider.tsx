@@ -1,10 +1,7 @@
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 
 import * as s from "./filter-slider.module.css";
-
-type FilterValue = string | null;
-
-export type FilterOption = { label: string; value: FilterValue; color: string };
+import {FilterOption, FilterValue} from "./tasks";
 
 type DragState = { startX: number; moved: boolean };
 
