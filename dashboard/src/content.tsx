@@ -1,4 +1,3 @@
-import { ReactNode, useContext } from "react"
 import { Navigate, Route, Routes } from "react-router-dom"
 import { Login } from "./components/login"
 import { Menu } from "./components/menu"
@@ -7,11 +6,11 @@ import { UserContext, UserProvider } from "./contexts/user"
 
 import * as s from "./content.module.css"
 import { useAuth } from "react-oidc-context"
+import * as React from "react";
 
 
 const Content = () => {
-
-    const auth = useAuth();
+    const auth = useAuth()
 
     switch (auth.activeNavigator) {
         case "signinSilent":

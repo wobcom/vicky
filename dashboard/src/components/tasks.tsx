@@ -70,7 +70,7 @@ const Tasks = () => {
                         </HStack>
 
 
-                        <List bordered className={s.List} scrollBehavior={"smooth"}>
+                        <List bordered className={s.List}>
                             {
                                 tasks?.map((t) => {
                                     const isSelected = t.id == task?.id;
