@@ -316,10 +316,12 @@ mod tests {
 
     #[test]
     fn schedule_with_poisoned_lock() {
-        let tasks = vec![Task::builder()
-            .display_name("I need to do something")
-            .write_lock("Entire Prod Cluster")
-            .build_expect()];
+        let tasks = vec![
+            Task::builder()
+                .display_name("I need to do something")
+                .write_lock("Entire Prod Cluster")
+                .build_expect(),
+        ];
         let mut poisoned_lock = Lock::write("Entire Prod Cluster");
         poisoned_lock.poison(&Uuid::new_v4());
         let poisoned_locks = vec![poisoned_lock];
@@ -355,10 +357,12 @@ mod tests {
 
     #[test]
     fn schedule_different_tasks_with_poisoned_lock_ro() {
-        let tasks = vec![Task::builder()
-            .display_name("I need to do something")
-            .read_lock("Entire Prod Cluster")
-            .build_expect()];
+        let tasks = vec![
+            Task::builder()
+                .display_name("I need to do something")
+                .read_lock("Entire Prod Cluster")
+                .build_expect(),
+        ];
         let mut poisoned_lock = Lock::read("Entire Prod Cluster");
         poisoned_lock.poison(&Uuid::new_v4());
         let poisoned_locks = vec![poisoned_lock];

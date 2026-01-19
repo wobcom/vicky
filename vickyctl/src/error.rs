@@ -40,7 +40,7 @@ impl From<serde_json::Error> for Error {
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::Dependency(ref prog, ref dependent) => {
+            Error::Dependency(prog, dependent) => {
                 write!(
                     f,
                     "{} {} {} {}",
@@ -54,8 +54,8 @@ impl Display for Error {
             Error::Reqwest(e) => write!(f, "{}", format_http_msg(e.status(), &e.to_string())),
             Error::Io(e) => write!(f, "Filesystem Error: {e}"),
             Error::Json(e) => write!(f, "Parser Error: {e}"),
-            Error::Custom(ref str) => write!(f, "Custom Error: {str}"),
-            Error::ReqwestDetailed(e, ref detail) => {
+            Error::Custom(str) => write!(f, "Custom Error: {str}"),
+            Error::ReqwestDetailed(e, detail) => {
                 write!(f, "{}", format_http_msg(e.status(), detail))
             }
         }
