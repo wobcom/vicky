@@ -37,7 +37,7 @@
       ) { };
       vickyctl = final.vicky.override { crates = [ "vickyctl" ]; };
       vicky-dashboard = final.callPackage (
-        { lib, stdenv, buildNpmPackage}:
+        { lib, stdenv, buildNpmPackage, importNpmLock }:
 
         buildNpmPackage {
           pname = "vicky-dashboard";
@@ -46,7 +46,9 @@
 
           src = ./dashboard;
 
-          npmDepsHash = "sha256-0kBOcPA3Z8h0rAY4POrsEc/s04FQuFRnB+5nIo7rZN0=";
+          npmDeps = importNpmLock {
+            npmRoot = ./dashboard;
+          };
 
           installPhase = ''
             runHook preInstall
@@ -56,6 +58,8 @@
 
             runHook postInstall
           '';
+
+          npmConfigHook = importNpmLock.npmConfigHook;
         }
       ) { };
     };
