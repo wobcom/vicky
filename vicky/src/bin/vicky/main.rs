@@ -13,7 +13,7 @@ use crate::webconfig::get_web_config;
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use errors::AppError;
 use jwtk::jwk::RemoteJwksVerifier;
-use log::{LevelFilter, error, info};
+use log::{LevelFilter, error, trace, warn, info};
 use rocket::fairing::AdHoc;
 use rocket::{Build, Ignite, Rocket, routes};
 use snafu::ResultExt;

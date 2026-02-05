@@ -1,6 +1,6 @@
 use futures_util::{Sink, StreamExt, TryStreamExt};
 use hyper::{Body, Client, Method, Request};
-use log::{LevelFilter, debug, error, info};
+use log::{LevelFilter, debug, error, warn, info};
 use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
 use serde::de::DeserializeOwned;
@@ -21,7 +21,7 @@ use which::which;
 
 mod error;
 
-use crate::error::{Error, Result};
+use crate::error::{Error, Result, TaskExitErr, WaitNixErr};
 
 #[derive(Deserialize)]
 pub(crate) struct AppConfig {

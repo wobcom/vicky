@@ -356,6 +356,13 @@ pub mod db_impl {
         fn get_all_tasks(&mut self) -> Result<Vec<Task>, VickyError>;
         fn get_task(&mut self, task_id: Uuid) -> Result<Option<Task>, VickyError>;
         fn put_task(&mut self, task: Task) -> Result<usize, VickyError>;
+        fn register_task_heartbeat(
+            &mut self,
+            task_id: Uuid,
+            heartbeat: NaiveDateTime,
+        ) -> Result<usize, VickyError>;
+        fn timeout_task(&mut self, task_id: Uuid) -> Result<usize, VickyError>;
+        fn perform_timeout_sweep(&mut self) -> Result<(usize, usize), VickyError>;
         fn update_task(&mut self, task: &Task) -> Result<usize, VickyError>;
         fn confirm_task(&mut self, task_id: Uuid) -> Result<usize, VickyError>;
         fn has_task(&mut self, task_id: Uuid) -> Result<bool, VickyError>;
