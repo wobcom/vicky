@@ -7,6 +7,7 @@ type ITask = {
     locks: {
         type: "WRITE" | "READ"
         name: string,
+        poisoned: string,
     }[]
     status: {
         state: string,

@@ -1,64 +1,44 @@
-import { useMemo } from "react"
-import { Tag } from "rsuite";
-import { ITask } from "../services/api"
+import {useMemo} from "react"
+import {Tag} from "rsuite";
+import {ITask} from "../services/api"
+import {FilterOption} from "./tasks";
 
 type TaskTagProps = {
     task: ITask,
     size: "sm" | "md" | "lg"
+    options: FilterOption[],
 }
+const fallbackTag: FilterOption = { color: "", label: "-", value: "None" }
 
 const TaskTag = (props: TaskTagProps) => {
 
     const {
         task,
-        size
+        size,
+        options,
     } = props;
 
-    const [tagContent, tagColor] = useMemo(() => {
-        const tagContent = task.status.result ?? task.status.state
+    const tag: FilterOption = useMemo(() => {
+        const tagContent = task.status.state + (task.status.result ? "::" + task.status.result : "")
 
-        console.log(task)
-
-        let tagColor = null
-        let tagDisplay = null
-        switch (tagContent) {
-            case "ERROR": {
-                tagColor = "red";
-                tagDisplay = "Error";
-                break;
-            }
-            case "SUCCESS": {
-                tagColor = "green";
-                tagDisplay = "Success";
-                break;
-            }
-            case "RUNNING": {
-                tagColor = "violet";
-                tagDisplay = "Running";
-                break;
-            }
-            case "NEW": {
-                tagColor = "cyan";
-                tagDisplay = "New";
-                break;
-            }
-            case "NEEDSUSERVALIDATION": {
-                tagColor = "orange";
-                tagDisplay = "Validation";
-                break;
-            }
-            default: {
-                tagColor = "";
-                tagDisplay = "-"
-            }
-        }
-
-        return [tagDisplay, tagColor]
+        return options.find(o => o.value == tagContent) ?? fallbackTag
 
     }, [task.status])
 
-    return ( 
-        <Tag style={{width: "6em", textAlign: "center"}} color={tagColor} size={size}>{tagContent}</Tag>
+    return (
+        <Tag
+            style={{
+                width: "6em",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                textAlign: "center",
+            }}
+            color={tag.color}
+            size={size}
+        >
+            {tag.label}
+        </Tag>
     )
 
 }

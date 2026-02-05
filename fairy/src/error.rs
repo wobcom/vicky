@@ -46,4 +46,10 @@ pub enum Error {
 
     #[snafu(display("missing log pipe: {which}"))]
     MissingPipe { which: &'static str },
+
+    #[snafu(display("the runner stopped sending heartbeats, timed out and got killed"))]
+    Timeout,
+
+    #[snafu(display("process was killed but process isn't exiting"))]
+    NixZombie,
 }
