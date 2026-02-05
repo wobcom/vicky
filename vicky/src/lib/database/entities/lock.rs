@@ -201,7 +201,6 @@ pub mod db_impl {
         fn get_poisoned_locks(&mut self) -> Result<Vec<Lock>, VickyError>;
         fn get_poisoned_locks_with_tasks(&mut self) -> Result<Vec<PoisonedLock>, VickyError>;
         fn get_active_locks(&mut self) -> Result<Vec<Lock>, VickyError>;
-        fn poison_all_locks_by_task(&mut self, task_id: Uuid) -> Result<usize, VickyError>;
         fn unlock_lock(&mut self, lock_uuid: &Uuid) -> Result<usize, VickyError>;
     }
 
