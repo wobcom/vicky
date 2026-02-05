@@ -36,6 +36,7 @@
         }
       ) { };
       vickyctl = final.vicky.override { crates = [ "vickyctl" ]; };
+      fairy = final.vicky.override { crates = [ "fairy" ]; };
       vicky-dashboard = final.callPackage (
         { lib, stdenv, buildNpmPackage, importNpmLock }:
 
@@ -70,7 +71,7 @@
     };
   in {
     packages = {
-      inherit (pkgs) vicky vickyctl vicky-dashboard;
+      inherit (pkgs) vicky vickyctl vicky-dashboard fairy;
       default = pkgs.vicky;
     };
     legacyPackages = pkgs;

@@ -2,7 +2,7 @@ use chrono::Utc;
 use log::{error, warn};
 use rocket::http::Status;
 use rocket::response::stream::{Event, EventStream};
-use rocket::{get, post, serde::json::Json, State};
+use rocket::{State, get, post, serde::json::Json};
 use serde::{Deserialize, Serialize};
 use std::time;
 use tokio::sync::broadcast::{self, error::TryRecvError};
@@ -13,6 +13,21 @@ use vickylib::query::FilterParams;
 use vickylib::{
     errors::VickyError, logs::LogDrain, s3::client::S3Client, vicky::scheduler::Scheduler,
 };
+
+macro_rules! task_or {
+    ($db:expr, $id:expr => $( $or:tt )+) => {
+        $db
+            .get_task($id)
+            .await?
+            $( $or )+
+    };
+}
+
+macro_rules! task_or_not_found {
+    ($db:expr, $id:expr) => {
+        task_or!($db, $id => .ok_or(AppError::HttpError(Status::NotFound)))
+    };
+}
 
 use crate::auth::AnyAuthGuard;
 use crate::{
@@ -183,7 +198,7 @@ pub async fn tasks_get_logs<'a>(
                         }
                     }
                     Err(err) => {
-                        log::error!("failed to load logs for {id}: {err}");
+                        error!("failed to load logs for {id}: {err}");
                     }
                 }
             },
@@ -219,10 +234,7 @@ pub async fn tasks_put_logs(
     _machine: MachineGuard,
     log_drain: &State<LogDrain>,
 ) -> Result<Json<()>, AppError> {
-    let task = db
-        .get_task(id)
-        .await?
-        .ok_or(AppError::HttpError(Status::NotFound))?;
+    let task: Task = task_or_not_found!(db, id)?;
 
     match task.status {
         TaskStatus::Running => {
@@ -248,10 +260,7 @@ pub async fn tasks_claim(
 
     match next_task {
         Some(next_task) => {
-            let mut task = db
-                .get_task(next_task.id)
-                .await?
-                .ok_or(AppError::HttpError(Status::NotFound))?;
+            let mut task: Task = task_or_not_found!(db, next_task.id)?;
             task.status = TaskStatus::Running;
             task.claimed_at = Some(Utc::now().naive_utc());
 
@@ -272,10 +281,7 @@ pub async fn tasks_finish(
     _machine: MachineGuard,
     log_drain: &State<LogDrain>,
 ) -> Result<Json<Task>, AppError> {
-    let mut task = db
-        .get_task(id)
-        .await?
-        .ok_or(AppError::HttpError(Status::NotFound))?;
+    let mut task: Task = task_or_not_found!(db, id)?;
 
     log_drain.finish_logs(id).await?;
 
@@ -339,15 +345,12 @@ pub async fn tasks_confirm(
     global_events: &State<broadcast::Sender<GlobalEvent>>,
     _auth: AnyAuthGuard,
 ) -> Result<Json<Task>, AppError> {
-    let mut task = db
-        .get_task(id)
-        .await?
-        .ok_or_else(|| AppError::HttpError(Status::NotFound))?;
+    let mut task = task_or_not_found!(db, id)?;
 
     if task.status == TaskStatus::New {
         return Err(AppError::TaskAlreadyConfirmed);
     } else if task.status != TaskStatus::NeedsUserValidation {
-        return Err(AppError::HttpError(Status::PreconditionFailed));
+        return Err(AppError::HttpError(Status::Conflict));
     }
 
     task.status = TaskStatus::New;

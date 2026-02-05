@@ -1,8 +1,8 @@
 use crate::cli::AppContext;
 use crate::error::Error;
-use reqwest::blocking::Client;
-use reqwest::header::{HeaderMap, AUTHORIZATION};
 use reqwest::StatusCode;
+use reqwest::blocking::Client;
+use reqwest::header::{AUTHORIZATION, HeaderMap};
 use yansi::Paint;
 
 pub fn prepare_client(ctx: &AppContext) -> Result<Client, Error> {

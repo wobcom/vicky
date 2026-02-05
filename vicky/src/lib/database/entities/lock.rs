@@ -2,9 +2,9 @@ use diesel::{AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::database::entities::Task;
 use crate::database::entities::lock::db_impl::DbLock;
 use crate::database::entities::task::db_impl::DbTask;
-use crate::database::entities::Task;
 
 #[derive(
     Clone,
@@ -125,14 +125,14 @@ pub mod db_impl {
     use diesel::pg::PgValue;
     use diesel::prelude::*;
     use diesel::serialize::{IsNull, Output, ToSql};
-    use diesel::{update, SqlType};
+    use diesel::{SqlType, update};
     use serde::Serialize;
     use std::io::Write;
     use uuid::Uuid;
 
     use crate::database::entities::lock::{Lock, LockKind, PoisonedLock};
-    use crate::database::entities::task::db_impl::DbTask;
     use crate::database::entities::task::TaskStatus;
+    use crate::database::entities::task::db_impl::DbTask;
     use crate::database::schema::{locks, tasks};
     use crate::errors::VickyError;
 
@@ -201,7 +201,7 @@ pub mod db_impl {
         fn get_poisoned_locks(&mut self) -> Result<Vec<Lock>, VickyError>;
         fn get_poisoned_locks_with_tasks(&mut self) -> Result<Vec<PoisonedLock>, VickyError>;
         fn get_active_locks(&mut self) -> Result<Vec<Lock>, VickyError>;
-        fn unlock_lock(&mut self, lock_uuid: &Uuid) -> Result<(), VickyError>;
+        fn unlock_lock(&mut self, lock_uuid: &Uuid) -> Result<usize, VickyError>;
     }
 
     impl LockDatabase for PgConnection {
@@ -232,27 +232,27 @@ pub mod db_impl {
         }
 
         fn get_active_locks(&mut self) -> Result<Vec<Lock>, VickyError> {
-            let locks = {
-                let db_locks: Vec<DbLock> = locks::table
-                    .select(locks::all_columns)
-                    .left_join(tasks::table.on(locks::task_id.eq(tasks::id)))
-                    .filter(
-                        locks::poisoned_by_task
-                            .is_not_null()
-                            .or(tasks::status.eq(TaskStatus::Running)),
-                    )
-                    .load(self)?;
-                db_locks.into_iter().map(Lock::from).collect()
-            };
+            let locks = locks::table
+                .select(locks::all_columns)
+                .left_join(tasks::table.on(locks::task_id.eq(tasks::id)))
+                .filter(
+                    locks::poisoned_by_task
+                        .is_not_null()
+                        .or(tasks::status.eq(TaskStatus::Running)),
+                )
+                .load::<DbLock>(self)?
+                .into_iter()
+                .map(Lock::from)
+                .collect();
 
             Ok(locks)
         }
 
-        fn unlock_lock(&mut self, lock_uuid: &Uuid) -> Result<(), VickyError> {
-            update(locks::table.filter(locks::id.eq(lock_uuid)))
+        fn unlock_lock(&mut self, lock_uuid: &Uuid) -> Result<usize, VickyError> {
+            let affected = update(locks::table.filter(locks::id.eq(lock_uuid)))
                 .set(locks::poisoned_by_task.eq(None::<Uuid>))
                 .execute(self)?;
-            Ok(())
+            Ok(affected)
         }
     }
 }

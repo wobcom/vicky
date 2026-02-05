@@ -1,7 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 use uuid::Uuid;
-use vickylib::database::entities::task::TaskResult;
 use vickylib::database::entities::LockKind;
+use vickylib::database::entities::task::TaskResult;
 
 // TODO: Add abouts to arguments
 #[derive(Parser, Debug, Clone)]

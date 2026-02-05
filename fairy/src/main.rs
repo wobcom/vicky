@@ -1,13 +1,14 @@
-use std::process::{exit, Stdio};
-use std::sync::Arc;
-
 use futures_util::{Sink, StreamExt, TryStreamExt};
 use hyper::{Body, Client, Method, Request};
+use log::{debug, error, info, LevelFilter};
 use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use snafu::{ensure, ResultExt};
+use std::process::{Stdio, exit};
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::process::Command;
 use tokio_util::codec::{FramedRead, LinesCodec};
 use uuid::Uuid;
@@ -32,20 +33,20 @@ const CODE_NIX_NOT_INSTALLED: i32 = 1;
 
 fn ensure_nix() {
     if which("nix").is_err() {
-        log::error!("\"nix\" binary not found. Please install nix or run on a nix-os host.");
+        error!("\"nix\" binary not found. Please install nix or run on a nix-os host.");
         exit(CODE_NIX_NOT_INSTALLED);
     }
 }
 
 fn main() -> Result<()> {
     env_logger::builder()
-        .filter_level(log::LevelFilter::Debug)
+        .filter_level(LevelFilter::Debug)
         .init();
 
     #[cfg(not(feature = "nixless-test-mode"))]
     ensure_nix();
 
-    log::info!("Fairy starting up.");
+    info!("Fairy starting up.");
 
     // Took from rocket source code and added .split("__") to be able to add keys in nested structures.
     let rocket_config_figment = Figment::from(rocket::Config::default())
@@ -71,10 +72,20 @@ async fn api<BODY: Serialize, RESPONSE: DeserializeOwned>(
     cfg: &AppConfig,
     method: Method,
     endpoint: &str,
-    q: &BODY,
+    q: Option<&BODY>,
 ) -> Result<RESPONSE> {
     let client = Client::new();
-    let req_data = serde_json::to_vec(q).context(error::SerializeErr)?;
+    let req_data = q
+        .map(serde_json::to_vec)
+        .transpose()
+        .context(error::SerializeErr)?
+        .unwrap_or_default();
+    //
+    // let content_type = if req_data.is_empty() {
+    //     "text/plain"
+    // } else {
+    //     "application/json"
+    // };
 
     let request = Request::builder()
         .uri(format!("{}/{}", cfg.vicky_url, endpoint))
@@ -93,10 +104,14 @@ async fn api<BODY: Serialize, RESPONSE: DeserializeOwned>(
         }
     );
 
-    let resp_data = hyper::body::to_bytes(response.into_body())
-        .await
-        .context(error::ReadBodyErr)?;
-    serde_json::from_slice(&resp_data).context(error::DecodeResponseErr)
+    if size_of::<RESPONSE>() == 0 {
+        serde_json::from_str("null").context(error::DecodeResponseErr)
+    } else {
+        let resp_data = hyper::body::to_bytes(response.into_body())
+            .await
+            .context(error::ReadBodyErr)?;
+        serde_json::from_slice(&resp_data).context(error::DecodeResponseErr)
+    }
 }
 
 fn log_sink(cfg: Arc<AppConfig>, task_id: Uuid) -> impl Sink<Vec<String>, Error = Error> + Send {
@@ -107,17 +122,17 @@ fn log_sink(cfg: Arc<AppConfig>, task_id: Uuid) -> impl Sink<Vec<String>, Error 
                 &cfg,
                 Method::POST,
                 &format!("api/v1/tasks/{task_id}/logs"),
-                &serde_json::json!({ "lines": lines }),
+                Some(&serde_json::json!({ "lines": lines })),
             )
             .await;
 
             match response {
                 Ok(_) => {
-                    log::info!("logged {} line(s) from task", lines.len());
+                    info!("logged {} line(s) from task", lines.len());
                     Ok(())
                 }
                 Err(e) => {
-                    log::error!(
+                    error!(
                         "could not log from task. {} lines were dropped",
                         lines.len()
                     );
@@ -190,7 +205,7 @@ async fn run_task(cfg: Arc<AppConfig>, task: Task) {
     #[cfg(not(feature = "nixless-test-mode"))]
     let result = match try_run_task(cfg.clone(), &task).await {
         Err(e) => {
-            log::info!("task failed: {} {} ({})", task.id, task.display_name, e);
+            info!("task failed: {} {} ({:?})", task.id, task.display_name, e);
             TaskResult::Error
         }
         Ok(_) => TaskResult::Success,
@@ -199,32 +214,32 @@ async fn run_task(cfg: Arc<AppConfig>, task: Task) {
     #[cfg(feature = "nixless-test-mode")]
     let result = TaskResult::Success;
 
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    tokio::time::sleep(Duration::from_secs(1)).await;
     let _ = api::<_, ()>(
         &cfg,
         Method::POST,
         &format!("api/v1/tasks/{}/finish", task.id),
-        &serde_json::json!({ "result": result }),
+        Some(&serde_json::json!({ "result": result })),
     )
     .await;
 }
 
 async fn try_claim(cfg: Arc<AppConfig>) -> Result<()> {
-    log::debug!("trying to claim task...");
+    debug!("trying to claim task...");
     if let Some(task) = api::<_, Option<Task>>(
         &cfg,
         Method::POST,
         "api/v1/tasks/claim",
-        &serde_json::json!({ "features": cfg.features }),
+        Some(&serde_json::json!({ "features": cfg.features })),
     )
     .await?
     {
-        log::info!("task claimed: {} {} 🎉", task.id, task.display_name);
-        log::debug!("{:#?}", task);
+        info!("task claimed: {} {} 🎉", task.id, task.display_name);
+        debug!("{:#?}", task);
 
         tokio::task::spawn(run_task(cfg.clone(), task));
     } else {
-        log::debug!("no work available...");
+        debug!("no work available...");
     }
 
     Ok(())
@@ -232,15 +247,15 @@ async fn try_claim(cfg: Arc<AppConfig>) -> Result<()> {
 
 #[tokio::main(flavor = "current_thread")]
 async fn run(cfg: AppConfig) -> Result<()> {
-    log::info!("config valid, starting communication with vicky");
-    log::info!("waiting for tasks...");
+    info!("config valid, starting communication with vicky");
+    info!("waiting for tasks...");
 
     let cfg = Arc::new(cfg);
     loop {
         if let Err(e) = try_claim(cfg.clone()).await {
-            log::error!("{e}");
-            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            error!("{e}");
+            tokio::time::sleep(Duration::from_secs(5)).await;
         }
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        tokio::time::sleep(Duration::from_secs(1)).await;
     }
 }
