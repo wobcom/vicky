@@ -1,11 +1,13 @@
 use futures_util::{Sink, StreamExt, TryStreamExt};
 use hyper::{Body, Client, Method, Request};
-use log::{debug, error, info, warn, LevelFilter};
+use log::{debug, error, info, LevelFilter};
 use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use snafu::{ensure, ResultExt};
+use std::process::{Stdio, exit};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::process::Command;
 use tokio_util::codec::{FramedRead, LinesCodec};
@@ -16,7 +18,7 @@ use which::which;
 
 mod error;
 
-use crate::error::{Error, Result, TaskExitErr, WaitNixErr};
+use crate::error::{Error, Result};
 
 #[derive(Deserialize)]
 pub(crate) struct AppConfig {
