@@ -21,7 +21,9 @@ use uuid::Uuid;
 pub struct Database(diesel::PgConnection);
 
 impl Database {
-    pub async fn get_one_from_pool(pool: &ConnectionPool<Self, diesel::PgConnection>) -> Option<Self> {
+    pub async fn get_one_from_pool(
+        pool: &ConnectionPool<Self, diesel::PgConnection>,
+    ) -> Option<Self> {
         pool.get().await.map(Self)
     }
 
