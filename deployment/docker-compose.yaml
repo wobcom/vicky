@@ -15,17 +15,40 @@ services:
       POSTGRES_PASSWORD: vicky
       POSTGRES_DB: vicky
 
-  minio:
-    image: minio/minio
+# Kept just for simplicity. Not recommended to be used
+#  minio:
+#    image: minio/minio
+#    ports:
+#      - "9000:9000"
+#      - "9001:9001"
+#    volumes:
+#      - "./data/minio_data:/data"
+#    environment:
+#      MINIO_ROOT_USER: minio
+#      MINIO_ROOT_PASSWORD: aichudiKohr6aithi4ahh3aeng2eL7xo
+#    command: server --console-address ":9001" /data
+
+
+  # use the following inside the docker container for first time setup
+  # garage stats # copy the Node ID
+  # garage layout assign <NodeID> -z zone -c 10GB
+  # garage layout show
+  # garage layout apply --version 1
+  #
+  # then create a bucket using the cli, make a key and assign permissions
+  garage:
+    image: dxflrs/garage:v2.1.0
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "3900:3900" # S3 API
+      - "3901:3901" # Exists too
+      - "3902:3902" # Web API
+      - "3903:3903" # Admin API
+      - "3904:3904" # K2V API
+    restart: unless-stopped
     volumes:
-      - "./data/minio_data:/data"
-    environment:
-      MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: aichudiKohr6aithi4ahh3aeng2eL7xo
-    command: server --console-address ":9001" /data
+      - ./garage.toml:/etc/garage.toml
+      - ./data/garage/meta:/var/lib/garage/meta
+      - ./data/garage/data:/var/lib/garage/data
 
   oidc:
     image: quay.io/keycloak/keycloak:24.0.1

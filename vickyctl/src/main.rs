@@ -11,6 +11,8 @@ use crate::tasks::{claim_task, confirm_task, create_task, finish_task};
 use clap::Parser;
 
 fn main() {
+    _ = dotenvy::dotenv();
+
     let cli = Cli::parse();
 
     let error: Result<_, _> = match cli {
