@@ -49,6 +49,9 @@ pub enum AppError {
 
     #[error("task was already confirmed")]
     TaskAlreadyConfirmed,
+
+    #[error("task was already cancelled")]
+    TaskAlreadyCancelled,
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for AppError {
@@ -60,6 +63,7 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for AppError {
         match self {
             Self::HttpError(x) => x.respond_to(req),
             Self::TaskAlreadyConfirmed => Status::NoContent.respond_to(req),
+            Self::TaskAlreadyCancelled => Status::NoContent.respond_to(req),
             _ => Status::InternalServerError.respond_to(req),
         }
     }

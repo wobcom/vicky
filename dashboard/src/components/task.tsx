@@ -21,7 +21,9 @@ const Task = (props: TaskProps) => {
     const duration = task.finished_at && task.claimed_at ? Math.max(task.finished_at - task.claimed_at, 0) : null
     const api = useAPI();
     const [confirming, setConfirming] = useState(false);
+    const [aborting, setAborting] = useState(false);
     const [confirmError, setConfirmError] = useState<string | null>(null);
+    const [abortError, setAbortError] = useState<string | null>(null);
 
     const needsValidation = task.status.state === "NEEDS_USER_VALIDATION" || task.status.state === "NEEDSUSERVALIDATION";
 
@@ -34,6 +36,18 @@ const Task = (props: TaskProps) => {
             setConfirmError("Could not confirm task");
         } finally {
             setConfirming(false);
+        }
+    }
+
+    const onAbort = async () => {
+        try {
+            setAborting(true);
+            setAbortError(null);
+            await api.abortTask(task.id);
+        } catch (e) {
+            setAbortError("Could not confirm task");
+        } finally {
+            setAborting(false);
         }
     }
 
@@ -81,9 +95,14 @@ const Task = (props: TaskProps) => {
                             : null
                     }
                     {needsValidation ? (
-                        <Button size="sm" appearance="primary" onClick={onConfirm} loading={confirming}>
-                            Confirm
-                        </Button>
+                        <HStack>
+                            <Button size="sm" appearance="primary" color="red" onClick={onAbort} loading={aborting}>
+                                Cancel
+                            </Button>
+                            <Button size="sm" appearance="primary" color="green" onClick={onConfirm} loading={confirming}>
+                                Confirm
+                            </Button>
+                        </HStack>
                     ) : null}
                 </VStack>
             </HStack>
