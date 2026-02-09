@@ -12,6 +12,7 @@ pub struct S3Config {
     secret_access_key: String,
     pub region: String,
     pub log_bucket: String,
+    pub force_path_style: bool,
 }
 
 #[derive(Deserialize)]
@@ -69,6 +70,7 @@ impl S3Config {
 
         aws_sdk_s3::Config::builder()
             .behavior_version(BehaviorVersion::v2025_08_07())
+            .force_path_style(self.force_path_style)
             .endpoint_url(&self.endpoint)
             .credentials_provider(self.credentials())
             .region(Region::new(self.region.clone()))

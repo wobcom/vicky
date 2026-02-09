@@ -13,6 +13,7 @@ access_key_id = "minio"
 secret_access_key = "aichudiKohr6aithi4ahh3aeng2eL7xo"
 region = "us-east-1"
 log_bucket = "vicky-logs"
+force_path_style = false
 
 [default.oidc_config]
 well_known_uri = ""
