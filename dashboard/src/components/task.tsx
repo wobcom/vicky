@@ -23,7 +23,7 @@ const Task = (props: TaskProps) => {
     const [confirming, setConfirming] = useState(false);
     const [confirmError, setConfirmError] = useState<string | null>(null);
 
-    const needsValidation = task.status.state === "NEEDS_USER_VALIDATION" || task.status.state === "NEEDSUSERVALIDATION";
+    const needsValidation = task.status.state === "NEEDS_USER_VALIDATION";
 
     const onConfirm = async () => {
         try {

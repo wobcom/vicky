@@ -15,7 +15,7 @@ pub const HEARTBEAT_TIMEOUT_SEC: i64 = 60;
 pub const EXPECTED_HEARTBEAT_INTERVAL_SEC: i64 = 15;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
-#[serde(tag = "result", rename_all = "UPPERCASE")]
+#[serde(tag = "result", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TaskResult {
     Success,
     Error,
@@ -23,7 +23,7 @@ pub enum TaskResult {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, FromSqlRow, AsExpression)]
-#[serde(tag = "state", rename_all = "UPPERCASE")]
+#[serde(tag = "state", rename_all = "SCREAMING_SNAKE_CASE")]
 #[diesel(sql_type = db_impl::TaskStatusSqlType)]
 pub enum TaskStatus {
     NeedsUserValidation,
