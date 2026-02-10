@@ -239,6 +239,71 @@ pub fn confirm_task(id: &Uuid, ctx: &AppContext) -> Result<(), Error> {
     Ok(())
 }
 
+
+pub fn cancel_task(id: &Uuid, ctx: &AppContext) -> Result<(), Error> {
+    let client = prepare_client(ctx)?;
+    let request = client
+        .post(format!("{}/api/v1/tasks/{id}/cancel", ctx.vicky_url))
+        .build()?;
+
+    let response = client
+        .execute(request)?
+        .error_for_status()
+        .map_err(|e| (e, "Task couldn't be cancelled".to_string()))?;
+
+    let status = response.status();
+    let text = response.text()?;
+
+    if text.trim().is_empty() {
+        if ctx.humanize {
+            print_http(Some(status), &format!("Task {id} cancelled."));
+        } else {
+            println!();
+        }
+        return Ok(());
+    }
+
+    if ctx.humanize
+        && let Ok(task) = serde_json::de::from_str::<Task>(&text)
+    {
+        print_http(
+            Some(status),
+            &format!(
+                "Task {} cancelled. New status: {:?}",
+                task.id.to_string().bright_blue(),
+                task.status
+            ),
+        );
+        return Ok(());
+    }
+
+    match serde_json::de::from_str::<serde_json::Value>(&text) {
+        Ok(pretty_json) => {
+            let pretty_data = serde_json::ser::to_string(&pretty_json)?;
+            if ctx.humanize {
+                print_http(
+                    Some(status),
+                    &format!("Task was cancelled: {}", pretty_data.bright_blue()),
+                );
+            } else {
+                println!("{pretty_data}");
+            }
+        }
+        Err(_) => {
+            if ctx.humanize {
+                print_http(
+                    Some(status),
+                    &format!("Task was cancelled: {}", text.bright_blue()),
+                );
+            } else {
+                println!("{text}");
+            }
+        }
+    };
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::cli::TaskData;

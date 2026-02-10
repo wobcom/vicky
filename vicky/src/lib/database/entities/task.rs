@@ -20,6 +20,7 @@ pub enum TaskResult {
     Success,
     Error,
     Timeout,
+    Cancel,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, FromSqlRow, AsExpression)]
@@ -215,7 +216,7 @@ impl TaskStatus {
             | TaskStatus::New
             | TaskStatus::Running
             | TaskStatus::Finished(TaskResult::Success) => false,
-            TaskStatus::Finished(TaskResult::Error | TaskResult::Timeout) => true,
+            TaskStatus::Finished(TaskResult::Error | TaskResult::Timeout | TaskResult::Cancel ) => true,
         }
     }
 }
@@ -291,6 +292,7 @@ pub mod db_impl {
     pub const STATE_FINISHED_SUCCESS_STR: &str = "FINISHED::SUCCESS";
     pub const STATE_FINISHED_ERROR_STR: &str = "FINISHED::ERROR";
     pub const STATE_FINISHED_TIMEOUT_STR: &str = "FINISHED::TIMEOUT";
+    pub const STATE_FINISHED_CANCEL_STR: &str = "FINISHED::CANCEL";
 
     impl Display for TaskStatus {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -302,6 +304,7 @@ pub mod db_impl {
                     TaskResult::Success => STATE_FINISHED_SUCCESS_STR,
                     TaskResult::Error => STATE_FINISHED_ERROR_STR,
                     TaskResult::Timeout => STATE_FINISHED_TIMEOUT_STR,
+                    TaskResult::Cancel => STATE_FINISHED_CANCEL_STR,
                 },
             };
             write!(f, "{str}")
@@ -319,6 +322,7 @@ pub mod db_impl {
                 STATE_FINISHED_SUCCESS_STR => Ok(TaskStatus::Finished(TaskResult::Success)),
                 STATE_FINISHED_ERROR_STR => Ok(TaskStatus::Finished(TaskResult::Error)),
                 STATE_FINISHED_TIMEOUT_STR => Ok(TaskStatus::Finished(TaskResult::Timeout)),
+                STATE_FINISHED_CANCEL_STR => Ok(TaskStatus::Finished(TaskResult::Cancel)),
                 _ => Err("Could not deserialize to TaskStatus"),
             }
         }

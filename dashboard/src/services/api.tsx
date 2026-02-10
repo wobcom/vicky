@@ -114,6 +114,12 @@ const useAPI = () => {
             });
         };
 
+        const abortTask = (id: string): Promise<ITask | null> => {
+            return fetchJSON(`${BASE_URL}/tasks/${id}/cancel`, {
+                method: "POST",
+            });
+        };
+
         const getTaskLogs = (id: string) => {
             return fetchJSON(`${BASE_URL}/tasks/${id}/logs`);
         };
@@ -126,6 +132,7 @@ const useAPI = () => {
             getTasks,
             getTasksCount,
             getTask,
+            abortTask,
             confirmTask,
             getTaskLogs,
             getUser,

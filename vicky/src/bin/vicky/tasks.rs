@@ -378,6 +378,28 @@ pub async fn tasks_confirm(
     Ok(Json(task))
 }
 
+#[post("/<id>/cancel")]
+pub async fn tasks_cancel(
+    id: Uuid,
+    db: Database,
+    global_events: &State<broadcast::Sender<GlobalEvent>>,
+    _auth: AnyAuthGuard,
+) -> Result<Json<Task>, AppError> {
+    let mut task = task_or_not_found!(db, id)?;
+
+    if task.status == TaskStatus::Finished(TaskResult::Cancel) {
+        return Err(AppError::TaskAlreadyCancelled);
+    } else if task.status != TaskStatus::NeedsUserValidation {
+        return Err(AppError::HttpError(Status::Conflict));
+    }
+
+    task.status = TaskStatus::Finished(TaskResult::Cancel);
+    db.update_task(task.clone()).await?;
+    global_events.send(GlobalEvent::TaskUpdate { uuid: task.id })?;
+
+    Ok(Json(task))
+}
+
 // only returns the task back if the task is in a running state and not timed out or finished
 #[allow(unused)]
 async fn maybe_timeout_task(task: Task, db: &mut Database) -> Result<Option<Task>, AppError> {

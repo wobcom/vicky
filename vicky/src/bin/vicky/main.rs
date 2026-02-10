@@ -6,7 +6,7 @@ use crate::locks::{
 use crate::startup::Result;
 use crate::tasks::{
     tasks_add, tasks_claim, tasks_confirm, tasks_count, tasks_download_logs, tasks_finish,
-    tasks_get, tasks_get_logs, tasks_get_specific, tasks_heartbeat, tasks_put_logs,
+    tasks_get, tasks_get_logs, tasks_get_specific, tasks_heartbeat, tasks_put_logs, tasks_cancel
 };
 use crate::user::get_user;
 use crate::webconfig::get_web_config;
@@ -198,7 +198,8 @@ async fn build_web_api(
                 tasks_get_logs,
                 tasks_put_logs,
                 tasks_download_logs,
-                tasks_confirm
+                tasks_confirm,
+                tasks_cancel
             ],
         )
         .mount(

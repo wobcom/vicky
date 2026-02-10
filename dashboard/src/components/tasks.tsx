@@ -25,6 +25,7 @@ export const FILTERS: FilterOption[] = [
     { label: "Running", value: "RUNNING", color: "#7c3aed" },
     { label: "Success", value: "FINISHED::SUCCESS", color: "#22c55e" },
     { label: "Timeout", value: "FINISHED::TIMEOUT", color: "#ff6200" },
+    { label: "Cancelled", value: "FINISHED::CANCEL", color: "#5f656bff" },
     { label: "Error", value: "FINISHED::ERROR", color: "#ef4444" },
 ];
 

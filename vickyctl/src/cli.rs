@@ -43,6 +43,7 @@ pub enum TaskCommands {
     Claim { features: Vec<String> },
     Finish { id: Uuid, status: TaskResult },
     Confirm { id: Uuid },
+    Cancel { id: Uuid },
 }
 
 #[derive(Args, Debug)]
