@@ -20,8 +20,8 @@ use crate::database::entities::task::db_impl::DbTask;
     FromSqlRow,
     AsExpression,
 )]
-#[serde(rename_all = "UPPERCASE")]
-#[strum(serialize_all = "UPPERCASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 #[diesel(sql_type = db_impl::LockKindSqlType)]
 pub enum LockKind {
     Read,
