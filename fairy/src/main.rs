@@ -1,6 +1,6 @@
 use futures_util::{Sink, StreamExt, TryStreamExt};
 use hyper::{Body, Client, Method, Request};
-use log::{LevelFilter, debug, error, warn, info};
+use log::{LevelFilter, debug, error, info, warn};
 use rocket::figment::providers::{Env, Format, Toml};
 use rocket::figment::{Figment, Profile};
 use serde::de::DeserializeOwned;

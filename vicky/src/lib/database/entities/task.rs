@@ -216,7 +216,9 @@ impl TaskStatus {
             | TaskStatus::New
             | TaskStatus::Running
             | TaskStatus::Finished(TaskResult::Success) => false,
-            TaskStatus::Finished(TaskResult::Error | TaskResult::Timeout | TaskResult::Cancel ) => true,
+            TaskStatus::Finished(TaskResult::Error | TaskResult::Timeout | TaskResult::Cancel) => {
+                true
+            }
         }
     }
 }
