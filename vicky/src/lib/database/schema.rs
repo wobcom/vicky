@@ -16,6 +16,46 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
+    use crate::database::entities::lock::db_impl::LockKindSqlType;
+
+    task_template_locks (id) {
+        id -> Uuid,
+        task_template_id -> Uuid,
+        name_template -> Varchar,
+        #[sql_name = "type"]
+        lock_type -> LockKindSqlType,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+
+    task_template_variables (id) {
+        id -> Uuid,
+        task_template_id -> Uuid,
+        name -> Varchar,
+        default_value -> Nullable<Varchar>,
+        description -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+
+    task_templates (id) {
+        id -> Uuid,
+        name -> Varchar,
+        display_name_template -> Varchar,
+        flake_ref_uri_template -> Varchar,
+        flake_ref_args_template -> Array<Text>,
+        features -> Array<Text>,
+        group -> Nullable<Varchar>,
+        created_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
     use crate::database::entities::task::db_impl::TaskStatusSqlType;
 
     tasks (id) {
@@ -44,4 +84,11 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(locks, tasks, users,);
+diesel::allow_tables_to_appear_in_same_query!(
+    locks,
+    task_template_locks,
+    task_template_variables,
+    task_templates,
+    tasks,
+    users,
+);
