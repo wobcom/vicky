@@ -1,11 +1,13 @@
 pub mod lock;
 pub mod task;
+pub mod task_template;
 pub mod user;
 
 use crate::database::entities::lock::PoisonedLock;
 use crate::database::entities::lock::db_impl::LockDatabase;
 use crate::database::entities::task::TaskStatus;
 use crate::database::entities::task::db_impl::TaskDatabase;
+use crate::database::entities::task_template::db_impl::TaskTemplateDatabase;
 use crate::database::entities::user::User;
 use crate::database::entities::user::db_impl::UserDatabase;
 use crate::errors::VickyError;
@@ -15,6 +17,7 @@ use delegate::delegate;
 pub use lock::{Lock, LockKind};
 use rocket_sync_db_pools::{ConnectionPool, database};
 pub use task::Task;
+pub use task_template::TaskTemplate;
 use uuid::Uuid;
 
 #[database("postgres_db")]
@@ -51,6 +54,15 @@ impl Database {
             pub async fn has_running_task(&self, task_id: Uuid) -> Result<bool, VickyError>;
             pub async fn perform_timeout_sweep(&self) -> Result<(usize, usize), VickyError>;
             pub async fn timeout_task(&self, task_id: Uuid) -> Result<usize, VickyError>;
+        }
+
+        #[await(false)]
+        #[expr(self.run(move |conn| $).await)]
+        #[through(TaskTemplateDatabase)]
+        to conn {
+            pub async fn get_all_task_templates(&self) -> Result<Vec<TaskTemplate>, VickyError>;
+            pub async fn get_task_template(&self, task_template_id: Uuid) -> Result<Option<TaskTemplate>, VickyError>;
+            pub async fn put_task_template(&self, task_template: TaskTemplate) -> Result<usize, VickyError>;
         }
 
         #[await(false)]
