@@ -7,7 +7,7 @@ mod tasks;
 mod tui;
 
 use crate::cli::{Cli, TaskCommands};
-use crate::tasks::{claim_task, confirm_task, cancel_task, create_task, finish_task};
+use crate::tasks::{cancel_task, claim_task, confirm_task, create_task, finish_task};
 use clap::Parser;
 
 fn main() {

@@ -239,7 +239,6 @@ pub fn confirm_task(id: &Uuid, ctx: &AppContext) -> Result<(), Error> {
     Ok(())
 }
 
-
 pub fn cancel_task(id: &Uuid, ctx: &AppContext) -> Result<(), Error> {
     let client = prepare_client(ctx)?;
     let request = client
