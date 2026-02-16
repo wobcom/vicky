@@ -51,6 +51,18 @@ const Task = (props: TaskProps) => {
         }
     }
 
+    const BADGE_LOCK_COLOR = {
+        "WRITE": "red",
+        "READ": "green",
+        "CLEAN": "red",
+    }
+
+    const BADGE_LOCK_CONTENT = {
+        "WRITE": "W",
+        "READ": "R",
+        "CLEAN": "C",
+    }
+
     return (
         <Panel shaded borderLeft={"1px solid var(--rs-gray-700)"} className={s.Panel}>
             <HStack alignItems={"flex-start"} justifyContent="space-between" className={s.TaskHeader}>
@@ -75,8 +87,8 @@ const Task = (props: TaskProps) => {
                                     return (
                                         <Badge
                                             key={`${task.id}-${lock.name}`}
-                                            color={lock.type === "WRITE" ? "red" : "green"}
-                                            content={lock.type === "WRITE" ? "W" : "R"}
+                                            color={BADGE_LOCK_COLOR[lock.type]}
+                                            content={BADGE_LOCK_CONTENT[lock.type]}
                                             offset={[0, 0]}
                                         >
                                             <Tag size="md" className={s.LockTag} color={lock.poisoned ? "red" : null}>{lock.name}</Tag>

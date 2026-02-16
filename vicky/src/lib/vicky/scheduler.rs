@@ -32,11 +32,11 @@ impl<'a> ConstraintMgmt<'a> for Constraints<'a> {
         if !self.contains_key(lock.name()) {
             return true; // lock wasn't used yet
         }
-        let Some(lock) = self.get(lock.name()) else {
-            return false; // block execution if missing lock entry
+        if let Some(existing_lock) = self.get(lock.name()) {
+            return !lock.is_conflicting(existing_lock)
         };
 
-        !lock.is_conflicting(lock)
+        false
     }
 
     fn from_tasks(tasks: &'a [Task]) -> Result<Self::Type, SchedulerError> {
@@ -81,6 +81,13 @@ impl<'a> Scheduler<'a> {
         Ok(s)
     }
 
+    fn is_cleanup_and_conflicts(&self, lock: &Lock) -> bool {
+        // If there is any other lock, we conflict with them and we do not want to be added to the queue.
+        // We cannot use constraints here, because constraints only contains locks with the status running.
+        let other_task_with_same_lock_exists = self.tasks.iter().any(|task| !task.status.is_finished() && task.locks.iter().any(|lock| !lock.kind.is_cleanup() && lock.name() == lock.name()));
+        lock.kind.is_cleanup() && other_task_with_same_lock_exists
+    }
+
     fn is_poisoned(&self, lock: &Lock) -> bool {
         self.poisoned_locks
             .iter()
@@ -90,7 +97,7 @@ impl<'a> Scheduler<'a> {
     fn is_unconstrained(&self, task: &Task) -> bool {
         task.locks
             .iter()
-            .all(|lock| self.constraints.can_get_lock(lock) && !self.is_poisoned(lock))
+            .all(|lock| self.constraints.can_get_lock(lock) && !self.is_poisoned(lock) && !self.is_cleanup_and_conflicts(lock))
     }
 
     fn supports_all_features(&self, task: &Task) -> bool {
@@ -117,7 +124,7 @@ impl<'a> Scheduler<'a> {
 mod tests {
     use uuid::Uuid;
 
-    use crate::database::entities::task::TaskStatus;
+    use crate::database::entities::task::{TaskResult, TaskStatus};
     use crate::database::entities::{Lock, Task};
 
     use super::Scheduler;
@@ -313,6 +320,64 @@ mod tests {
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task(), None)
     }
+
+    #[test]
+    fn scheduler_new_task_cleanup_single() {
+        let tasks = vec![
+            Task::builder()
+                .display_name("Test 1")
+                .status(TaskStatus::New)
+                .clean_lock("foo1")
+                .build_expect(),
+        ];
+
+        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        // Test 1 is currently running and has the write lock
+        assert_eq!(res.get_next_task().unwrap().display_name, "Test 1")
+    }
+
+    #[test]
+    fn scheduler_new_task_cleanup_with_finished() {
+        let tasks = vec![
+            Task::builder()
+                .display_name("Test 5")
+                .status(TaskStatus::Finished(TaskResult::Success))
+                .write_lock("foo1")
+                .build_expect(),
+            Task::builder()
+                .display_name("Test 1")
+                .status(TaskStatus::New)
+                .clean_lock("foo1")
+                .build_expect(),
+        ];
+
+        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        // Test 1 is currently running and has the write lock
+        assert_eq!(res.get_next_task().unwrap().display_name, "Test 1")
+    }
+
+
+        #[test]
+    fn scheduler_new_task_cleanup() {
+        let tasks = vec![
+            Task::builder()
+                .display_name("Test 1")
+                .status(TaskStatus::New)
+                .clean_lock("foo1")
+                .build_expect(),
+            Task::builder()
+                .display_name("Test 2")
+                .status(TaskStatus::New)
+                .read_lock("foo1")
+                .build_expect(),
+        ];
+
+        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        // Test 1 is currently running and has the write lock
+        assert_eq!(res.get_next_task().unwrap().display_name, "Test 2")
+    }
+
+
 
     #[test]
     fn schedule_with_poisoned_lock() {

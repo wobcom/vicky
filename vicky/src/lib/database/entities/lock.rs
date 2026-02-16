@@ -26,11 +26,15 @@ use crate::database::entities::task::db_impl::DbTask;
 pub enum LockKind {
     Read,
     Write,
+    Clean
 }
 
 impl LockKind {
     pub fn is_write(&self) -> bool {
         matches!(self, LockKind::Write)
+    }
+    pub fn is_cleanup(&self) -> bool {
+        matches!(self, LockKind::Clean)
     }
 }
 
@@ -41,6 +45,7 @@ impl TryFrom<&str> for LockKind {
         match value {
             "READ" => Ok(Self::Read),
             "WRITE" => Ok(Self::Write),
+            "CLEAN" => Ok(Self::Clean),
             _ => Err("Unexpected lock type received."),
         }
     }
@@ -62,6 +67,10 @@ impl Lock {
 
     pub fn write<S: Into<String>>(name: S) -> Self {
         Self::new(name, LockKind::Write)
+    }
+
+    pub fn clean<S: Into<String>>(name: S) -> Self {
+        Self::new(name, LockKind::Clean)
     }
 
     pub fn is_conflicting(&self, other: &Lock) -> bool {

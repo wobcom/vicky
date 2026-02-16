@@ -125,6 +125,11 @@ impl<T: task_builder::State> TaskBuilder<T> {
         self
     }
 
+    pub fn clean_lock<S: Into<String>>(mut self, name: S) -> Self {
+        self.locks.push(Lock::clean(name));
+        self
+    }
+
     pub fn locks(mut self, locks: Vec<Lock>) -> Self {
         self.locks = locks;
         self
@@ -217,6 +222,17 @@ impl TaskStatus {
             | TaskStatus::Running
             | TaskStatus::Finished(TaskResult::Success) => false,
             TaskStatus::Finished(TaskResult::Error | TaskResult::Timeout | TaskResult::Cancel) => {
+                true
+            }
+        }
+    }
+
+    pub fn is_finished(&self) -> bool {
+        match self {
+            TaskStatus::NeedsUserValidation
+            | TaskStatus::New
+            | TaskStatus::Running => false,
+            TaskStatus::Finished(_) => {
                 true
             }
         }
