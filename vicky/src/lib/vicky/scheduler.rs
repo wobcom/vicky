@@ -31,7 +31,7 @@ impl<'a> Scheduler<'a> {
         Ok(s)
     }
 
-    fn is_unconstrained(&'a self, task: &Task) -> Option<ConstraintFail<'a>> {
+    fn find_constraint(&'a self, task: &Task) -> Option<ConstraintFail<'a>> {
         task.locks
             .iter()
             .find_map(|lock| self.constraints.try_acquire(lock))
@@ -53,7 +53,7 @@ impl<'a> Scheduler<'a> {
             return ConstraintEvaluation::missing_feature(feature);
         }
 
-        if let Some(constraint) = self.is_unconstrained(task) {
+        if let Some(constraint) = self.find_constraint(task) {
             return ConstraintEvaluation::Constrained(constraint);
         }
 
