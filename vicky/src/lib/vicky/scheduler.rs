@@ -1,65 +1,13 @@
-use std::collections::HashMap;
-
 use crate::database::entities::task::TaskStatus;
+use crate::vicky::constraints::{ConstraintEvaluation, ConstraintFail, Constraints};
 use crate::{
     database::entities::{Lock, Task},
     errors::SchedulerError,
 };
 
-type Constraints<'a> = HashMap<&'a str, &'a Lock>;
-
-trait ConstraintMgmt<'a> {
-    type Type;
-
-    fn insert_lock(&mut self, lock: &'a Lock) -> Result<(), SchedulerError>;
-    fn can_get_lock(&self, lock: &Lock) -> bool;
-    fn from_tasks(tasks: &'a [Task]) -> Result<Self::Type, SchedulerError>;
-}
-
-impl<'a> ConstraintMgmt<'a> for Constraints<'a> {
-    type Type = Constraints<'a>;
-
-    fn insert_lock(&mut self, lock: &'a Lock) -> Result<(), SchedulerError> {
-        if !self.can_get_lock(lock) {
-            return Err(SchedulerError::LockAlreadyOwnedError);
-        }
-        self.insert(lock.name(), lock);
-
-        Ok(())
-    }
-
-    fn can_get_lock(&self, lock: &Lock) -> bool {
-        if !self.contains_key(lock.name()) {
-            return true; // lock wasn't used yet
-        }
-        if let Some(existing_lock) = self.get(lock.name()) {
-            return !lock.is_conflicting(existing_lock)
-        };
-
-        false
-    }
-
-    fn from_tasks(tasks: &'a [Task]) -> Result<Self::Type, SchedulerError> {
-        let mut constraints = Self::new();
-
-        for task in tasks {
-            if task.status != TaskStatus::Running {
-                continue;
-            }
-
-            for lock in &task.locks {
-                constraints.insert_lock(lock)?;
-            }
-        }
-
-        Ok(constraints)
-    }
-}
-
 pub struct Scheduler<'a> {
     constraints: Constraints<'a>,
     tasks: &'a Vec<Task>,
-    poisoned_locks: &'a [Lock],
     machine_features: &'a [String],
 }
 
@@ -69,54 +17,62 @@ impl<'a> Scheduler<'a> {
         poisoned_locks: &'a [Lock],
         machine_features: &'a [String],
     ) -> Result<Self, SchedulerError> {
-        let constraints: Constraints = Constraints::from_tasks(tasks)?;
+        let constraints: Constraints = Constraints::from_tasks(tasks, poisoned_locks)?;
 
         let s = Scheduler {
             constraints,
             tasks,
-            poisoned_locks,
             machine_features,
         };
+
+        #[cfg(test)]
+        s.print_debug_evaluation();
 
         Ok(s)
     }
 
-    fn is_cleanup_and_conflicts(&self, lock: &Lock) -> bool {
-        // If there is any other lock, we conflict with them and we do not want to be added to the queue.
-        // We cannot use constraints here, because constraints only contains locks with the status running.
-        let other_task_with_same_lock_exists = self.tasks.iter().any(|task| !task.status.is_finished() && task.locks.iter().any(|lock| !lock.kind.is_cleanup() && lock.name() == lock.name()));
-        lock.kind.is_cleanup() && other_task_with_same_lock_exists
-    }
-
-    fn is_poisoned(&self, lock: &Lock) -> bool {
-        self.poisoned_locks
-            .iter()
-            .any(|plock| lock.is_conflicting(plock))
-    }
-
-    fn is_unconstrained(&self, task: &Task) -> bool {
+    fn is_unconstrained(&'a self, task: &Task) -> Option<ConstraintFail<'a>> {
         task.locks
             .iter()
-            .all(|lock| self.constraints.can_get_lock(lock) && !self.is_poisoned(lock) && !self.is_cleanup_and_conflicts(lock))
+            .find_map(|lock| self.constraints.try_acquire(lock))
     }
 
-    fn supports_all_features(&self, task: &Task) -> bool {
+    fn find_unsupported_features(&self, task: &Task) -> Option<String> {
         task.features
             .iter()
-            .all(|feat| self.machine_features.contains(feat))
+            .find(|feat| !self.machine_features.contains(feat))
+            .cloned()
     }
 
-    fn should_pick_task(&self, task: &Task) -> bool {
-        task.status == TaskStatus::New
-            && self.supports_all_features(task)
-            && self.is_unconstrained(task)
+    fn evaluate_task_readiness(&'a self, task: &Task) -> ConstraintEvaluation<'a> {
+        if task.status != TaskStatus::New {
+            return ConstraintEvaluation::NotReady;
+        }
+
+        if let Some(feature) = self.find_unsupported_features(task) {
+            return ConstraintEvaluation::missing_feature(feature);
+        }
+
+        if let Some(constraint) = self.is_unconstrained(task) {
+            return ConstraintEvaluation::Constrained(constraint);
+        }
+
+        ConstraintEvaluation::Ready
     }
 
     pub fn get_next_task(self) -> Option<Task> {
         self.tasks
             .iter()
-            .find(|task| self.should_pick_task(task))
+            .find(|task| self.evaluate_task_readiness(task).is_ready())
             .cloned()
+    }
+
+    #[allow(unused)]
+    pub fn print_debug_evaluation(&self) {
+        for task in self.tasks {
+            let eval = self.evaluate_task_readiness(task);
+            println!("Readiness of {} ({}): {eval:?}", task.id, task.display_name);
+        }
     }
 }
 
@@ -124,10 +80,9 @@ impl<'a> Scheduler<'a> {
 mod tests {
     use uuid::Uuid;
 
+    use super::Scheduler;
     use crate::database::entities::task::{TaskResult, TaskStatus};
     use crate::database::entities::{Lock, Task};
-
-    use super::Scheduler;
 
     #[test]
     fn scheduler_creation_no_constraints() {
@@ -179,6 +134,31 @@ mod tests {
         ];
 
         Scheduler::new(&tasks, &[], &[]).unwrap();
+    }
+
+    #[test]
+    fn scheduler_creation_read_and_cleanup_constraints_is_order_independent() {
+        let mut tasks_read_then_clean = vec![
+            Task::builder()
+                .display_name("Read lock")
+                .status(TaskStatus::Running)
+                .read_lock("shared")
+                .build_expect(),
+            Task::builder()
+                .display_name("Cleanup lock")
+                .status(TaskStatus::New)
+                .clean_lock("shared")
+                .build_expect(),
+        ];
+
+        Scheduler::new(&tasks_read_then_clean, &[], &[])
+            .expect("read->cleanup lock order must not fail scheduler creation");
+
+        tasks_read_then_clean.reverse();
+        let tasks_clean_then_read = tasks_read_then_clean;
+
+        Scheduler::new(&tasks_clean_then_read, &[], &[])
+            .expect("cleanup->read lock order must not fail scheduler creation");
     }
 
     #[test]
@@ -356,8 +336,32 @@ mod tests {
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 1")
     }
 
+    #[test]
+    fn scheduler_cleanup_waits_for_running_task_using_same_lock() {
+        let tasks = vec![
+            Task::builder()
+                .display_name("Im doing something")
+                .status(TaskStatus::Running)
+                .read_lock("foo1")
+                .build_expect(),
+            Task::builder()
+                .display_name("Cleanup after")
+                .status(TaskStatus::New)
+                .clean_lock("foo1")
+                .build_expect(),
+        ];
 
-        #[test]
+        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        let eval = res.evaluate_task_readiness(&res.tasks[1]);
+
+        assert!(
+            !eval.is_ready(),
+            "Expected cleanup to wait while same lock is currently in use. Got {eval:?}"
+        );
+        assert_eq!(res.get_next_task(), None);
+    }
+
+    #[test]
     fn scheduler_new_task_cleanup() {
         let tasks = vec![
             Task::builder()
@@ -373,11 +377,124 @@ mod tests {
         ];
 
         let res = Scheduler::new(&tasks, &[], &[]).unwrap();
-        // Test 1 is currently running and has the write lock
+        let eval = res.evaluate_task_readiness(&res.tasks[0]);
+        assert!(
+            eval.is_passive_collision(),
+            "Expected evaluation to actively collide. But received {eval:?}"
+        );
+        let eval = res.evaluate_task_readiness(&res.tasks[1]);
+        assert!(
+            eval.is_ready(),
+            "Expected evaluation to succeed. But received {eval:?}"
+        );
+
+        // Run tasks before cleanup
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 2")
     }
 
+    #[test]
+    fn scheduler_new_task_cleanup_unrelated_pending_lock() {
+        let tasks = vec![
+            Task::builder()
+                .display_name("Cleanup lock A")
+                .status(TaskStatus::New)
+                .clean_lock("lock_a")
+                .build_expect(),
+            Task::builder()
+                .display_name("Pending lock B")
+                .status(TaskStatus::New)
+                .read_lock("lock_b")
+                .build_expect(),
+        ];
 
+        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+
+        assert_eq!(res.get_next_task().unwrap().display_name, "Cleanup lock A")
+    }
+
+    #[test]
+    fn scheduler_needs_validation_locks_block_conflicts_only() {
+        let tasks = vec![
+            Task::builder()
+                .display_name("Task A")
+                .status(TaskStatus::NeedsUserValidation)
+                .write_lock("lock_a")
+                .read_lock("lock_b")
+                .build_expect(),
+            Task::builder()
+                .display_name("Task A2")
+                .status(TaskStatus::New)
+                .read_lock("lock_a")
+                .build_expect(),
+            Task::builder()
+                .display_name("Task B")
+                .status(TaskStatus::New)
+                .read_lock("lock_b")
+                .build_expect(),
+        ];
+
+        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+
+        assert_eq!(res.get_next_task().unwrap().display_name, "Task B");
+    }
+
+    #[test]
+    fn scheduler_needs_validation_keeps_strongest_lock_when_names_collide() {
+        let tasks = vec![
+            Task::builder()
+                .display_name("Validation writer")
+                .status(TaskStatus::NeedsUserValidation)
+                .write_lock("shared_lock")
+                .build_expect(),
+            Task::builder()
+                .display_name("Validation reader")
+                .status(TaskStatus::NeedsUserValidation)
+                .read_lock("shared_lock")
+                .build_expect(),
+            Task::builder()
+                .display_name("New reader")
+                .status(TaskStatus::New)
+                .read_lock("shared_lock")
+                .build_expect(),
+        ];
+
+        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        let eval = res.evaluate_task_readiness(&res.tasks[2]);
+        assert!(
+            eval.is_passive_collision(),
+            "Expected passive collision from validation writer, got {eval:?}"
+        );
+        assert_eq!(res.get_next_task(), None);
+    }
+
+    #[test]
+    fn scheduler_cleanup_waits_for_non_cleanup_even_with_later_cleanup() {
+        let tasks = vec![
+            Task::builder()
+                .display_name("Cleanup 1")
+                .status(TaskStatus::New)
+                .clean_lock("shared_lock")
+                .build_expect(),
+            Task::builder()
+                .display_name("Reader")
+                .status(TaskStatus::New)
+                .read_lock("shared_lock")
+                .build_expect(),
+            Task::builder()
+                .display_name("Cleanup 2")
+                .status(TaskStatus::New)
+                .clean_lock("shared_lock")
+                .build_expect(),
+        ];
+
+        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        let eval = res.evaluate_task_readiness(&res.tasks[0]);
+        assert!(
+            eval.is_passive_collision(),
+            "Expected cleanup to wait for pending non-clean lock, got {eval:?}"
+        );
+        assert_eq!(res.get_next_task().unwrap().display_name, "Reader");
+    }
 
     #[test]
     fn schedule_with_poisoned_lock() {

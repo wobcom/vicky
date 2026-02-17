@@ -1,3 +1,14 @@
+//! The (presumably) intended locking/scheduling behavior:
+//!
+//! - Task that needs confirmation: locks can't be acquired.
+//!   - (Task A with Write Lock A and Read Lock B needs confirmation, then Task A2 in Validation with Read Lock A can't be scheduled, Task B with Read Lock B can be scheduled)
+//!   - (Task A with Read Lock A, then Task A2 in Validation with Read Lock A can be scheduled)
+//! - Task in validation: locks can be freely acquired as long as they're not locked by a running task, or they are poisoned locks (by same name).
+//! - Task is running: used locks are blocked from acquiring.
+//! - Task failed: locks are poisoned until manually cleared.
+//! - Task succeeded: locks are free again.
+//! - Tasks are scheduled in queue order where FI is also FO
+
 use diesel::{AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -30,10 +41,11 @@ pub enum LockKind {
 }
 
 impl LockKind {
-    pub fn is_write(&self) -> bool {
+    pub const fn is_write(&self) -> bool {
         matches!(self, LockKind::Write)
     }
-    pub fn is_cleanup(&self) -> bool {
+
+    pub const fn is_cleanup(&self) -> bool {
         matches!(self, LockKind::Clean)
     }
 }
@@ -85,19 +97,19 @@ impl Lock {
         self.kind.is_write() || other.kind.is_write()
     }
 
-    pub fn poison(&mut self, by_task: &Uuid) {
+    pub const fn poison(&mut self, by_task: &Uuid) {
         self.poisoned_by = Some(*by_task);
     }
 
-    pub fn clear_poison(&mut self) {
+    pub const fn clear_poison(&mut self) {
         self.poisoned_by = None;
     }
 
-    pub fn name(&self) -> &str {
+    pub const fn name(&self) -> &str {
         self.name.as_str()
     }
 
-    pub fn is_poisoned(&self) -> bool {
+    pub const fn is_poisoned(&self) -> bool {
         self.poisoned_by.is_some()
     }
 
