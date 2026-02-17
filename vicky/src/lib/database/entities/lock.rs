@@ -26,7 +26,7 @@ use crate::database::entities::task::db_impl::DbTask;
 pub enum LockKind {
     Read,
     Write,
-    Clean
+    Clean,
 }
 
 impl LockKind {
