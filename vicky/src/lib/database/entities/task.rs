@@ -106,6 +106,18 @@ impl Task {
     pub fn clear_poisoned_locks(&mut self) {
         self.locks.iter_mut().for_each(|lock| lock.clear_poison());
     }
+
+    pub fn is_running(&self) -> bool {
+        self.status == TaskStatus::Running
+    }
+
+    pub fn is_waiting_confirmation(&self) -> bool {
+        self.status.is_waiting_confirmation()
+    }
+
+    pub fn is_new(&self) -> bool {
+        self.status == TaskStatus::New
+    }
 }
 
 impl AsRef<Task> for Task {
@@ -122,6 +134,11 @@ impl<T: task_builder::State> TaskBuilder<T> {
 
     pub fn write_lock<S: Into<String>>(mut self, name: S) -> Self {
         self.locks.push(Lock::write(name));
+        self
+    }
+
+    pub fn clean_lock<S: Into<String>>(mut self, name: S) -> Self {
+        self.locks.push(Lock::clean(name));
         self
     }
 
@@ -210,7 +227,8 @@ impl From<(DbTask, Vec<DbLock>)> for Task {
 }
 
 impl TaskStatus {
-    pub fn is_failed(&self) -> bool {
+    pub fn is_failed(self) -> bool {
+        // explicitly state all variants so that rust makes us add new ones
         match self {
             TaskStatus::NeedsUserValidation
             | TaskStatus::New
@@ -220,6 +238,18 @@ impl TaskStatus {
                 true
             }
         }
+    }
+
+    pub fn is_finished(self) -> bool {
+        matches!(self, TaskStatus::Finished(_))
+    }
+
+    pub fn is_pending(self) -> bool {
+        !self.is_finished()
+    }
+
+    pub fn is_waiting_confirmation(self) -> bool {
+        matches!(self, TaskStatus::NeedsUserValidation)
     }
 }
 

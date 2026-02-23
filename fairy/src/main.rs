@@ -147,10 +147,7 @@ fn log_sink(cfg: Arc<AppConfig>, task_id: Uuid) -> impl Sink<Vec<String>, Error 
 }
 
 async fn try_run_task(cfg: Arc<AppConfig>, task: &Task) -> Result<()> {
-    let mut args = vec![
-        "run".into(),
-        "--refresh".into()
-    ];
+    let mut args = vec!["run".into(), "--refresh".into()];
 
     if !&cfg.verbose_nix_logs {
         args.push("--quiet".into());

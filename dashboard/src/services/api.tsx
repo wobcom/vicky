@@ -5,7 +5,7 @@ type ITask = {
     id: string,
     display_name: string,
     locks: {
-        type: "WRITE" | "READ"
+        type: "WRITE" | "READ" | "CLEAN"
         name: string,
         poisoned: string,
     }[]
