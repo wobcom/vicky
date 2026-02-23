@@ -4,6 +4,9 @@ use crate::locks::{
     locks_get_active, locks_get_detailed_poisoned, locks_get_poisoned, locks_unlock,
 };
 use crate::startup::Result;
+use crate::task_templates::{
+    task_templates_add, task_templates_get, task_templates_get_specific, task_templates_instantiate,
+};
 use crate::tasks::{
     tasks_add, tasks_cancel, tasks_claim, tasks_confirm, tasks_count, tasks_download_logs,
     tasks_finish, tasks_get, tasks_get_logs, tasks_get_specific, tasks_heartbeat, tasks_put_logs,
@@ -32,6 +35,7 @@ mod errors;
 mod events;
 mod locks;
 mod startup;
+mod task_templates;
 mod tasks;
 mod user;
 mod webconfig;
@@ -200,6 +204,15 @@ async fn build_web_api(
                 tasks_download_logs,
                 tasks_confirm,
                 tasks_cancel
+            ],
+        )
+        .mount(
+            "/api/v1/task-templates",
+            routes![
+                task_templates_get,
+                task_templates_get_specific,
+                task_templates_add,
+                task_templates_instantiate
             ],
         )
         .mount(

@@ -181,3 +181,58 @@ It will return `null`, if successful.
     }
 }
 ```
+
+## Task Templates
+
+### List All Task Templates
+
+`GET /api/v1/task-templates` returns all task templates.
+
+### Create A Task Template
+
+`POST /api/v1/task-templates` creates a template with variables.
+
+```json
+{
+  "name": "deploy-service",
+  "display_name_template": "Deploy {{service}} to {{environment}}",
+  "flake_ref": {
+    "flake": "https://something.cat/deployments/{{service}}/flake.nix",
+    "args": ["--env={{environment}}"]
+  },
+  "locks": [
+    {
+      "name": "deploy/{{service}}",
+      "type": "WRITE"
+    }
+  ],
+  "features": ["nix"],
+  "group": "{{environment}}",
+  "variables": [
+    {
+      "name": "service",
+      "default_value": null,
+      "description": "Some service name"
+    },
+    {
+      "name": "environment",
+      "default_value": "production",
+      "description": "Deployment environment"
+    }
+  ]
+}
+```
+
+### Instantiate A Task Template
+
+`POST /api/v1/task-templates/<UUID>/instantiate` renders a task and adds it to the scheduler.
+
+```json
+{
+  "needs_confirmation": false,
+  "variables": {
+    "service": "vicky",
+    "environment": "staging"
+  }
+}
+```
