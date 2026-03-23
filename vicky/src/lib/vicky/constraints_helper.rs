@@ -5,13 +5,13 @@ use crate::{
     errors::SchedulerError,
 };
 
-pub struct Scheduler<'a> {
+pub struct ConstraintsHelper<'a> {
     constraints: Constraints<'a>,
     tasks: &'a Vec<Task>,
     machine_features: &'a [String],
 }
 
-impl<'a> Scheduler<'a> {
+impl<'a> ConstraintsHelper<'a> {
     pub fn new(
         tasks: &'a Vec<Task>,
         poisoned_locks: &'a [Lock],
@@ -19,7 +19,7 @@ impl<'a> Scheduler<'a> {
     ) -> Result<Self, SchedulerError> {
         let constraints: Constraints = Constraints::from_tasks(tasks, poisoned_locks)?;
 
-        let s = Scheduler {
+        let s = ConstraintsHelper {
             constraints,
             tasks,
             machine_features,
@@ -80,12 +80,12 @@ impl<'a> Scheduler<'a> {
 mod tests {
     use uuid::Uuid;
 
-    use super::Scheduler;
+    use super::ConstraintsHelper;
     use crate::database::entities::task::{TaskResult, TaskStatus};
     use crate::database::entities::{Lock, Task};
 
     #[test]
-    fn scheduler_creation_no_constraints() {
+    fn constraints_helper_creation_no_constraints() {
         let tasks = vec![
             Task::builder()
                 .display_name("Test 1")
@@ -97,11 +97,11 @@ mod tests {
                 .build_expect(),
         ];
 
-        Scheduler::new(&tasks, &[], &[]).unwrap();
+        ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
     }
 
     #[test]
-    fn scheduler_creation_multiple_read_constraints() {
+    fn constraints_helper_creation_multiple_read_constraints() {
         let tasks = vec![
             Task::builder()
                 .display_name("Test 1")
@@ -115,11 +115,11 @@ mod tests {
                 .build_expect(),
         ];
 
-        Scheduler::new(&tasks, &[], &[]).unwrap();
+        ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
     }
 
     #[test]
-    fn scheduler_creation_single_write_constraints() {
+    fn constraints_helper_creation_single_write_constraints() {
         let tasks = vec![
             Task::builder()
                 .display_name("Test 1")
@@ -133,11 +133,11 @@ mod tests {
                 .build_expect(),
         ];
 
-        Scheduler::new(&tasks, &[], &[]).unwrap();
+        ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
     }
 
     #[test]
-    fn scheduler_creation_read_and_cleanup_constraints_is_order_independent() {
+    fn constraints_helper_creation_read_and_cleanup_constraints_is_order_independent() {
         let mut tasks_read_then_clean = vec![
             Task::builder()
                 .display_name("Read lock")
@@ -151,18 +151,18 @@ mod tests {
                 .build_expect(),
         ];
 
-        Scheduler::new(&tasks_read_then_clean, &[], &[])
-            .expect("read->cleanup lock order must not fail scheduler creation");
+        ConstraintsHelper::new(&tasks_read_then_clean, &[], &[])
+            .expect("read->cleanup lock order must not fail constraints_helper creation");
 
         tasks_read_then_clean.reverse();
         let tasks_clean_then_read = tasks_read_then_clean;
 
-        Scheduler::new(&tasks_clean_then_read, &[], &[])
-            .expect("cleanup->read lock order must not fail scheduler creation");
+        ConstraintsHelper::new(&tasks_clean_then_read, &[], &[])
+            .expect("cleanup->read lock order must not fail constraints_helper creation");
     }
 
     #[test]
-    fn scheduler_creation_multiple_write_constraints() {
+    fn constraints_helper_creation_multiple_write_constraints() {
         let tasks = vec![
             Task::builder()
                 .display_name("Test 1")
@@ -176,12 +176,12 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = Scheduler::new(&tasks, &[], &[]);
+        let res = ConstraintsHelper::new(&tasks, &[], &[]);
         assert!(res.is_err());
     }
 
     #[test]
-    fn scheduler_no_new_task() {
+    fn constraints_helper_no_new_task() {
         let tasks = vec![
             Task::builder()
                 .display_name("Test 1")
@@ -195,13 +195,13 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task(), None)
     }
 
     #[test]
-    fn scheduler_no_new_task_with_feature() {
+    fn constraints_helper_no_new_task_with_feature() {
         let tasks = vec![
             Task::builder()
                 .display_name("Test 1")
@@ -215,13 +215,13 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
         // Test 1 and Test 2 have required features, which our runner does not have.
         assert_eq!(res.get_next_task(), None)
     }
 
     #[test]
-    fn scheduler_new_task_with_specific_feature() {
+    fn constraints_helper_new_task_with_specific_feature() {
         let tasks = vec![
             Task::builder()
                 .display_name("Test 1")
@@ -236,13 +236,13 @@ mod tests {
         ];
 
         let features = &["huge_cpu".to_string()];
-        let res = Scheduler::new(&tasks, &[], features).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], features).unwrap();
         // Test 1 and Test 2 have required features, which our runner matches.
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 1")
     }
 
     #[test]
-    fn scheduler_new_task() {
+    fn constraints_helper_new_task() {
         let tasks = vec![
             Task::builder()
                 .display_name("Test 1")
@@ -256,13 +256,13 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 2")
     }
 
     #[test]
-    fn scheduler_new_task_ro() {
+    fn constraints_helper_new_task_ro() {
         let tasks = vec![
             Task::builder()
                 .display_name("Test 1")
@@ -276,13 +276,13 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 2")
     }
 
     #[test]
-    fn scheduler_new_task_rw_ro() {
+    fn constraints_helper_new_task_rw_ro() {
         let tasks = vec![
             Task::builder()
                 .display_name("Test 1")
@@ -296,13 +296,13 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task(), None)
     }
 
     #[test]
-    fn scheduler_new_task_cleanup_single() {
+    fn constraints_helper_new_task_cleanup_single() {
         let tasks = vec![
             Task::builder()
                 .display_name("Test 1")
@@ -311,13 +311,13 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 1")
     }
 
     #[test]
-    fn scheduler_new_task_cleanup_with_finished() {
+    fn constraints_helper_new_task_cleanup_with_finished() {
         let tasks = vec![
             Task::builder()
                 .display_name("Test 5")
@@ -331,13 +331,13 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 1")
     }
 
     #[test]
-    fn scheduler_cleanup_waits_for_running_task_using_same_lock() {
+    fn constraints_helper_cleanup_waits_for_running_task_using_same_lock() {
         let tasks = vec![
             Task::builder()
                 .display_name("Im doing something")
@@ -351,7 +351,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
         let eval = res.evaluate_task_readiness(&res.tasks[1]);
 
         assert!(
@@ -362,7 +362,7 @@ mod tests {
     }
 
     #[test]
-    fn scheduler_new_task_cleanup() {
+    fn constraints_helper_new_task_cleanup() {
         let tasks = vec![
             Task::builder()
                 .display_name("Test 1")
@@ -376,7 +376,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
         let eval = res.evaluate_task_readiness(&res.tasks[0]);
         assert!(
             eval.is_passive_collision(),
@@ -393,7 +393,7 @@ mod tests {
     }
 
     #[test]
-    fn scheduler_new_task_cleanup_unrelated_pending_lock() {
+    fn constraints_helper_new_task_cleanup_unrelated_pending_lock() {
         let tasks = vec![
             Task::builder()
                 .display_name("Cleanup lock A")
@@ -407,13 +407,13 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
 
         assert_eq!(res.get_next_task().unwrap().display_name, "Cleanup lock A")
     }
 
     #[test]
-    fn scheduler_needs_validation_locks_block_conflicts_only() {
+    fn constraints_helper_needs_validation_locks_block_conflicts_only() {
         let tasks = vec![
             Task::builder()
                 .display_name("Task A")
@@ -433,13 +433,13 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
 
         assert_eq!(res.get_next_task().unwrap().display_name, "Task B");
     }
 
     #[test]
-    fn scheduler_needs_validation_keeps_strongest_lock_when_names_collide() {
+    fn constraints_helper_needs_validation_keeps_strongest_lock_when_names_collide() {
         let tasks = vec![
             Task::builder()
                 .display_name("Validation writer")
@@ -458,7 +458,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
         let eval = res.evaluate_task_readiness(&res.tasks[2]);
         assert!(
             eval.is_passive_collision(),
@@ -468,7 +468,7 @@ mod tests {
     }
 
     #[test]
-    fn scheduler_cleanup_waits_for_non_cleanup_even_with_later_cleanup() {
+    fn constraints_helper_cleanup_waits_for_non_cleanup_even_with_later_cleanup() {
         let tasks = vec![
             Task::builder()
                 .display_name("Cleanup 1")
@@ -487,7 +487,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = Scheduler::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
         let eval = res.evaluate_task_readiness(&res.tasks[0]);
         assert!(
             eval.is_passive_collision(),
@@ -508,7 +508,7 @@ mod tests {
         poisoned_lock.poison(&Uuid::new_v4());
         let poisoned_locks = vec![poisoned_lock];
 
-        let res = Scheduler::new(&tasks, &poisoned_locks, &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &poisoned_locks, &[]).unwrap();
 
         assert_eq!(res.get_next_task(), None);
     }
@@ -529,7 +529,7 @@ mod tests {
         poisoned_lock.poison(&Uuid::new_v4());
         let poisoned_locks = vec![poisoned_lock];
 
-        let res = Scheduler::new(&tasks, &poisoned_locks, &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &poisoned_locks, &[]).unwrap();
 
         assert_eq!(
             res.get_next_task().unwrap().display_name,
@@ -549,7 +549,7 @@ mod tests {
         poisoned_lock.poison(&Uuid::new_v4());
         let poisoned_locks = vec![poisoned_lock];
 
-        let res = Scheduler::new(&tasks, &poisoned_locks, &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &poisoned_locks, &[]).unwrap();
 
         assert_eq!(res.get_next_task(), None);
     }
