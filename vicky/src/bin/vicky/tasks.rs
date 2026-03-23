@@ -12,7 +12,8 @@ use vickylib::database::entities::task::{FlakeRef, TaskResult, TaskStatus};
 use vickylib::database::entities::{Database, Lock, Task};
 use vickylib::query::FilterParams;
 use vickylib::{
-    errors::VickyError, logs::LogDrain, s3::client::S3Client, vicky::scheduler::Scheduler,
+    errors::VickyError, logs::LogDrain, s3::client::S3Client,
+    vicky::constraints_helper::ConstraintsHelper,
 };
 
 macro_rules! task_or {
@@ -255,9 +256,9 @@ pub async fn tasks_claim(
 ) -> Result<Json<Option<Task>>, AppError> {
     let tasks = db.get_all_tasks().await?;
     let poisoned_locks = db.get_poisoned_locks().await?;
-    let scheduler = Scheduler::new(&tasks, &poisoned_locks, &features.features)
+    let constraints_helper = ConstraintsHelper::new(&tasks, &poisoned_locks, &features.features)
         .map_err(|x| VickyError::Scheduler { source: x })?;
-    let next_task = scheduler.get_next_task();
+    let next_task = constraints_helper.get_next_task();
 
     match next_task {
         Some(next_task) => {
