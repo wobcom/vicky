@@ -3,8 +3,7 @@ use rocket::{Request, http::Status, response::Responder};
 use thiserror::Error;
 use tokio::sync::broadcast::error::SendError;
 use vickylib::errors::VickyError;
-
-use crate::events::GlobalEvent;
+use vickylib::vicky::events::GlobalEvent;
 
 #[derive(Error, Debug)]
 pub enum AppError {
