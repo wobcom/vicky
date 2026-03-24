@@ -1,15 +1,8 @@
 use rocket::response::stream::{Event, EventStream};
 use rocket::{State, get};
-use serde::{Deserialize, Serialize};
 use std::time;
 use tokio::sync::broadcast::{self, error::TryRecvError};
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type")]
-pub enum GlobalEvent {
-    TaskAdd,
-    TaskUpdate { uuid: uuid::Uuid },
-}
+use vickylib::vicky::events::GlobalEvent;
 
 #[get("/")]
 pub fn get_global_events(

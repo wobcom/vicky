@@ -13,7 +13,7 @@ use vickylib::database::entities::{Database, Lock, Task};
 use vickylib::query::FilterParams;
 use vickylib::{
     errors::VickyError, logs::LogDrain, s3::client::S3Client,
-    vicky::constraints_helper::ConstraintsHelper,
+    vicky::constraints_helper::ConstraintsHelper, vicky::events::GlobalEvent,
 };
 
 macro_rules! task_or {
@@ -35,7 +35,6 @@ use crate::auth::AnyAuthGuard;
 use crate::{
     auth::{MachineGuard, UserGuard},
     errors::AppError,
-    events::GlobalEvent,
 };
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
