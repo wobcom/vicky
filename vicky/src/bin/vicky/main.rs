@@ -1,5 +1,5 @@
 use crate::config::{Config, OIDCConfigResolved, build_rocket_config};
-use crate::events::{GlobalEvent, get_global_events};
+use crate::events::get_global_events;
 use crate::locks::{
     locks_get_active, locks_get_detailed_poisoned, locks_get_poisoned, locks_unlock,
 };
@@ -25,6 +25,7 @@ use vickylib::database::entities::Database;
 use vickylib::database::entities::task::HEARTBEAT_TIMEOUT_SEC;
 use vickylib::logs::LogDrain;
 use vickylib::s3::client::S3Client;
+use vickylib::vicky::events::GlobalEvent;
 
 mod auth;
 mod config;
