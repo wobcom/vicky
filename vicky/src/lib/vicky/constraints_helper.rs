@@ -4,18 +4,19 @@ use crate::{
     database::entities::{Lock, Task},
     errors::SchedulerError,
 };
+use std::collections::HashSet;
 
 pub struct ConstraintsHelper<'a> {
     constraints: Constraints<'a>,
     tasks: &'a Vec<Task>,
-    machine_features: &'a [String],
+    machine_features: &'a HashSet<&'a String>,
 }
 
 impl<'a> ConstraintsHelper<'a> {
     pub fn new(
         tasks: &'a Vec<Task>,
         poisoned_locks: &'a [Lock],
-        machine_features: &'a [String],
+        machine_features: &'a HashSet<&String>,
     ) -> Result<Self, SchedulerError> {
         let constraints: Constraints = Constraints::from_tasks(tasks, poisoned_locks)?;
 

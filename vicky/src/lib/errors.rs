@@ -47,6 +47,8 @@ pub enum SchedulerError {
     GeneralSchedulingError,
     #[error("lock already owned")]
     LockAlreadyOwnedError,
+    #[error("channel closed")]
+    ChannelClosed,
 }
 
 #[derive(Error, Debug)]

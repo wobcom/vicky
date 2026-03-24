@@ -17,6 +17,7 @@ use log::{LevelFilter, error, info, trace, warn};
 use rocket::fairing::AdHoc;
 use rocket::{Build, Ignite, Rocket, routes};
 use snafu::ResultExt;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
 use tokio::sync::broadcast;
@@ -26,6 +27,7 @@ use vickylib::database::entities::task::HEARTBEAT_TIMEOUT_SEC;
 use vickylib::logs::LogDrain;
 use vickylib::s3::client::S3Client;
 use vickylib::vicky::events::GlobalEvent;
+use vickylib::vicky::scheduler::Scheduler;
 
 mod auth;
 mod config;
@@ -109,6 +111,8 @@ async fn inner_main() -> Result<()> {
 
     let (tx_global_events, _rx_task_events) = broadcast::channel::<GlobalEvent>(5);
 
+    let scheduler = Scheduler::new();
+
     let web_server = build_web_api(
         app_config,
         build_rocket,
@@ -116,7 +120,8 @@ async fn inner_main() -> Result<()> {
         jwks_verifier,
         s3_log_bucket_client,
         log_drain,
-        tx_global_events,
+        tx_global_events.clone(),
+        scheduler.clone(),
     )
     .await?;
 
@@ -126,6 +131,9 @@ async fn inner_main() -> Result<()> {
 
     let web_task =
         tokio::task::spawn(async move { web_server.launch().await.context(startup::LaunchErr) });
+
+    let scheduler_join_handle =
+        tokio::task::spawn(scheduler.run(tx_global_events, db_pool.clone()));
 
     let task_timeout_sweeper = tokio::task::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(10));
@@ -154,11 +162,13 @@ async fn inner_main() -> Result<()> {
     select! {
         e = web_task => e.map(|_| ()).context(startup::JoinErr)?,
         _ = task_timeout_sweeper => panic!("Task timeout sweeper shouldn't exit"),
+        _ = scheduler_join_handle => panic!("Scheduler shouldn't exit"),
     }
 
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn build_web_api(
     app_config: Config,
     build_rocket: Rocket<Build>,
@@ -167,6 +177,7 @@ async fn build_web_api(
     s3_log_bucket_client: S3Client,
     log_drain: LogDrain,
     tx_global_events: Sender<GlobalEvent>,
+    scheduler: Arc<Scheduler>,
 ) -> Result<Rocket<Ignite>> {
     info!("starting web api");
 
@@ -177,6 +188,7 @@ async fn build_web_api(
         .manage(tx_global_events)
         .manage(app_config.web_config)
         .manage(oidc_config_resolved)
+        .manage(scheduler)
         .attach(Database::fairing())
         .attach(AdHoc::config::<Config>())
         .attach(AdHoc::try_on_ignite(
