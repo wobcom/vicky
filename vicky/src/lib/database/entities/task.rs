@@ -8,6 +8,7 @@ use chrono::{DateTime, Utc};
 use diesel::{AsExpression, FromSqlRow};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use uuid::Uuid;
 
 pub const HEARTBEAT_TIMEOUT_SEC: i64 = 60;
@@ -62,7 +63,7 @@ pub struct Task {
     pub flake_ref: FlakeRef,
 
     #[builder(field)]
-    pub features: Vec<String>,
+    pub features: HashSet<String>,
 
     #[builder(default = Uuid::new_v4())]
     pub id: Uuid,
@@ -163,11 +164,11 @@ impl<T: task_builder::State> TaskBuilder<T> {
     }
 
     pub fn requires_feature<S: Into<String>>(mut self, feature: S) -> Self {
-        self.features.push(feature.into());
+        self.features.insert(feature.into());
         self
     }
 
-    pub fn requires_features(mut self, features: Vec<String>) -> Self {
+    pub fn requires_features(mut self, features: HashSet<String>) -> Self {
         self.features = features;
         self
     }
@@ -216,7 +217,7 @@ impl From<(DbTask, Vec<DbLock>)> for Task {
                 flake: task.flake_ref_uri,
                 args: task.flake_ref_args,
             },
-            features: task.features,
+            features: task.features.into_iter().collect(),
             created_at: task.created_at,
             claimed_at: task.claimed_at,
             finished_at: task.finished_at,
@@ -366,7 +367,7 @@ pub mod db_impl {
                 id: task.id,
                 display_name: task.display_name,
                 status: task.status,
-                features: task.features,
+                features: task.features.into_iter().collect(),
                 flake_ref_uri: task.flake_ref.flake,
                 flake_ref_args: task.flake_ref.args,
                 created_at: task.created_at,
