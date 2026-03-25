@@ -18,9 +18,9 @@ jobs:
           - vickyctl
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: actions/checkout@v6
+      - uses: canidae-solutions/lix-quick-install-action@v4
+      - uses: DeterminateSystems/magic-nix-cache-action@4a93660c0d91a55c7449359dddd50cf0d7d789ae
       # Note: this would only work if Cargo is included in the Nix shell
       - name: Build Package
         run: nix build .#${{ matrix.packages }}
