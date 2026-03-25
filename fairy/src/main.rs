@@ -303,6 +303,5 @@ async fn run(cfg: AppConfig) -> Result<()> {
             error!("{e}");
             tokio::time::sleep(Duration::from_secs(5)).await;
         }
-        tokio::time::sleep(Duration::from_secs(1)).await;
     }
 }
