@@ -4,18 +4,19 @@ use crate::{
     database::entities::{Lock, Task},
     errors::SchedulerError,
 };
+use std::collections::HashSet;
 
 pub struct ConstraintsHelper<'a> {
     constraints: Constraints<'a>,
     tasks: &'a Vec<Task>,
-    machine_features: &'a [String],
+    machine_features: &'a HashSet<String>,
 }
 
 impl<'a> ConstraintsHelper<'a> {
     pub fn new(
         tasks: &'a Vec<Task>,
         poisoned_locks: &'a [Lock],
-        machine_features: &'a [String],
+        machine_features: &'a HashSet<String>,
     ) -> Result<Self, SchedulerError> {
         let constraints: Constraints = Constraints::from_tasks(tasks, poisoned_locks)?;
 
@@ -40,7 +41,7 @@ impl<'a> ConstraintsHelper<'a> {
     fn find_unsupported_features(&self, task: &Task) -> Option<String> {
         task.features
             .iter()
-            .find(|feat| !self.machine_features.contains(feat))
+            .find(|feat| !self.machine_features.contains(feat.as_str()))
             .cloned()
     }
 
@@ -84,6 +85,10 @@ mod tests {
     use crate::database::entities::task::{TaskResult, TaskStatus};
     use crate::database::entities::{Lock, Task};
 
+    use std::collections::HashSet;
+    use std::sync::LazyLock;
+    static EMPTY_SET: LazyLock<HashSet<String>> = LazyLock::new(HashSet::new);
+
     #[test]
     fn constraints_helper_creation_no_constraints() {
         let tasks = vec![
@@ -97,7 +102,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
+        ConstraintsHelper::new(&tasks, &[], &*EMPTY_SET).unwrap();
     }
 
     #[test]
@@ -115,7 +120,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
+        ConstraintsHelper::new(&tasks, &[], &*EMPTY_SET).unwrap();
     }
 
     #[test]
@@ -133,7 +138,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
+        ConstraintsHelper::new(&tasks, &[], &*EMPTY_SET).unwrap();
     }
 
     #[test]
@@ -151,13 +156,13 @@ mod tests {
                 .build_expect(),
         ];
 
-        ConstraintsHelper::new(&tasks_read_then_clean, &[], &[])
+        ConstraintsHelper::new(&tasks_read_then_clean, &[], &*EMPTY_SET)
             .expect("read->cleanup lock order must not fail constraints_helper creation");
 
         tasks_read_then_clean.reverse();
         let tasks_clean_then_read = tasks_read_then_clean;
 
-        ConstraintsHelper::new(&tasks_clean_then_read, &[], &[])
+        ConstraintsHelper::new(&tasks_clean_then_read, &[], &*EMPTY_SET)
             .expect("cleanup->read lock order must not fail constraints_helper creation");
     }
 
@@ -176,7 +181,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = ConstraintsHelper::new(&tasks, &[], &[]);
+        let res = ConstraintsHelper::new(&tasks, &[], &*EMPTY_SET);
         assert!(res.is_err());
     }
 
@@ -195,7 +200,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &*EMPTY_SET).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task(), None)
     }
@@ -215,7 +220,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &*EMPTY_SET).unwrap();
         // Test 1 and Test 2 have required features, which our runner does not have.
         assert_eq!(res.get_next_task(), None)
     }
@@ -235,8 +240,8 @@ mod tests {
                 .build_expect(),
         ];
 
-        let features = &["huge_cpu".to_string()];
-        let res = ConstraintsHelper::new(&tasks, &[], features).unwrap();
+        let features = ["huge_cpu".to_string()].into();
+        let res = ConstraintsHelper::new(&tasks, &[], &features).unwrap();
         // Test 1 and Test 2 have required features, which our runner matches.
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 1")
     }
@@ -256,7 +261,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &*EMPTY_SET).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 2")
     }
@@ -276,7 +281,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &*EMPTY_SET).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 2")
     }
@@ -296,7 +301,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &*EMPTY_SET).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task(), None)
     }
@@ -311,7 +316,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &*EMPTY_SET).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 1")
     }
@@ -331,7 +336,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &*EMPTY_SET).unwrap();
         // Test 1 is currently running and has the write lock
         assert_eq!(res.get_next_task().unwrap().display_name, "Test 1")
     }
@@ -351,7 +356,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &*EMPTY_SET).unwrap();
         let eval = res.evaluate_task_readiness(&res.tasks[1]);
 
         assert!(
@@ -376,7 +381,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &*EMPTY_SET).unwrap();
         let eval = res.evaluate_task_readiness(&res.tasks[0]);
         assert!(
             eval.is_passive_collision(),
@@ -407,7 +412,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &*EMPTY_SET).unwrap();
 
         assert_eq!(res.get_next_task().unwrap().display_name, "Cleanup lock A")
     }
@@ -433,7 +438,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &*EMPTY_SET).unwrap();
 
         assert_eq!(res.get_next_task().unwrap().display_name, "Task B");
     }
@@ -458,7 +463,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &*EMPTY_SET).unwrap();
         let eval = res.evaluate_task_readiness(&res.tasks[2]);
         assert!(
             eval.is_passive_collision(),
@@ -487,7 +492,7 @@ mod tests {
                 .build_expect(),
         ];
 
-        let res = ConstraintsHelper::new(&tasks, &[], &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &[], &*EMPTY_SET).unwrap();
         let eval = res.evaluate_task_readiness(&res.tasks[0]);
         assert!(
             eval.is_passive_collision(),
@@ -508,7 +513,7 @@ mod tests {
         poisoned_lock.poison(&Uuid::new_v4());
         let poisoned_locks = vec![poisoned_lock];
 
-        let res = ConstraintsHelper::new(&tasks, &poisoned_locks, &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &poisoned_locks, &*EMPTY_SET).unwrap();
 
         assert_eq!(res.get_next_task(), None);
     }
@@ -529,7 +534,7 @@ mod tests {
         poisoned_lock.poison(&Uuid::new_v4());
         let poisoned_locks = vec![poisoned_lock];
 
-        let res = ConstraintsHelper::new(&tasks, &poisoned_locks, &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &poisoned_locks, &*EMPTY_SET).unwrap();
 
         assert_eq!(
             res.get_next_task().unwrap().display_name,
@@ -549,7 +554,7 @@ mod tests {
         poisoned_lock.poison(&Uuid::new_v4());
         let poisoned_locks = vec![poisoned_lock];
 
-        let res = ConstraintsHelper::new(&tasks, &poisoned_locks, &[]).unwrap();
+        let res = ConstraintsHelper::new(&tasks, &poisoned_locks, &*EMPTY_SET).unwrap();
 
         assert_eq!(res.get_next_task(), None);
     }

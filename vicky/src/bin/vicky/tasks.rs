@@ -4,6 +4,7 @@ use rocket::http::Status;
 use rocket::response::stream::{Event, EventStream};
 use rocket::{State, get, post, serde::json::Json};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::time;
 use tokio::sync::broadcast::{self, error::TryRecvError};
 use uuid::Uuid;
@@ -44,7 +45,7 @@ pub struct RoTaskNew {
     display_name: String,
     flake_ref: FlakeRef,
     locks: Vec<Lock>,
-    features: Vec<String>,
+    features: HashSet<String>,
     group: Option<String>,
 }
 
