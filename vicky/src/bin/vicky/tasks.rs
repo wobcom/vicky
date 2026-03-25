@@ -5,6 +5,7 @@ use rocket::response::stream::{Event, EventStream};
 use rocket::{State, get, post, serde::json::Json};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::sync::Arc;
 use std::time;
 use tokio::sync::broadcast::{self, error::TryRecvError};
 use uuid::Uuid;
@@ -13,8 +14,7 @@ use vickylib::database::entities::task::{FlakeRef, TaskResult, TaskStatus};
 use vickylib::database::entities::{Database, Lock, Task};
 use vickylib::query::FilterParams;
 use vickylib::{
-    errors::VickyError, logs::LogDrain, s3::client::S3Client,
-    vicky::constraints_helper::ConstraintsHelper, vicky::events::GlobalEvent,
+    logs::LogDrain, s3::client::S3Client, vicky::events::GlobalEvent, vicky::scheduler::Scheduler,
 };
 
 macro_rules! task_or {
@@ -250,15 +250,17 @@ pub async fn tasks_put_logs(
 #[post("/claim", format = "json", data = "<features>")]
 pub async fn tasks_claim(
     db: Database,
+    scheduler: &State<Arc<Scheduler>>,
     features: Json<RoTaskClaim>,
     global_events: &State<broadcast::Sender<GlobalEvent>>,
     _machine: MachineGuard,
 ) -> Result<Json<Option<Task>>, AppError> {
-    let tasks = db.get_all_tasks().await?;
-    let poisoned_locks = db.get_poisoned_locks().await?;
-    let constraints_helper = ConstraintsHelper::new(&tasks, &poisoned_locks, &features.features)
-        .map_err(|x| VickyError::Scheduler { source: x })?;
-    let next_task = constraints_helper.get_next_task();
+    let next_task: Option<Task> = tokio::time::timeout(
+        time::Duration::from_secs(10),
+        scheduler.get_next_task(&features.features),
+    )
+    .await
+    .ok();
 
     match next_task {
         Some(next_task) => {
