@@ -69,7 +69,7 @@ impl S3Config {
         info!("building s3 client");
 
         aws_sdk_s3::Config::builder()
-            .behavior_version(BehaviorVersion::v2025_08_07())
+            .behavior_version(BehaviorVersion::v2026_01_12())
             .force_path_style(self.force_path_style)
             .endpoint_url(&self.endpoint)
             .credentials_provider(self.credentials())

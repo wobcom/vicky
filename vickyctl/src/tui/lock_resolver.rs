@@ -205,12 +205,12 @@ fn draw_task_picker(f: &mut Frame, locks: &[PoisonedLock], state: &mut TableStat
         )
         .header(
             Row::new(vec!["Name", "Type", "Failed Task Name", "Task Flake URI"])
-                .set_style(Style::default().bold().italic()),
+                .style(Style::default().bold().italic()),
         )
         .highlight_symbol(">>")
-        .highlight_style(Style::default().fg(Color::Green).italic())
+        .row_highlight_style(Style::default().fg(Color::Green).italic())
         .highlight_spacing(HighlightSpacing::Always);
-    f.render_stateful_widget(table, f.size(), state);
+    f.render_stateful_widget(table, f.area(), state);
 }
 
 fn draw_confirm_clear(
@@ -260,7 +260,7 @@ fn draw_centered_popup(f: &mut Frame, title: &str, button_select: &mut bool) {
         .borders(Borders::ALL)
         .title(title)
         .title_alignment(Alignment::Center);
-    let centered_rect = centered_rect(60, 20, f.size());
+    let centered_rect = centered_rect(60, 20, f.area());
     let half_y = centered_rect.height / 2;
     let half_x = centered_rect.width / 2;
     let left_side = Rect::new(centered_rect.x, centered_rect.y + half_y, half_x, 1);
