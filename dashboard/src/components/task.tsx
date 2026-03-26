@@ -4,6 +4,7 @@ import { Terminal } from "./xterm";
 
 import CalendarIcon from '@rsuite/icons/Calendar';
 import TimeIcon from '@rsuite/icons/Time';
+import ReadyRoundIcon from '@rsuite/icons/ReadyRound';
 import * as dayjs from "dayjs";
 
 import * as s from "./task.module.css";
@@ -119,6 +120,10 @@ const Task = (props: TaskProps) => {
                 </VStack>
             </HStack>
             {confirmError ? <Text color="red">{confirmError}</Text> : null}
+            <HStack spacing={4}>
+                <ReadyRoundIcon></ReadyRoundIcon>
+                <Text muted>{`nix run ${task.flake_ref.flake}${task.flake_ref.args.length ? `-- ${task.flake_ref.args.join(" ")}` : ''}`}</Text>
+            </HStack>
             <Terminal key={task.id} taskId={task.id} />
         </Panel>
     )
