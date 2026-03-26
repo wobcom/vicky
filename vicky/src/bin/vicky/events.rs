@@ -1,7 +1,6 @@
 use rocket::response::stream::{Event, EventStream};
 use rocket::{State, get};
-use std::time;
-use tokio::sync::broadcast::{self, error::TryRecvError};
+use tokio::sync::broadcast::{self, error::RecvError};
 use vickylib::vicky::events::GlobalEvent;
 
 #[get("/")]
@@ -13,21 +12,18 @@ pub fn get_global_events(
         let mut global_events_rx = global_events.subscribe();
 
         loop {
-
-            let read_val = global_events_rx.try_recv();
+            let read_val = global_events_rx.recv().await;
 
             match read_val {
                 Ok(v) => {
                     yield Event::json(&v);
                 },
-                Err(TryRecvError::Closed) => {
-                    break;
+                Err(RecvError::Closed) => {
+                    panic!("global_events closed");
                 },
-                Err(TryRecvError::Lagged(_)) => {
-                    // Immediate Retry, doing our best effort here.
-                },
-                Err(TryRecvError::Empty) => {
-                    tokio::time::sleep(time::Duration::from_millis(100)).await;
+                Err(RecvError::Lagged(_)) => {
+                    // We missed some events, let the client know
+                    yield Event::json(&"lagged");
                 },
             }
         }
