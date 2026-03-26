@@ -22,8 +22,8 @@ pub fn get_global_events(
                     panic!("global_events closed");
                 },
                 Err(RecvError::Lagged(_)) => {
-                    // Immediate Retry, doing our best effort here.
-
+                    // We missed some events, let the client know
+                    yield Event::json(&"lagged");
                 },
             }
         }

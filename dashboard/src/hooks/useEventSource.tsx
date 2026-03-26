@@ -60,6 +60,9 @@ const useEventSource = (url: string, callback: (evt: string) => void, allowStart
 const useEventSourceJSON = <T extends any>(url: string, callback: (evt: T) => void) => {
     const onMessage = useCallback((evt: string) => {
         const x = JSON.parse(evt);
+        if (x === "lagged") {
+            window.location.reload();
+        }
         return callback(x);
     }, [callback])
 
