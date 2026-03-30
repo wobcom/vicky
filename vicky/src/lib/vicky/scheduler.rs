@@ -99,8 +99,10 @@ impl Scheduler {
             tokio::select! {
                 res = global_events_rx.recv() => {
                     // wait for changed or new tasks...
-                    if res.is_err() {
-                        return Err(SchedulerError::ChannelClosed.into());
+                    match res {
+                        Ok(_) => {},
+                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {},
+                        Err(_) => return Err(SchedulerError::ChannelClosed.into()),
                     }
                 }
                 res = fairy_handles_rx.recv() => {
