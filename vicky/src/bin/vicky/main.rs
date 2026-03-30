@@ -162,7 +162,7 @@ async fn inner_main() -> Result<()> {
     select! {
         e = web_task => e.map(|_| ()).context(startup::JoinErr)?,
         _ = task_timeout_sweeper => panic!("Task timeout sweeper shouldn't exit"),
-        _ = scheduler_join_handle => panic!("Scheduler shouldn't exit"),
+        e = scheduler_join_handle => panic!("Scheduler shouldn't exit. Returned: {:?}", e),
     }
 
     Ok(())
