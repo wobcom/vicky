@@ -234,8 +234,8 @@ impl TaskStatus {
             TaskStatus::NeedsUserValidation
             | TaskStatus::New
             | TaskStatus::Running
-            | TaskStatus::Finished(TaskResult::Success) => false,
-            TaskStatus::Finished(TaskResult::Error | TaskResult::Timeout | TaskResult::Cancel) => {
+            | TaskStatus::Finished(TaskResult::Success | TaskResult::Cancel) => false,
+            TaskStatus::Finished(TaskResult::Error | TaskResult::Timeout) => {
                 true
             }
         }
