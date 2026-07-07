@@ -1,12 +1,12 @@
 use crate::auth::AnyAuthGuard;
 use crate::errors::AppError;
-use crate::events::GlobalEvent;
 use diesel::result::DatabaseErrorKind;
 use diesel::result::Error::DatabaseError;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::{State, get, post};
 use serde::{Deserialize, Serialize};
+use vickylib::vicky::events::GlobalEvent;
 use std::collections::HashMap;
 use tokio::sync::broadcast;
 use uuid::Uuid;
@@ -77,7 +77,7 @@ pub async fn task_templates_add(
         display_name_template: task_template.display_name_template,
         flake_ref: task_template.flake_ref,
         locks: task_template.locks,
-        features: task_template.features,
+        features: task_template.features.into_iter().collect(),
         group: task_template.group,
         variables: task_template.variables,
         created_at: chrono::Utc::now(),

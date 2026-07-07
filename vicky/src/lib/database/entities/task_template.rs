@@ -31,7 +31,7 @@ pub struct TaskTemplate {
     pub display_name_template: String,
     pub flake_ref: FlakeRef,
     pub locks: Vec<TaskTemplateLock>,
-    pub features: Vec<String>,
+    pub features: HashSet<String>,
     pub group: Option<String>,
     pub variables: Vec<TaskTemplateVariable>,
 
@@ -326,7 +326,7 @@ impl
                 args: template.flake_ref_args_template,
             },
             locks: locks.into_iter().map(TaskTemplateLock::from).collect(),
-            features: template.features,
+            features: template.features.into_iter().collect(),
             group: template.group,
             variables: variables
                 .into_iter()
@@ -413,7 +413,7 @@ pub mod db_impl {
                 display_name_template: template.display_name_template.clone(),
                 flake_ref_uri_template: template.flake_ref.flake.clone(),
                 flake_ref_args_template: template.flake_ref.args.clone(),
-                features: template.features.clone(),
+                features: template.features.clone().into_iter().collect(),
                 group: template.group.clone(),
                 created_at: template.created_at,
             }
@@ -589,7 +589,7 @@ mod tests {
                 name: "build/{{project}}".to_string(),
                 kind: LockKind::Write,
             }],
-            features: vec!["ijustbuildthings".to_string()],
+            features: vec!["ijustbuildthings".to_string()].into_iter().collect(),
             group: Some("{{env}}".to_string()),
             variables: vec![
                 TaskTemplateVariable {

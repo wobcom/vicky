@@ -58,6 +58,8 @@ fn run_migrations(connection: &mut impl MigrationHarness<diesel::pg::Pg>) -> Res
     }
 }
 
+// Note: We cannot do anything about this return type, since it is passed to Rocket directly.
+#[allow(clippy::result_large_err)]
 async fn run_rocket_migrations(rocket: Rocket<Build>) -> Result<Rocket<Build>, Rocket<Build>> {
     info!("Running database migrations");
 
