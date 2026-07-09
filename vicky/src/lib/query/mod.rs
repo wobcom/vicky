@@ -1,10 +1,11 @@
 use rocket::FromForm;
+use uuid::Uuid;
 
 #[derive(FromForm, Default, Clone)]
 pub struct FilterParams {
     pub limit: Option<i64>,
     pub offset: Option<i64>,
-    pub group: Option<String>,
+    pub group_id: Option<Uuid>,
 }
 
 impl From<Option<FilterParams>> for FilterParams {

@@ -1,5 +1,7 @@
 // @generated automatically by Diesel CLI.
 
+
+
 diesel::table! {
     use diesel::sql_types::*;
     use crate::database::entities::lock::db_impl::LockKindSqlType;
@@ -15,6 +17,14 @@ diesel::table! {
 }
 
 diesel::table! {
+    task_groups (id) {
+        id -> Uuid,
+        name -> Varchar,
+        created_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     use diesel::sql_types::*;
     use crate::database::entities::task::db_impl::TaskStatusSqlType;
 
@@ -26,10 +36,10 @@ diesel::table! {
         flake_ref_uri -> Varchar,
         flake_ref_args -> Array<Text>,
         created_at -> Timestamptz,
-        claimed_at -> Nullable<Timestamptz>,
         finished_at -> Nullable<Timestamptz>,
+        claimed_at -> Nullable<Timestamptz>,
         last_heartbeat -> Nullable<Timestamptz>,
-        group -> Nullable<Varchar>,
+        group_id -> Nullable<Uuid>,
     }
 }
 
@@ -44,4 +54,6 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(locks, tasks, users,);
+diesel::joinable!(tasks -> task_groups (group_id));
+
+diesel::allow_tables_to_appear_in_same_query!(locks, task_groups, tasks, users,);

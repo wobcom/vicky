@@ -46,7 +46,7 @@ pub struct RoTaskNew {
     flake_ref: FlakeRef,
     locks: Vec<Lock>,
     features: HashSet<String>,
-    group: Option<String>,
+    group_id: Option<Uuid>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -341,7 +341,7 @@ pub async fn tasks_add(
         .flake_args(task.flake_ref.args)
         .locks(task.locks)
         .requires_features(task.features)
-        .maybe_group(task.group)
+        .maybe_group_id(task.group_id)
         .build();
 
     let Ok(task) = task else {

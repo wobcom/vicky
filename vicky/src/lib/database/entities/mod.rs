@@ -1,11 +1,13 @@
 pub mod lock;
 pub mod task;
+pub mod task_group;
 pub mod user;
 
-use crate::database::entities::lock::PoisonedLock;
+use crate::database::entities::{lock::PoisonedLock, task_group::TaskGroup};
 use crate::database::entities::lock::db_impl::LockDatabase;
 use crate::database::entities::task::TaskStatus;
 use crate::database::entities::task::db_impl::TaskDatabase;
+use crate::database::entities::task_group::db_impl::TaskGroupDatabase;
 use crate::database::entities::user::User;
 use crate::database::entities::user::db_impl::UserDatabase;
 use crate::errors::VickyError;
@@ -52,6 +54,21 @@ impl Database {
             pub async fn perform_timeout_sweep(&self) -> Result<(usize, usize), VickyError>;
             pub async fn timeout_task(&self, task_id: Uuid) -> Result<usize, VickyError>;
         }
+
+        #[await(false)]
+        #[expr(self.run(move |conn| $).await)]
+        #[through(TaskGroupDatabase)]
+        to conn {
+            pub async fn count_all_task_groups(
+                &self,
+            ) -> Result<i64, VickyError>;
+            pub async fn get_task_groups(&self) -> Result<Vec<TaskGroup>, VickyError>;
+            pub async fn get_task_groups_filtered<F: Into<FilterParams> + Send + 'static>(
+                &self,
+                filters: F,
+            ) -> Result<Vec<TaskGroup>, VickyError>;
+        }
+
 
         #[await(false)]
         #[expr(self.run(move |conn| $).await)]

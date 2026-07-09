@@ -87,7 +87,7 @@ pub struct Task {
     #[serde(with = "ts_seconds_option")]
     pub last_heartbeat: Option<DateTime<Utc>>,
 
-    pub group: Option<String>,
+    pub group_id: Option<Uuid>,
 }
 
 impl Task {
@@ -222,7 +222,7 @@ impl From<(DbTask, Vec<DbLock>)> for Task {
             claimed_at: task.claimed_at,
             finished_at: task.finished_at,
             last_heartbeat: task.last_heartbeat,
-            group: task.group,
+            group_id: task.group_id,
         }
     }
 }
@@ -316,7 +316,7 @@ pub mod db_impl {
 
         pub finished_at: Option<DateTime<Utc>>,
         pub last_heartbeat: Option<DateTime<Utc>>,
-        pub group: Option<String>,
+        pub group_id: Option<Uuid>,
     }
 
     pub const STATE_NEEDS_USER_VALIDATION_STR: &str = "NEEDS_USER_VALIDATION";
@@ -374,7 +374,7 @@ pub mod db_impl {
                 claimed_at: task.claimed_at,
                 finished_at: task.finished_at,
                 last_heartbeat: task.last_heartbeat,
-                group: task.group,
+                group_id: task.group_id,
             }
         }
     }
@@ -419,8 +419,8 @@ pub mod db_impl {
                 tasks_count_b = tasks_count_b.filter(tasks::status.eq(task_status))
             }
 
-            if let Some(group) = filters.group {
-                tasks_count_b = tasks_count_b.filter(tasks::group.eq(group))
+            if let Some(group_id) = filters.group_id {
+                tasks_count_b = tasks_count_b.filter(tasks::group_id.eq(group_id))
             }
 
             let tasks_count: i64 = tasks_count_b.count().first(self)?;
@@ -447,8 +447,8 @@ pub mod db_impl {
             if let Some(r_offset) = filters.offset {
                 db_tasks_build = db_tasks_build.offset(r_offset)
             }
-            if let Some(group) = filters.group {
-                db_tasks_build = db_tasks_build.filter(tasks::group.eq(group))
+            if let Some(group_id) = filters.group_id {
+                db_tasks_build = db_tasks_build.filter(tasks::group_id.eq(group_id))
             }
 
             let db_tasks = db_tasks_build
