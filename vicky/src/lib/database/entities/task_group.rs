@@ -13,7 +13,7 @@ pub struct TaskGroup {
 }
 
 impl TaskGroup {
-    fn new<S: Into<String>>(name: S) -> Self {
+    pub fn new<S: Into<String>>(name: S) -> Self {
         Self {
             id: Uuid::new_v4(),
             name: name.into(),
@@ -52,18 +52,39 @@ pub mod db_impl {
             TaskGroup {
                 id: task_group.id,
                 name: task_group.name,
-                created_at: Utc::now(),
+                created_at: task_group.created_at,
             }
         }
     }
 
+    impl From<TaskGroup> for DbTaskGroup {
+        fn from(task: TaskGroup) -> DbTaskGroup {
+            DbTaskGroup {
+                id: task.id,
+                name: task.name,
+                created_at: task.created_at,
+            }
+        }
+    }
+
+    impl From<TaskGroup> for NewDbTaskGroup {
+        fn from(task: TaskGroup) -> NewDbTaskGroup {
+            NewDbTaskGroup {
+                name: task.name,
+            }
+        }
+    }
+
+
     pub trait TaskGroupDatabase {
         fn get_task_groups(&mut self) -> Result<Vec<TaskGroup>, VickyError>;
+        fn get_task_group(&mut self, task_group_id: Uuid) -> Result<Option<TaskGroup>, VickyError>;
         fn get_task_groups_filtered<F: Into<FilterParams>>(
             &mut self,
             filters: F,
         ) -> Result<Vec<TaskGroup>, VickyError>;
         fn count_all_task_groups(&mut self) -> Result<i64, VickyError>;
+        fn put_task_groups(&mut self, task_group: TaskGroup) -> Result<usize, VickyError>;
     }
 
     impl TaskGroupDatabase for PgConnection {
@@ -100,6 +121,30 @@ pub mod db_impl {
 
         fn get_task_groups(&mut self) -> Result<Vec<TaskGroup>, VickyError> {
             self.get_task_groups_filtered(None)
+
+        }
+
+        fn get_task_group(&mut self, task_group_id: Uuid) -> Result<Option<TaskGroup>, VickyError> {
+            let db_taskgroup = task_groups::table.filter(task_groups::id.eq(task_group_id)).first::<DbTaskGroup>(self);
+            let db_taskgroup = match db_taskgroup {
+                Err(diesel::result::Error::NotFound) => return Ok(None),
+                _ => db_taskgroup?,
+            };
+
+            Ok(Some(db_taskgroup.into()))
+        }
+
+       
+        fn put_task_groups(&mut self, task_group: TaskGroup) -> Result<usize, VickyError> {
+            self.transaction(|conn| {
+                
+                let db_task_group: NewDbTaskGroup = task_group.into();
+
+                let rows_updated = diesel::insert_into(task_groups::table)
+                    .values(&db_task_group)
+                    .execute(conn)?;
+                Ok(rows_updated)
+            })
         }
     }
 }

@@ -5,4 +5,5 @@ use serde::{Deserialize, Serialize};
 pub enum GlobalEvent {
     TaskAdd,
     TaskUpdate { uuid: uuid::Uuid },
+    TaskGroupAdd,
 }

@@ -4,7 +4,7 @@ use crate::locks::{
     locks_get_active, locks_get_detailed_poisoned, locks_get_poisoned, locks_unlock,
 };
 use crate::startup::Result;
-use crate::task_groups::{task_groups_count, task_groups_get};
+use crate::task_groups::{task_groups_add, task_groups_count, task_groups_get, task_groups_get_specific};
 use crate::tasks::{
     tasks_add, tasks_cancel, tasks_claim, tasks_confirm, tasks_count, tasks_download_logs,
     tasks_finish, tasks_get, tasks_get_logs, tasks_get_specific, tasks_heartbeat, tasks_put_logs,
@@ -222,6 +222,8 @@ async fn build_web_api(
             routes![
                 task_groups_count,
                 task_groups_get,
+                task_groups_get_specific,
+                task_groups_add,
             ],
         )
         .mount(

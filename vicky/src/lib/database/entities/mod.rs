@@ -67,6 +67,8 @@ impl Database {
                 &self,
                 filters: F,
             ) -> Result<Vec<TaskGroup>, VickyError>;
+            pub async fn get_task_group(&self, task_group_id: Uuid) -> Result<Option<TaskGroup>, VickyError>;
+            pub async fn put_task_groups(&self, task_group: TaskGroup) -> Result<usize, VickyError>;
         }
 
 
