@@ -46,7 +46,7 @@ pub struct RoTaskNew {
     flake_ref: FlakeRef,
     locks: Vec<Lock>,
     features: HashSet<String>,
-    group: Option<String>,
+    group_id: Uuid,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -341,7 +341,7 @@ pub async fn tasks_add(
         .flake_args(task.flake_ref.args)
         .locks(task.locks)
         .requires_features(task.features)
-        .maybe_group(task.group)
+        .group_id(task.group_id)
         .build();
 
     let Ok(task) = task else {
@@ -436,6 +436,7 @@ mod tests {
             .display_name("Test 1")
             .read_lock("mauz")
             .write_lock("mauz")
+            .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
             .build();
         assert!(task.is_err());
     }
@@ -447,6 +448,7 @@ mod tests {
             .read_lock("mauz")
             .read_lock("mauz")
             .write_lock("delete_everything")
+            .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
             .build();
         assert!(task.is_ok())
     }
