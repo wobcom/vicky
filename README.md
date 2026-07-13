@@ -35,6 +35,28 @@ These are provided to you in the `deployment` folder as a docker compose file.
 + Start docker-compose collection
     + `docker-compose up -d`
 
+##### Initial Garage Setup
+
++ Setup spawns a single garage node without any cluster configuration. This is not useful.
++ A cluster must be created & a key must be generated.
+
++ Steps
+    + `docker exec -it <ID of Docker Container> /garage` calls the garage binary in the docker container.
+        + Every following `garage` operation means doing it in Docker.
+    + `garage status` shows all nodes, it should be a single nodes without any roles or zones or everything.
+        + If there is something configured, you may have already initialized stuff.
+    + `garage layout assign <NODE ID> -z wob1 -c 1T -t wob`
+        + This creates a new cluster configuration.
+    + `garage layout show`
+    + `garage layout apply --version 1`
+    + `garage bucket create vicky`
+        + Creates bucket `vicky`
+    + `garage key create vicky`
+        + Creates access key with name `vicky` and prints access key id and secret key.
+            + Note: vicky is not the access key!
+        + Copy this into the appropriate locations in configurations.
+    + `garage bucket allow vicky --key vicky --read --write`
+
 #### devenv
 
 TODO @yu-re-ka: Add Information
