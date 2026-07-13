@@ -95,10 +95,12 @@ mod tests {
             Task::builder()
                 .display_name("Test 1")
                 .status(TaskStatus::Running)
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Test 2")
                 .status(TaskStatus::Running)
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -112,11 +114,13 @@ mod tests {
                 .display_name("Test 1")
                 .status(TaskStatus::Running)
                 .read_lock("foo 1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Test 2")
                 .status(TaskStatus::Running)
                 .read_lock("foo 1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -130,11 +134,13 @@ mod tests {
                 .display_name("Test 1")
                 .status(TaskStatus::Running)
                 .write_lock("foo1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Test 2")
                 .status(TaskStatus::Running)
                 .write_lock("foo2")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -148,11 +154,13 @@ mod tests {
                 .display_name("Read lock")
                 .status(TaskStatus::Running)
                 .read_lock("shared")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Cleanup lock")
                 .status(TaskStatus::New)
                 .clean_lock("shared")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -173,11 +181,13 @@ mod tests {
                 .display_name("Test 1")
                 .status(TaskStatus::Running)
                 .write_lock("foo1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Test 2")
                 .status(TaskStatus::Running)
                 .write_lock("foo1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -192,11 +202,13 @@ mod tests {
                 .display_name("Test 1")
                 .status(TaskStatus::Running)
                 .write_lock("foo1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Test 2")
                 .status(TaskStatus::New)
                 .write_lock("foo1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -212,11 +224,13 @@ mod tests {
                 .display_name("Test 1")
                 .status(TaskStatus::New)
                 .requires_feature("huge_cpu")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Test 2")
                 .status(TaskStatus::New)
                 .requires_feature("huge_cpu")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -232,11 +246,13 @@ mod tests {
                 .display_name("Test 1")
                 .status(TaskStatus::New)
                 .requires_feature("huge_cpu")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Test 2")
                 .status(TaskStatus::New)
                 .requires_feature("huge_cpu")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -253,11 +269,13 @@ mod tests {
                 .display_name("Test 1")
                 .status(TaskStatus::Running)
                 .write_lock("foo1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Test 2")
                 .status(TaskStatus::New)
                 .write_lock("foo2")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -273,11 +291,13 @@ mod tests {
                 .display_name("Test 1")
                 .status(TaskStatus::Running)
                 .read_lock("foo1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Test 2")
                 .status(TaskStatus::New)
                 .read_lock("foo1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -293,11 +313,13 @@ mod tests {
                 .display_name("Test 1")
                 .status(TaskStatus::Running)
                 .write_lock("foo1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Test 2")
                 .status(TaskStatus::New)
                 .read_lock("foo1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -313,6 +335,7 @@ mod tests {
                 .display_name("Test 1")
                 .status(TaskStatus::New)
                 .clean_lock("foo1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -328,11 +351,13 @@ mod tests {
                 .display_name("Test 5")
                 .status(TaskStatus::Finished(TaskResult::Success))
                 .write_lock("foo1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Test 1")
                 .status(TaskStatus::New)
                 .clean_lock("foo1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -348,11 +373,13 @@ mod tests {
                 .display_name("Im doing something")
                 .status(TaskStatus::Running)
                 .read_lock("foo1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Cleanup after")
                 .status(TaskStatus::New)
                 .clean_lock("foo1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -373,11 +400,13 @@ mod tests {
                 .display_name("Test 1")
                 .status(TaskStatus::New)
                 .clean_lock("foo1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Test 2")
                 .status(TaskStatus::New)
                 .read_lock("foo1")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -404,11 +433,13 @@ mod tests {
                 .display_name("Cleanup lock A")
                 .status(TaskStatus::New)
                 .clean_lock("lock_a")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Pending lock B")
                 .status(TaskStatus::New)
                 .read_lock("lock_b")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -425,16 +456,19 @@ mod tests {
                 .status(TaskStatus::NeedsUserValidation)
                 .write_lock("lock_a")
                 .read_lock("lock_b")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Task A2")
                 .status(TaskStatus::New)
                 .read_lock("lock_a")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Task B")
                 .status(TaskStatus::New)
                 .read_lock("lock_b")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -450,16 +484,19 @@ mod tests {
                 .display_name("Validation writer")
                 .status(TaskStatus::NeedsUserValidation)
                 .write_lock("shared_lock")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Validation reader")
                 .status(TaskStatus::NeedsUserValidation)
                 .read_lock("shared_lock")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("New reader")
                 .status(TaskStatus::New)
                 .read_lock("shared_lock")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -479,16 +516,19 @@ mod tests {
                 .display_name("Cleanup 1")
                 .status(TaskStatus::New)
                 .clean_lock("shared_lock")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Reader")
                 .status(TaskStatus::New)
                 .read_lock("shared_lock")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("Cleanup 2")
                 .status(TaskStatus::New)
                 .clean_lock("shared_lock")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
 
@@ -507,6 +547,7 @@ mod tests {
             Task::builder()
                 .display_name("I need to do something")
                 .write_lock("Entire Prod Cluster")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
         let mut poisoned_lock = Lock::write("Entire Prod Cluster");
@@ -524,10 +565,12 @@ mod tests {
             Task::builder()
                 .display_name("I need to do something")
                 .write_lock("Entire Prod Cluster")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
             Task::builder()
                 .display_name("I need to test something")
                 .write_lock("Entire Staging Cluster")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
         let mut poisoned_lock = Lock::write("Entire Prod Cluster");
@@ -548,6 +591,7 @@ mod tests {
             Task::builder()
                 .display_name("I need to do something")
                 .read_lock("Entire Prod Cluster")
+                .group_id(uuid::uuid!("00000000-0000-0000-0000-000000000000"))
                 .build_expect(),
         ];
         let mut poisoned_lock = Lock::read("Entire Prod Cluster");

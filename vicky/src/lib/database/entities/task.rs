@@ -87,7 +87,7 @@ pub struct Task {
     #[serde(with = "ts_seconds_option")]
     pub last_heartbeat: Option<DateTime<Utc>>,
 
-    pub group_id: Option<Uuid>,
+    pub group_id: Uuid,
 }
 
 impl Task {
@@ -316,7 +316,7 @@ pub mod db_impl {
 
         pub finished_at: Option<DateTime<Utc>>,
         pub last_heartbeat: Option<DateTime<Utc>>,
-        pub group_id: Option<Uuid>,
+        pub group_id: Uuid,
     }
 
     pub const STATE_NEEDS_USER_VALIDATION_STR: &str = "NEEDS_USER_VALIDATION";
